@@ -302,6 +302,7 @@ User can set the camera name and camera namespace, to distinguish between camera
   
   > ros2 service list
   /robot1/D455_1/describe_parameters
+  /robot1/D455_1/hw_reset
   /robot1/D455_1/device_info
   /robot1/D455_1/get_parameter_types
   /robot1/D455_1/get_parameters
@@ -333,6 +334,7 @@ User can set the camera name and camera namespace, to distinguish between camera
 
 > ros2 service list
 /camera/camera/describe_parameters
+/camera/camera/hw_reset
 /camera/camera/device_info
 /camera/camera/get_parameter_types
 /camera/camera/get_parameters
@@ -656,6 +658,10 @@ Each of the above filters have it's own parameters, following the naming convent
 <hr>
 
 ## Available services
+
+### hw_reset:
+  - reset the device. The call stops all the streams too.
+  - Call example: `ros2 service call /camera/camera/hw_reset std_srvs/srv/Empty`
 
 ### device_info:
   - retrieve information about the device - serial_number, firmware_version etc.
