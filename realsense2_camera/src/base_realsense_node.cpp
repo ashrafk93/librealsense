@@ -23,6 +23,8 @@
 // Header files for disabling intra-process comms for static broadcaster.
 #include <rclcpp/publisher_options.hpp>
 #include <tf2_ros/qos.hpp>
+#include "pointcloud_filter.h"
+#include "align_depth_filter.h"
 
 using namespace realsense2_camera;
 
@@ -598,6 +600,7 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
         }
 
         rs2::video_frame original_color_frame = frameset.get_color_frame();
+        rs2::video_frame original_infra2_frame = frameset.get_infrared_frame(2);
 
         ROS_DEBUG("num_filters: %d", static_cast<int>(_filters.size()));
         for (auto filter_it : _filters)
@@ -633,6 +636,11 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
                     if (original_color_frame && _align_depth_filter->is_enabled())
                     {
                         publishFrame(f, t, COLOR, _depth_aligned_image, _depth_aligned_info_publisher, _depth_aligned_image_publishers, false);
+                        continue;
+                    }
+                    if (original_infra2_frame && _align_depth_filter->is_enabled())
+                    {
+                        publishFrame(f, t, INFRA2, _depth_aligned_image, _depth_aligned_info_publisher, _depth_aligned_image_publishers, false);
                         continue;
                     }
                 }

@@ -144,6 +144,8 @@ set(SOURCES
     src/dynamic_params.cpp
     src/sensor_params.cpp
     src/named_filter.cpp
+    src/pointcloud_filter.cpp
+    src/align_depth_filter.cpp
     src/profile_manager.cpp
     src/image_publisher.cpp
     src/tfs.cpp
@@ -205,6 +207,8 @@ set(INCLUDES
     include/dynamic_params.h
     include/sensor_params.h
     include/named_filter.h
+    include/pointcloud_filter.h
+    include/align_depth_filter.h
     include/ros_param_backend.h
     include/profile_manager.h
     include/image_publisher.h)
