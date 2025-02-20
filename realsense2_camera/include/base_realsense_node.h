@@ -112,6 +112,8 @@ namespace realsense2_camera
             bool                                                _is_enabled;
     };
 
+    class AlignDepthFilter;
+    class PointcloudFilter;
     class BaseRealSenseNode
     {
     public:
