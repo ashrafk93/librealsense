@@ -280,7 +280,9 @@ User can set the camera name and camera namespace, to distinguish between camera
     
   - With ros2 run (using remapping mechanisim [Reference](https://docs.ros.org/en/humble/How-To-Guides/Node-arguments.html)):
     
-  ```ros2 run realsense2_camera realsense2_camera_node --ros-args -r __node:=D455_1 -r __ns:=robot1```
+  ```ros2 run realsense2_camera realsense2_camera_node --ros-args -r __node:=D455_1 -r __ns:=/robot1```
+
+  > ⚠️ **Note:** Using `ros2 run` may produce slightly different topics and services due to parameters not being initialized with the values assigned in `rs_launch.py`. This may result in additional topics such as IMU data.
 
   - Result
   ```
@@ -288,6 +290,7 @@ User can set the camera name and camera namespace, to distinguish between camera
   /robot1/D455_1
   
   > ros2 topic list
+  /parameter_events
   /robot1/D455_1/color/camera_info
   /robot1/D455_1/color/image_raw
   /robot1/D455_1/color/metadata
@@ -295,11 +298,21 @@ User can set the camera name and camera namespace, to distinguish between camera
   /robot1/D455_1/depth/image_rect_raw
   /robot1/D455_1/depth/metadata
   /robot1/D455_1/extrinsics/depth_to_color
-  /robot1/D455_1/imu
+  /robot1/D455_1/extrinsics/depth_to_depth
+  /rosout
+  /tf_static
   
   > ros2 service list
-  /robot1/D455_1/hw_reset
+  /robot1/D455_1/calib_config_read
+  /robot1/D455_1/calib_config_write
+  /robot1/D455_1/describe_parameters
   /robot1/D455_1/device_info
+  /robot1/D455_1/get_parameter_types
+  /robot1/D455_1/get_parameters
+  /robot1/D455_1/hw_reset
+  /robot1/D455_1/list_parameters
+  /robot1/D455_1/set_parameters
+  /robot1/D455_1/set_parameters_atomically
   ```
 
 ### Default behavior if non of these parameters are given:
@@ -318,11 +331,22 @@ User can set the camera name and camera namespace, to distinguish between camera
 /camera/camera/depth/image_rect_raw
 /camera/camera/depth/metadata
 /camera/camera/extrinsics/depth_to_color
-/camera/camera/imu
+/camera/camera/extrinsics/depth_to_depth
+/parameter_events
+/rosout
+/tf_static
 
 > ros2 service list
-/camera/camera/hw_reset
+/camera/camera/calib_config_read
+/camera/camera/calib_config_write
+/camera/camera/describe_parameters
 /camera/camera/device_info
+/camera/camera/get_parameter_types
+/camera/camera/get_parameters
+/camera/camera/hw_reset
+/camera/camera/list_parameters
+/camera/camera/set_parameters
+/camera/camera/set_parameters_atomically
 ```
 
 <hr>
