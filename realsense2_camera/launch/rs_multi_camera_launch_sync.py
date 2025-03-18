@@ -27,10 +27,11 @@
 import copy
 from launch import LaunchDescription, LaunchContext
 import launch_ros.actions
-from launch.actions import IncludeLaunchDescription, OpaqueFunction
+from launch.actions import IncludeLaunchDescription, OpaqueFunction, LogInfo
 from launch.substitutions import LaunchConfiguration, ThisLaunchFileDir
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import sys
+import os
 import pathlib
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 import rs_launch
@@ -55,15 +56,20 @@ def duplicate_params(general_params, posix):
     return local_params
 
 def launch_static_transform_publisher_node(context : LaunchContext):
+    # Dynamically choose Node or LifecycleNode
+    use_lifecycle_nodes = os.getenv('USE_LIFECYCLE_NODES', 'false').lower() == 'true'
+    node_action = launch_ros.actions.LifecycleNode if use_lifecycle_nodes else launch_ros.actions.Node
+    log_message = "Launching as LifecycleNode" if use_lifecycle_nodes else "Launching as Normal ROS Node"
+    
     # dummy static transformation from camera1 to camera2
-    node = launch_ros.actions.Node(
+    node = node_action(
             package = "tf2_ros",
             executable = "static_transform_publisher",
             arguments = ["0", "0", "0", "0", "0", "0",
                           context.launch_configurations['camera_name1'] + "_link",
                           context.launch_configurations['camera_name2'] + "_link"]
     )
-    return [node]
+    return [LogInfo(msg=f"🚀 {log_message}"), node]
 
 def generate_launch_description():
     params1 = duplicate_params(rs_launch.configurable_parameters, '1')

@@ -17,9 +17,8 @@ import os
 import yaml
 from launch import LaunchDescription
 import launch_ros.actions
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, LogInfo
 from launch.substitutions import LaunchConfiguration
-
 
 configurable_parameters = [{'name': 'camera_name',                  'default': 'camera', 'description': 'camera unique name'},
                            {'name': 'camera_namespace',             'default': 'camera', 'description': 'namespace for camera'},
@@ -107,7 +106,14 @@ def launch_setup(context, params, param_name_suffix=''):
     _config_file = LaunchConfiguration('config_file' + param_name_suffix).perform(context)
     params_from_file = {} if _config_file == "''" else yaml_to_dict(_config_file)
 
+    use_lifecycle_nodes = os.getenv('USE_LIFECYCLE_NODES', 'false').lower() == 'true'
+
     _output = LaunchConfiguration('output' + param_name_suffix)
+    
+    # Dynamically choose Node or LifecycleNode
+    node_action = launch_ros.actions.LifecycleNode if use_lifecycle_nodes else launch_ros.actions.Node
+    log_message = "Launching as LifecycleNode" if use_lifecycle_nodes else "Launching as Normal ROS Node"
+
     if(os.getenv('ROS_DISTRO') == 'foxy'):
         # Foxy doesn't support output as substitution object (LaunchConfiguration object)
         # but supports it as string, so we fetch the string from this substitution object
@@ -115,7 +121,8 @@ def launch_setup(context, params, param_name_suffix=''):
         _output = context.perform_substitution(_output)
 
     return [
-        launch_ros.actions.Node(
+        LogInfo(msg=f"🚀 {log_message}"),
+        node_action(
             package='realsense2_camera',
             namespace=LaunchConfiguration('camera_namespace' + param_name_suffix),
             name=LaunchConfiguration('camera_name' + param_name_suffix),

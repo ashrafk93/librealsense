@@ -16,7 +16,7 @@
 
 namespace realsense2_camera
 {
-    Parameters::Parameters(rclcpp::Node& node) :
+    Parameters::Parameters(RosNodeBase& node) :
     _node(node),
     _logger(node.get_logger()),
     _params_backend(node),

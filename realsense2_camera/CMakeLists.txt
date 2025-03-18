@@ -30,6 +30,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 option(BUILD_WITH_OPENMP "Use OpenMP" OFF)
 option(SET_USER_BREAK_AT_STARTUP "Set user wait point in startup (for debug)" OFF)
+# Define an option to enable or disable lifecycle nodes
+option(USE_LIFECYCLE_NODES "Enable lifecycle nodes (ON/OFF)" OFF)
 
 # Compiler Defense Flags
 if(UNIX OR APPLE)
@@ -107,6 +109,8 @@ find_package(builtin_interfaces REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(realsense2_camera_msgs REQUIRED)
@@ -198,6 +202,14 @@ if (BUILD_ACCELERATE_GPU_WITH_GLSL)
   add_definitions(-DACCELERATE_GPU_WITH_GLSL)
 endif()
 
+# If the flag is enabled, define the macro
+if(USE_LIFECYCLE_NODES)
+    add_definitions(-DUSE_LIFECYCLE_NODES)
+    message("🚀 USE_LIFECYCLE_NODES is ENABLED")
+else()
+    message("❌ USE_LIFECYCLE_NODES is DISABLED")
+endif()
+
 set(INCLUDES
     include/constants.h
     include/realsense_node_factory.h
@@ -248,6 +260,8 @@ set(dependencies
   cv_bridge
   image_transport
   rclcpp
+  rclcpp_lifecycle
+  lifecycle_msgs
   rclcpp_components
   realsense2_camera_msgs
   std_srvs

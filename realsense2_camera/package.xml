@@ -19,6 +19,8 @@
   <depend>image_transport</depend>
   <depend>librealsense2</depend>
   <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>lifecycle_msgs</depend>
   <depend>rclcpp_components</depend>
   <depend>realsense2_camera_msgs</depend>
   <depend>sensor_msgs</depend>
