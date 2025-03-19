@@ -293,21 +293,6 @@ std::string api_version_to_string(int version)
     return ss.str();
 }
 
-template<typename T>
-T RealSenseNodeFactory::declareSafeParameter(const std::string& param_name, const T& default_value)
-{
-    // Declare parameter if not already declared
-    if (!this->has_parameter(param_name))
-    {
-        this->declare_parameter(param_name, rclcpp::ParameterValue(default_value));
-    }
-
-    // Retrieve the parameter value safely
-    return this->get_parameter(param_name).get_value<T>();
-}
-
-
-
 void RealSenseNodeFactory::init()
 {
     try
@@ -340,17 +325,17 @@ void RealSenseNodeFactory::init()
         std::cout << "Press <ENTER> key to continue." << std::endl;
         std::cin.get();
 #endif
-        // Using `declareSafeParameter()` to avoid re-declaration issues
-        _serial_no = declareSafeParameter("serial_no", rclcpp::ParameterValue("")).get<rclcpp::PARAMETER_STRING>();
-        _usb_port_id = declareSafeParameter("_usb_port_id", rclcpp::ParameterValue("")).get<rclcpp::PARAMETER_STRING>();
-        _device_type = declareSafeParameter("_device_type", rclcpp::ParameterValue("")).get<rclcpp::PARAMETER_STRING>();
-        _wait_for_device_timeout = declareSafeParameter("wait_for_device_timeout", rclcpp::ParameterValue(-1.0)).get<rclcpp::PARAMETER_DOUBLE>();
-        _reconnect_timeout = declareSafeParameter("reconnect_timeout", rclcpp::ParameterValue(6.0)).get<rclcpp::PARAMETER_DOUBLE>();
+        // Using `getOrDeclareParameter()` to avoid re-declaration issues
+        _serial_no = _parameters->getOrDeclareParameter<std::string>("serial_no", "");
+        _usb_port_id = _parameters->getOrDeclareParameter<std::string>("_usb_port_id", "");
+        _device_type = _parameters->getOrDeclareParameter<std::string>("_device_type", "");
+        _wait_for_device_timeout = _parameters->getOrDeclareParameter<double>("wait_for_device_timeout", -1.0);
+        _reconnect_timeout = _parameters->getOrDeclareParameter<double>("reconnect_timeout", 6.0);
 
         // A ROS2 hack: until a better way is found to avoid auto convertion of strings containing only digits to integers:
         if (!_serial_no.empty() && _serial_no.front() == '_') _serial_no = _serial_no.substr(1);    // remove '_' prefix
 
-        std::string rosbag_filename(declareSafeParameter("rosbag_filename", rclcpp::ParameterValue("")).get<rclcpp::PARAMETER_STRING>());
+        std::string rosbag_filename(_parameters->getOrDeclareParameter<std::string>("rosbag_filename", ""));
         if (!rosbag_filename.empty())
         {
             {
@@ -361,7 +346,7 @@ void RealSenseNodeFactory::init()
             }
             if (_device)
             {
-                bool rosbag_loop(declare_parameter("rosbag_loop", rclcpp::ParameterValue(false)).get<rclcpp::PARAMETER_BOOL>());
+                bool rosbag_loop(_parameters->getOrDeclareParameter<bool>("rosbag_loop", false));
                 startDevice();
 
                 if (rosbag_loop)
@@ -398,7 +383,7 @@ void RealSenseNodeFactory::init()
         }
         else
         {
-            _initial_reset = declareSafeParameter("initial_reset", rclcpp::ParameterValue(false)).get<bool>();
+            _initial_reset = _parameters->getOrDeclareParameter<bool>("initial_reset",false);
 
             _query_thread = std::thread([=]()
             {
@@ -536,11 +521,9 @@ void RealSenseNodeFactory::closeDevice()
     {
         ROS_INFO("Closing RealSense device...");
         _ctx.set_devices_changed_callback([](rs2::event_information&) {});
-        _device.hardware_reset();
-        _device = rs2::device();
 
-        // Reset RealSense context (re-initialize)
-        _ctx = rs2::context();
+        // To go into unconfigured lifecycle state for lifecycled node we have to also disconnect the device
+        _device = rs2::device();
     }
 }
 

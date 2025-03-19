@@ -109,8 +109,6 @@ find_package(builtin_interfaces REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(rclcpp_lifecycle REQUIRED)
-find_package(lifecycle_msgs REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(realsense2_camera_msgs REQUIRED)
@@ -202,14 +200,6 @@ if (BUILD_ACCELERATE_GPU_WITH_GLSL)
   add_definitions(-DACCELERATE_GPU_WITH_GLSL)
 endif()
 
-# If the flag is enabled, define the macro
-if(USE_LIFECYCLE_NODES)
-    add_definitions(-DUSE_LIFECYCLE_NODES)
-    message("🚀 USE_LIFECYCLE_NODES is ENABLED")
-else()
-    message("❌ USE_LIFECYCLE_NODES is DISABLED")
-endif()
-
 set(INCLUDES
     include/constants.h
     include/realsense_node_factory.h
@@ -260,8 +250,6 @@ set(dependencies
   cv_bridge
   image_transport
   rclcpp
-  rclcpp_lifecycle
-  lifecycle_msgs
   rclcpp_components
   realsense2_camera_msgs
   std_srvs
@@ -278,6 +266,26 @@ if (BUILD_ACCELERATE_GPU_WITH_GLSL)
 else()
   list(APPEND dependencies realsense2)
 endif()
+
+# If the flag is enabled, define the macro
+if(USE_LIFECYCLE_NODES)
+    find_package(rclcpp_lifecycle REQUIRED)
+    find_package(lifecycle_msgs REQUIRED)
+    list(APPEND dependencies rclcpp_lifecycle lifecycle_msgs)
+    add_definitions(-DUSE_LIFECYCLE_NODES)
+    message("🚀 USE_LIFECYCLE_NODES is ENABLED")
+
+    # Create a configuration file for the launch file
+    file(WRITE "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
+        "use_lifecycle_nodes: true\n")
+else()
+    message("❌ USE_LIFECYCLE_NODES is DISABLED")
+    file(WRITE "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
+        "use_lifecycle_nodes: false\n")
+endif()
+
+install(FILES "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
+    DESTINATION share/${PROJECT_NAME}/config)
 
 ament_target_dependencies(${PROJECT_NAME}
   ${dependencies}

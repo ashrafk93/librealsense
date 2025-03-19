@@ -53,10 +53,6 @@ namespace realsense2_camera
         #endif
 
     private:
-
-        template<typename T>
-        T declareSafeParameter(const std::string& param_name, const T& default_value);
-
         void init();
         void closeDevice();
         void startDevice();

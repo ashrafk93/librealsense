@@ -251,7 +251,7 @@
 
 # ROS2 LifeCycleNode
 
-The `USE_LIFECYCLE_NODES` cmake flag enables **ROS2 Lifecycle Nodes** (`rclcpp_lifecycle::LifecycleNode`) in the **Realsense SDK**, providing better node management and explicit state transitions.  
+The `USE_LIFECYCLE_NODES` cmake flag enables **ROS2 Lifecycle Node** (`rclcpp_lifecycle::LifecycleNode`) in the **Realsense SDK**, providing better node management and explicit state transitions.  
 
 However, enabling this flag introduces a limitation where **Image Transport functionality (`image_transport`) is** <span style="color:#ff6666">**disabled**</span> **when `USE_LIFECYCLE_NODES=ON`**.  
 This means that **compressed image topics (e.g., JPEG, PNG, Theora) will not be available** and<br>
@@ -259,12 +259,10 @@ This means that **compressed image topics (e.g., JPEG, PNG, Theora) will not be 
 
 > Note: Users who do not depend on image_transport will not be affected by this change and can safely enable Lifecycle Nodes without any impact on their workflow.
 
-### 📌 Why Does This Limitation Exist?
-The `image_transport` package does **not support Lifecycle Nodes** (`rclcpp_lifecycle::LifecycleNode`).  
-This is a known issue in the ROS community, and you can find more details in the discussion here:  
-🔗 [ROS2 `image_transport` does not support Lifecycle Nodes](https://github.com/ros-perception/image_common/issues/108).  
+### 📌 Why This Limitation?
 
-Since `image_transport::create_publisher()` requires an `rclcpp::Node`, but **Lifecycle Nodes do not inherit from `rclcpp::Node` directly**, `image_transport` cannot be used in a lifecycle-based architecture.
+At the time Lifecycle Node support was added, image_transport did not support rclcpp_lifecycle::LifecycleNode.<br>
+🔗 [ROS2 `image_transport` does not support Lifecycle Nodes](https://github.com/ros-perception/image_common/issues/108).  
 
 To build the SDK with Lifecycle Nodes enabled:
 ```bash
@@ -301,7 +299,6 @@ The RealSense node follows the ROS2 managed lifecycle. Below is a breakdown of e
     ros2 run realsense2_camera realsense2_camera_node --ros-args -p enable_color:=false -p spatial_filter.enable:=true -p temporal_filter.enable:=true
   
   #### with ros2 launch:
-    export USE_LIFECYCLE_NODES=true/false # default is false
     ros2 launch realsense2_camera rs_launch.py
     ros2 launch realsense2_camera rs_launch.py depth_module.depth_profile:=1280x720x30 pointcloud.enable:=true
 <hr>
