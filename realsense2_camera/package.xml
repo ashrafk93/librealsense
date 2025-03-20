@@ -20,7 +20,7 @@
   <depend>librealsense2</depend>
   <depend>rclcpp</depend>
 
-  <!-- Lifecycle dependencies are optional -DUSER_LIFECYCLE_NODE -->
+  <!-- Lifecycle dependencies are optional -DUSE_LIFECYCLE_NODE -->
   <depend>rclcpp_lifecycle</depend>
   <depend>lifecycle_msgs</depend>
 
