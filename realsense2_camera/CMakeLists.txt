@@ -279,7 +279,6 @@ if(USE_LIFECYCLE_NODE)
     file(WRITE "${CMAKE_BINARY_DIR}/global_settings.yaml"
         "use_lifecycle_node: true\n")
 else()
-    message("❌ USE_LIFECYCLE_NODE is DISABLED")
     file(WRITE "${CMAKE_BINARY_DIR}/global_settings.yaml"
         "use_lifecycle_node: false\n")
 endif()
