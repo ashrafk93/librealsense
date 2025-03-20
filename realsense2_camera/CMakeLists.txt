@@ -31,7 +31,7 @@ endif()
 option(BUILD_WITH_OPENMP "Use OpenMP" OFF)
 option(SET_USER_BREAK_AT_STARTUP "Set user wait point in startup (for debug)" OFF)
 # Define an option to enable or disable lifecycle nodes
-option(USE_LIFECYCLE_NODES "Enable lifecycle nodes (ON/OFF)" OFF)
+option(USE_LIFECYCLE_NODE "Enable lifecycle nodes (ON/OFF)" OFF)
 
 # Compiler Defense Flags
 if(UNIX OR APPLE)
@@ -268,20 +268,20 @@ else()
 endif()
 
 # If the flag is enabled, define the macro
-if(USE_LIFECYCLE_NODES)
+if(USE_LIFECYCLE_NODE)
     find_package(rclcpp_lifecycle REQUIRED)
     find_package(lifecycle_msgs REQUIRED)
     list(APPEND dependencies rclcpp_lifecycle lifecycle_msgs)
-    add_definitions(-DUSE_LIFECYCLE_NODES)
-    message("🚀 USE_LIFECYCLE_NODES is ENABLED")
+    add_definitions(-DUSE_LIFECYCLE_NODE)
+    message("🚀 USE_LIFECYCLE_NODE is ENABLED")
 
     # Create a configuration file for the launch file
     file(WRITE "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
-        "use_lifecycle_nodes: true\n")
+        "use_lifecycle_node: true\n")
 else()
-    message("❌ USE_LIFECYCLE_NODES is DISABLED")
+    message("❌ USE_LIFECYCLE_NODE is DISABLED")
     file(WRITE "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
-        "use_lifecycle_nodes: false\n")
+        "use_lifecycle_node: false\n")
 endif()
 
 install(FILES "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"

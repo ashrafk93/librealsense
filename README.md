@@ -251,27 +251,27 @@
 
 # ROS2 LifeCycleNode
 
-The `USE_LIFECYCLE_NODES` cmake flag enables **ROS2 Lifecycle Node** (`rclcpp_lifecycle::LifecycleNode`) in the **Realsense SDK**, providing better node management and explicit state transitions.  
+The `USE_LIFECYCLE_NODE` cmake flag enables **ROS2 Lifecycle Node** (`rclcpp_lifecycle::LifecycleNode`) in the **Realsense SDK**, providing better node management and explicit state transitions.  
 
-However, enabling this flag introduces a limitation where **Image Transport functionality (`image_transport`) is** <span style="color:#ff6666">**disabled**</span> **when `USE_LIFECYCLE_NODES=ON`**.  
+However, enabling this flag introduces a limitation where **Image Transport functionality (`image_transport`) is** <span style="color:#ff6666">**disabled**</span> **when `USE_LIFECYCLE_NODE=ON`**.  
 This means that **compressed image topics (e.g., JPEG, PNG, Theora) will not be available** and<br>
 **Subscribers** must use raw image topics, which may increase bandwidth usage.
 
-> Note: Users who do not depend on image_transport will not be affected by this change and can safely enable Lifecycle Nodes without any impact on their workflow.
+> Note: Users who do not depend on image_transport will not be affected by this change and can safely enable Lifecycle Node without any impact on their workflow.
 
 ### 📌 Why This Limitation?
 
 At the time Lifecycle Node support was added, image_transport did not support rclcpp_lifecycle::LifecycleNode.<br>
-🔗 [ROS2 `image_transport` does not support Lifecycle Nodes](https://github.com/ros-perception/image_common/issues/108).  
+🔗 [ROS2 `image_transport` does not support Lifecycle Node](https://github.com/ros-perception/image_common/issues/108).  
 
-To build the SDK with Lifecycle Nodes enabled:
+To build the SDK with Lifecycle Node enabled:
 ```bash
-colcon build --cmake-args -DUSE_LIFECYCLE_NODES=ON
+colcon build --cmake-args -DUSE_LIFECYCLE_NODE=ON
 ```  
 
-To use standard ROS2 nodes **(default behavior)** and retain image_transport functionality:
+To use standard ROS2 node **(default behavior)** and retain image_transport functionality:
 ```bash
-colcon build --cmake-args -DUSE_LIFECYCLE_NODES=OFF
+colcon build --cmake-args -DUSE_LIFECYCLE_NODE=OFF
 ```
 
 ### Lifecycle State Transitions

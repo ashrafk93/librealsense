@@ -1,4 +1,4 @@
-// Copyright 2023 Intel Corporation. All Rights Reserved.
+// Copyright 2025 Intel Corporation. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 // Define RosNodeBase Alias
-#ifdef USE_LIFECYCLE_NODES
+#ifdef USE_LIFECYCLE_NODE
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 using RosNodeBase = rclcpp_lifecycle::LifecycleNode;
 #else

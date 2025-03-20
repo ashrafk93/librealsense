@@ -111,13 +111,13 @@ def launch_setup(context, params, param_name_suffix=''):
         os.path.dirname(__file__), '..', 'config', 'lifecycle_nodes.yaml'
     )
     lifecycle_params = yaml_to_dict(lifecycle_param_file)
-    use_lifecycle_nodes = lifecycle_params.get("use_lifecycle_nodes", False)
+    use_lifecycle_node = lifecycle_params.get("use_lifecycle_node", False)
 
     _output = LaunchConfiguration('output' + param_name_suffix)
     
     # Dynamically choose Node or LifecycleNode
-    node_action = launch_ros.actions.LifecycleNode if use_lifecycle_nodes else launch_ros.actions.Node
-    log_message = "Launching as LifecycleNode" if use_lifecycle_nodes else "Launching as Normal ROS Node"
+    node_action = launch_ros.actions.LifecycleNode if use_lifecycle_node else launch_ros.actions.Node
+    log_message = "Launching as LifecycleNode" if use_lifecycle_node else "Launching as Normal ROS Node"
 
     if(os.getenv('ROS_DISTRO') == 'foxy'):
         # Foxy doesn't support output as substitution object (LaunchConfiguration object)

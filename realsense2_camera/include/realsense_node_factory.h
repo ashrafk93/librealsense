@@ -43,7 +43,7 @@ namespace realsense2_camera
             const std::string & node_name, const std::string & ns,
             const rclcpp::NodeOptions & node_options = rclcpp::NodeOptions());
         virtual ~RealSenseNodeFactory();
-        #ifdef USE_LIFECYCLE_NODES
+        #ifdef USE_LIFECYCLE_NODE
             using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
             CallbackReturn on_configure(const rclcpp_lifecycle::State & state) override;
             CallbackReturn on_activate(const rclcpp_lifecycle::State & state) override;

@@ -61,10 +61,10 @@ def launch_static_transform_publisher_node(context : LaunchContext):
         os.path.dirname(__file__), '..', 'config', 'lifecycle_nodes.yaml'
     )
     lifecycle_params = yaml_to_dict(lifecycle_param_file)
-    use_lifecycle_nodes = lifecycle_params.get("use_lifecycle_nodes", False)
+    use_lifecycle_node = lifecycle_params.get("use_lifecycle_node", False)
 
-    node_action = launch_ros.actions.LifecycleNode if use_lifecycle_nodes else launch_ros.actions.Node
-    log_message = "Launching as LifecycleNode" if use_lifecycle_nodes else "Launching as Normal ROS Node"
+    node_action = launch_ros.actions.LifecycleNode if use_lifecycle_node else launch_ros.actions.Node
+    log_message = "Launching as LifecycleNode" if use_lifecycle_node else "Launching as Normal ROS Node"
     
     # dummy static transformation from camera1 to camera2
     node = node_action(

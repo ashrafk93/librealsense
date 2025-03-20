@@ -34,14 +34,14 @@ RealSenseNodeFactory::RealSenseNodeFactory(const rclcpp::NodeOptions & node_opti
     RosNodeBase("camera", "/camera", node_options),
     _logger(this->get_logger())
 {
-    #ifndef USE_LIFECYCLE_NODES
+    #ifndef USE_LIFECYCLE_NODE
     init();
     #else
     RCLCPP_INFO(get_logger(), "Transition: Unconfigured...");
     #endif
 }
 
-#ifdef USE_LIFECYCLE_NODES
+#ifdef USE_LIFECYCLE_NODE
 RealSenseNodeFactory::CallbackReturn
 RealSenseNodeFactory::on_configure(const rclcpp_lifecycle::State & state)
 {
@@ -399,7 +399,7 @@ void RealSenseNodeFactory::init()
                             std::function<void(rs2::event_information&)> change_device_callback_function = [this](rs2::event_information& info){changeDeviceCallback(info);};
                             _ctx.set_devices_changed_callback(change_device_callback_function);
                             // unconfigure lifecycle state ends here for lifecycled node
-                            #ifndef USE_LIFECYCLE_NODES
+                            #ifndef USE_LIFECYCLE_NODE
                             startDevice();
                             #endif
                         }
