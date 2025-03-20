@@ -276,15 +276,15 @@ if(USE_LIFECYCLE_NODE)
     message("🚀 USE_LIFECYCLE_NODE is ENABLED")
 
     # Create a configuration file for the launch file
-    file(WRITE "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
+    file(WRITE "${CMAKE_BINARY_DIR}/global_settings.yaml"
         "use_lifecycle_node: true\n")
 else()
     message("❌ USE_LIFECYCLE_NODE is DISABLED")
-    file(WRITE "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
+    file(WRITE "${CMAKE_BINARY_DIR}/global_settings.yaml"
         "use_lifecycle_node: false\n")
 endif()
 
-install(FILES "${CMAKE_BINARY_DIR}/lifecycle_nodes.yaml"
+install(FILES "${CMAKE_BINARY_DIR}/global_settings.yaml"
     DESTINATION share/${PROJECT_NAME}/config)
 
 ament_target_dependencies(${PROJECT_NAME}
