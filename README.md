@@ -30,6 +30,7 @@
   * [ROS1 and ROS2 legacy](#ros1-and-ros2-legacy)
   * [Installation on Ubuntu](#installation-on-ubuntu)
   * [Installation on Windows](#installation-on-windows)
+  * [ROS2 LifeCycleNode](#ros2-lifecyclenode)
   * [Usage](#usage)
      * [Starting the camera node](#start-the-camera-node)
      * [Camera name and namespace](#camera-name-and-camera-namespace)
@@ -247,6 +248,47 @@
 <hr>
 
 
+
+# ROS2 LifeCycleNode
+
+The `USE_LIFECYCLE_NODE` cmake flag enables **ROS2 Lifecycle Node** (`rclcpp_lifecycle::LifecycleNode`) in the **Realsense SDK**, providing better node management and explicit state transitions.  
+
+However, enabling this flag introduces a limitation where **Image Transport functionality (`image_transport`) is** <span style="color:#ff6666">**disabled**</span> **when `USE_LIFECYCLE_NODE=ON`**.  
+This means that **compressed image topics (e.g., JPEG, PNG, Theora) will not be available** and<br>
+**Subscribers** must use raw image topics, which may increase bandwidth usage.
+
+> Note: Users who do not depend on image_transport will not be affected by this change and can safely enable Lifecycle Node without any impact on their workflow.
+
+### 📌 Why This Limitation?
+
+At the time Lifecycle Node support was added, image_transport did not support rclcpp_lifecycle::LifecycleNode.<br>
+🔗 [ROS2 `image_transport` does not support Lifecycle Node](https://github.com/ros-perception/image_common/issues/108).  
+
+To build the SDK with Lifecycle Node enabled:
+```bash
+colcon build --cmake-args -DUSE_LIFECYCLE_NODE=ON
+```  
+
+To use standard ROS2 node **(default behavior)** and retain image_transport functionality:
+```bash
+colcon build --cmake-args -DUSE_LIFECYCLE_NODE=OFF
+```
+
+### Lifecycle State Transitions
+The RealSense node follows the ROS2 managed lifecycle. Below is a breakdown of each state and the corresponding function calls:
+
+| **State**         | **Transition Function**       | **Description** |
+|-------------------|-----------------------------|-----------------|
+| `UNCONFIGURED`   | **Node Created**             | The node is instantiated but not initialized. |
+| `CONFIGURING`    | `on_configure()` → `init()`  | Initializes parameters and attempts to discover the RealSense device. |
+| `INACTIVE`       | -                            | The node is initialized but not yet publishing data. |
+| `ACTIVATING`     | `on_activate()` → `startDevice()` | Starts the RealSense device and begins publishing topics. |
+| `ACTIVE`         | -                            | The node is fully operational and publishing data. |
+| `DEACTIVATING`   | `on_deactivate()` → `stopDevice()` | Stops publishing but retains device configuration. |
+| `CLEANUP`        | `on_cleanup()` → `closeDevice()` | Resets all resources, allowing reconfiguration. |
+| `SHUTDOWN`       | `on_shutdown()` → `closeDevice()` | Cleans up before process termination (doesnt actually terminate the process itself due to ROS2 composable nodes and component manager ) |
+<hr>
+
 # Usage
 
 ## Start the camera node
@@ -259,7 +301,6 @@
   #### with ros2 launch:
     ros2 launch realsense2_camera rs_launch.py
     ros2 launch realsense2_camera rs_launch.py depth_module.depth_profile:=1280x720x30 pointcloud.enable:=true
-
 <hr>
 
 ## Camera Name And Camera Namespace
