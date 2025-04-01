@@ -126,6 +126,12 @@ def find_devices_run_tests():
     global logdir, device_set, _device_by_sn
     max_retry = 3
 
+    # Mapping of device names to YKUSH hub ports (example mapping)
+    device_port_mapping = {
+        'D455': 1,  # Port 1 for D455
+        'D435I': 2  # Port 2 for D435I
+    }
+    
     try:
         os.makedirs( logdir, exist_ok=True )
 
@@ -150,6 +156,18 @@ def find_devices_run_tests():
             for device in device_set:
                 if device.upper() in connected_devices:
                     log.i('Running tests on device:', device)
+                    
+                    # Enable the port for the target device
+                    port = device_port_mapping.get(device.upper())
+                    if port:
+                        subprocess.run(f'ykushcmd ykush3 -u {port}', shell=True)
+                        time.sleep(2.0)  # Allow time for the device to initialize
+
+                    # Disable all other ports
+                    for other_device, other_port in device_port_mapping.items():
+                        if other_device != device.upper():
+                            subprocess.run(f'ykushcmd ykush3 -d {other_port}', shell=True)
+                            
                     cmd = command(device.lower(), testname)
                     run_test(cmd, testname, device, stdout=logdir, append =False)
                 else:
