@@ -121,16 +121,48 @@ def junit_xml_parsing(xml_file):
         new_xml = xml_file.split('.')[0]
         tree.write(f'{logdir}/{new_xml}_refined.xml')
 
+def build_device_port_mapping(possible_ports):
+    from rspy import devices
+    mapping = {}
+
+    # Turn off all ports first
+    for port in possible_ports:
+        subprocess.run(f'ykushcmd ykush3 -d {port}', shell=True)
+    time.sleep(2.5)
+
+    for port in possible_ports:
+        log.i(f"Checking YKUSH port {port}...")
+
+        subprocess.run(f'ykushcmd ykush3 -u {port}', shell=True)
+        time.sleep(5.0)
+
+        devices.query(hub_reset=True)
+
+        for device in devices._device_by_sn.values():
+            key = device.name.upper()
+            if key not in mapping:
+                mapping[key] = port
+                log.i(f"Detected device: {device.name} ({device._sn}) on port {port}")
+
+        subprocess.run(f'ykushcmd ykush3 -d {port}', shell=True)
+
+    return mapping
+
 def find_devices_run_tests():
     from rspy import devices
     global logdir, device_set, _device_by_sn
     max_retry = 3
 
-    # Mapping of device names to YKUSH hub ports (example mapping)
-    device_port_mapping = {
-        'D455': 1,  # Port 1 for D455
-        'D435I': 2  # Port 2 for D435I
-    }
+    # # Mapping of device names to YKUSH hub ports (example mapping)
+    # device_port_mapping = {
+    #     'D455': 1,  # Port 1 for D455
+    #     'D435I': 2  # Port 2 for D435I
+    # }
+    
+    # Define which ports are connected to YKUSH (e.g. 1, 2, 3...)
+    possible_ports = [1, 2, 3]
+    device_port_mapping = build_device_port_mapping(possible_ports)
+    log.i("Device to port mapping:", device_port_mapping)
     
     try:
         os.makedirs( logdir, exist_ok=True )
@@ -160,6 +192,7 @@ def find_devices_run_tests():
                     # Enable the port for the target device
                     port = device_port_mapping.get(device.upper())
                     if port:
+                        log.i(f"Enabling port {port} for device {device.upper()}")
                         subprocess.run(f'ykushcmd ykush3 -u {port}', shell=True)
                         time.sleep(2.0)  # Allow time for the device to initialize
 
