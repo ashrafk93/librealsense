@@ -122,6 +122,9 @@ def junit_xml_parsing(xml_file):
         tree.write(f'{logdir}/{new_xml}_refined.xml')
 
 def build_device_port_mapping(possible_ports):
+    """
+    Build a mapping of devices to YKUSH hub ports by enabling each port and querying connected devices.
+    """
     from rspy import devices
     mapping = {}
 
@@ -148,30 +151,62 @@ def build_device_port_mapping(possible_ports):
 
     return mapping
 
+
+def disable_all_ports(device_port_mapping):
+    """
+    Disable all ports on the YKUSH hub.
+    """
+    log.i("Disabling all ports...")
+    for port in device_port_mapping.values():
+        subprocess.run(f'ykushcmd ykush3 -d {port}', shell=True)
+    time.sleep(2.5)  # Wait for the system to unregister devices
+
+
+def enable_port_for_device(device, device_port_mapping):
+    """
+    Enable the port for the specified device.
+    """
+    port = device_port_mapping.get(device.upper())
+    if port:
+        log.i(f"Enabling port {port} for device {device.upper()}")
+        subprocess.run(f'ykushcmd ykush3 -u {port}', shell=True)
+        time.sleep(5.0)  # Wait for re-enumeration
+    else:
+        log.e(f"No port mapping found for device {device.upper()}")
+
+
+def run_tests_for_device(device, testname, device_port_mapping):
+    """
+    Run tests for a specific device by enabling its port and executing the test command.
+    """
+    disable_all_ports(device_port_mapping)  # Disable all ports first
+    enable_port_for_device(device, device_port_mapping)  # Enable the port for the target device
+
+    cmd = command(device.lower(), testname)
+    run_test(cmd, testname, device, stdout=logdir, append=False)
+
+
 def find_devices_run_tests():
+    """
+    Main function to find devices and run tests on them.
+    """
     from rspy import devices
     global logdir, device_set, _device_by_sn
     max_retry = 3
 
-    # # Mapping of device names to YKUSH hub ports (example mapping)
-    # device_port_mapping = {
-    #     'D455': 1,  # Port 1 for D455
-    #     'D435I': 2  # Port 2 for D435I
-    # }
-    
-    # Define which ports are connected to YKUSH (e.g. 1, 2, 3...)
+    # Define which ports are connected to YKUSH (e.g., 1, 2, 3...)
     possible_ports = [1, 2, 3]
     device_port_mapping = build_device_port_mapping(possible_ports)
     log.i("Device to port mapping:", device_port_mapping)
-    
-    try:
-        os.makedirs( logdir, exist_ok=True )
 
-        #Update dict '_device_by_sn' from devices module of rspy
-        while(max_retry and not devices._device_by_sn):
+    try:
+        os.makedirs(logdir, exist_ok=True)
+
+        # Update dict '_device_by_sn' from devices module of rspy
+        while max_retry and not devices._device_by_sn:
             subprocess.run('ykushcmd ykush3 --reset', shell=True)
             time.sleep(2.0)
-            devices.query( hub_reset = hub_reset )
+            devices.query(hub_reset=hub_reset)
             max_retry -= 1
 
         if not devices._device_by_sn:
@@ -183,36 +218,21 @@ def find_devices_run_tests():
         testname = regex if regex else None
 
         if device_set:
-            #Loop in for user specified devices and run tests only on them
+            # Loop through user-specified devices and run tests only on them
             devices_not_found = []
             for device in device_set:
                 if device.upper() in connected_devices:
                     log.i('Running tests on device:', device)
-                    
-                    # Enable the port for the target device
-                    port = device_port_mapping.get(device.upper())
-                    if port:
-                        log.i(f"Enabling port {port} for device {device.upper()}")
-                        subprocess.run(f'ykushcmd ykush3 -u {port}', shell=True)
-                        time.sleep(2.0)  # Allow time for the device to initialize
-
-                    # Disable all other ports
-                    for other_device, other_port in device_port_mapping.items():
-                        if other_device != device.upper():
-                            subprocess.run(f'ykushcmd ykush3 -d {other_port}', shell=True)
-                            
-                    cmd = command(device.lower(), testname)
-                    run_test(cmd, testname, device, stdout=logdir, append =False)
+                    run_tests_for_device(device, testname, device_port_mapping)
                 else:
-                   log.e('Skipping test run on device:', device, ', -- NOT found' )
-                   devices_not_found.append(device)
-            assert len(devices_not_found) == 0, f'Devices not found:{devices_not_found}'
+                    log.e('Skipping test run on device:', device, ', -- NOT found')
+                    devices_not_found.append(device)
+            assert len(devices_not_found) == 0, f'Devices not found: {devices_not_found}'
         else:
-            #Loop in for all connected devices and run all tests
+            # Loop through all connected devices and run all tests
             for device in connected_devices:
-                    log.i('Running tests on device:', device)
-                    cmd = command(device.lower(), testname)
-                    run_test(cmd, testname, device, stdout=logdir, append =False)
+                log.i('Running tests on device:', device)
+                run_tests_for_device(device, testname, device_port_mapping)
     finally:
         if devices.hub and devices.hub.is_connected():
             devices.hub.disable_ports()
@@ -223,7 +243,7 @@ def find_devices_run_tests():
         else:
             log.i("log path:", logdir)
         run_time = time.time() - start_time
-        log.d( "server took", run_time, "seconds" )
+        log.d("server took", run_time, "seconds")
 
 if __name__ == '__main__':
     try:
