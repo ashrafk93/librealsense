@@ -194,7 +194,7 @@ def run_tests_for_device(device, testname):
 
 def find_devices_run_tests():
     """
-    Main function to find devices and run tests on them.
+    Main function to find devices and run tests on them. 
     """
     from rspy import devices
     global logdir, device_set, _device_by_sn
