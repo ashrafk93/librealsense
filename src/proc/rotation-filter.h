@@ -38,8 +38,6 @@ namespace librealsense
         uint16_t                  _rotated_height;
         float _value;
         std::map< std::pair< rs2_stream, int >, float > _last_rotation_values;
-        std::map< std::pair< rs2_stream, int >, rs2::stream_profile > _target_stream_profiles;
-        std::map< std::pair< rs2_stream, int >, rs2::stream_profile > _source_stream_profiles;
     };
     MAP_EXTENSION( RS2_EXTENSION_ROTATION_FILTER, librealsense::rotation_filter );
     }

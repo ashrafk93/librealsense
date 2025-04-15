@@ -114,18 +114,24 @@ namespace librealsense {
     
     void rotation_filter::update_output_profile(const rs2::frame & f, float & value)
     {
-        // Get the current source profile for this frame
-        rs2::stream_profile current_source_profile = f.get_profile();
-        auto stream_type = current_source_profile.stream_type();
-        auto stream_index = current_source_profile.stream_index();
+        _source_stream_profile = f.get_profile();
+        auto stream_type = _source_stream_profile.stream_type();
+        auto stream_index = _source_stream_profile.stream_index();
         std::pair< rs2_stream, int > stream_key( stream_type, stream_index );
 
-        // Initialize the rotation value to 0 if not already stored
-        if( _last_rotation_values.find( stream_key ) == _last_rotation_values.end() )
-        {
-            _last_rotation_values[stream_key] = 0.0f;
-        }
-        float last_rotation = _last_rotation_values[stream_key];
+        // If the map is empty last rotation value is 0
+        float last_rotation = 0.0f;
+        auto it = _last_rotation_values.find( stream_key );
+        if( it != _last_rotation_values.end() )
+            last_rotation = it->second;
+
+        // If the current rotation value is already applied, do nothing
+        if( last_rotation == value )
+            return;
+        
+        _target_stream_profile = _source_stream_profile.clone( _source_stream_profile.stream_type(),
+                                                            _source_stream_profile.stream_index(),
+                                                            _source_stream_profile.format() );
 
         // Check if we've already processed this same source profile and rotation value.
         if( _source_stream_profiles.find( stream_key ) != _source_stream_profiles.end()
@@ -188,10 +194,8 @@ namespace librealsense {
         tgt_intrin.height = rotated_height;
 
         tgt_vspi->set_intrinsics( [tgt_intrin]() { return tgt_intrin; } );
-        tgt_vspi->set_dims( rotated_width, rotated_height );
+        tgt_vspi->set_dims( _rotated_width, _rotated_height );
 
-        _last_rotation_values[stream_key] = value;
-        _target_stream_profiles[stream_key] = target_profile;
     }
 
     rs2::frame rotation_filter::prepare_target_frame( const rs2::frame & f,
