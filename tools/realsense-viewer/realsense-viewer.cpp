@@ -293,6 +293,8 @@ int main(int argc, const char** argv) try
     rs2::cli cmd( "realsense-viewer" );
     auto settings = cmd.process( argc, argv );
 
+    rs2::log_to_file(RS2_LOG_SEVERITY_DEBUG, "./log.txt");
+
     std::shared_ptr<device_models_list> device_models = std::make_shared<device_models_list>();
 
     context ctx( settings.dump() );
