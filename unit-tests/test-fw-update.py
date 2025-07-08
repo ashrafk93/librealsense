@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser(description="Test firmware update")
 parser.add_argument('--custom-fw-d400', type=str, help='Path to custom firmware file')
 args = parser.parse_args()
 
-custom_fw_d400_path = args.custom_fw_d400
+custom_fw_d400_path = 'args.custom_fw_d400'
 if custom_fw_d400_path:
     log.i(f"Custom firmware path provided: {custom_fw_d400_path}")
 else:
@@ -187,8 +187,7 @@ if device.is_update_device():
         cmd = [fw_updater_exe, '-r', '-f', image_file]
         if custom_fw_d400_path:
             # Add '-u' only if the path doesn't include 'signed'
-            if 'signed' not in custom_fw_d400_path.lower():
-                cmd.insert(1, '-u')
+            cmd.insert(1, '-u')
 
         log.d( 'running:', cmd )
         subprocess.run( cmd )
@@ -235,8 +234,8 @@ image_file = find_image_or_exit(product_name, fw_version_regex) if not custom_fw
 cmd = [fw_updater_exe, '-f', image_file]
 if custom_fw_d400_path:
     # Add '-u' only if the path doesn't include 'signed'
-    if 'signed' not in custom_fw_d400_path.lower():
-        cmd.insert(1, '-u')
+    # if 'signed' not in custom_fw_d400_path.lower():
+    cmd.insert(1, '-u')
 log.d( 'running:', cmd )
 sys.stdout.flush()
 subprocess.run( cmd )   # may throw
