@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser(description="Test firmware update")
 parser.add_argument('--custom-fw-d400', type=str, help='Path to custom firmware file')
 args = parser.parse_args()
 
-custom_fw_d400_path = 'args.custom_fw_d400'
+custom_fw_d400_path = args.custom_fw_d400
 if custom_fw_d400_path:
     log.i(f"Custom firmware path provided: {custom_fw_d400_path}")
 else:
