@@ -17,6 +17,8 @@ import pyrsutils as rsutils
 from rspy import devices, log, test, file, repo
 import time
 import argparse
+import urllib.request
+import tempfile
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Test firmware update")
@@ -116,6 +118,8 @@ def reset_update_counter( device ):
 
 def find_image_or_exit( product_name, fw_version_regex = r'(\d+\.){3}(\d+)' ):
     """
+    If 'jetson' in context, download and return fixed firmware path.
+
     Searches for a FW image file for the given camera name and optional version. If none are
     found, exits with an error!
 
@@ -124,6 +128,20 @@ def find_image_or_exit( product_name, fw_version_regex = r'(\d+\.){3}(\d+)' ):
 
     :return: the image file corresponding to product_name and fw_version if exist, otherwise exit
     """
+    # TODO: remove this jetson logic once official image supports jetson d457
+    if 'jetson' in test.context:
+        url = "https://ubit-artifactory-il.intel.com/artifactory/realsensealgo-il-local/tmp/Signed_Image_UVC_5_17_0_7.bin"
+        temp_dir = tempfile.gettempdir()
+        local_path = os.path.join(temp_dir, "Signed_Image_UVC_5_17_0_7.bin")
+
+        if not os.path.exists(local_path):
+            log.i(f"Downloading firmware from {url} to {local_path}")
+            urllib.request.urlretrieve(url, local_path)
+        else:
+            log.i(f"Firmware already downloaded at {local_path}")
+
+        return local_path
+    
     pattern = re.compile( r'^Intel RealSense (((\S+?)(\d+))(\S*))' )
     match = pattern.search( product_name )
     if not match:
