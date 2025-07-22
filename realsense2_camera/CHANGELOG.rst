@@ -2,8 +2,8 @@
 Changelog for package realsense2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+4.56.4 (2025-07-22)
+-------------------
 * PR `#3329 <https://github.com/IntelRealSense/realsense-ros/issues/3329>`_ from Nir-Az: Update version to 4.56.4
 * update version to 4.56.4
 * PR `#3325 <https://github.com/IntelRealSense/realsense-ros/issues/3325>`_ from ashrafk93: use ykush to switch ports
