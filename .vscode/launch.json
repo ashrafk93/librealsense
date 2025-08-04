@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug rs-enumerate-devices MacOS",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/rs-enumerate-devices",
+            "args": []
+        },
+        {
+            "name": "Debug rs-hello-realsense MacOS",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/rs-hello-realsense",
+            "args": []
+        }
+    ]
+}
