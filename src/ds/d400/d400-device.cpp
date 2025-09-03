@@ -9,17 +9,11 @@
 #include <src/backend.h>
 
 #include "d400-device.h"
-#include "d400-private.h"
-#include "d400-options.h"
 #include "d400-info.h"
 #include "ds/ds-timestamp.h"
 #include <src/stream.h>
 #include <src/environment.h>
-#include <src/depth-sensor.h>
-#include "d400-color.h"
-#include "d400-nonmonochrome.h"
 #include <src/platform/platform-utils.h>
-#include "context.h"
 
 #include <src/ds/features/amplitude-factor-feature.h>
 #include <src/ds/features/emitter-frequency-feature.h>
@@ -38,6 +32,7 @@
 #include <common/fw/firmware-version.h>
 #include <src/fw-update/fw-update-unsigned.h>
 
+#include <rsutils/lazy.h>
 #include <rsutils/type/fourcc.h>
 using rsutils::type::fourcc;
 
@@ -159,205 +154,189 @@ namespace librealsense
         return ds::d400_hwmon_response().hwmon_error2str(opcode);
     }
 
-    class d400_depth_sensor
-        : public synthetic_sensor
-        , public video_sensor_interface
-        , public depth_stereo_sensor
-        , public roi_sensor_base
+    d400_depth_sensor::d400_depth_sensor( d400_device * owner, std::shared_ptr<uvc_sensor> uvc_sensor)
+        : synthetic_sensor(ds::DEPTH_STEREO, uvc_sensor, owner, d400_depth_fourcc_to_rs2_format, d400_depth_fourcc_to_rs2_stream)
+        , _owner(owner)
+        , _depth_units(-1)
+        , _hdr_cfg(nullptr)
     {
-    public:
-        explicit d400_depth_sensor(d400_device* owner,
-            std::shared_ptr<uvc_sensor> uvc_sensor)
-            : synthetic_sensor(ds::DEPTH_STEREO, uvc_sensor, owner, d400_depth_fourcc_to_rs2_format,
-                d400_depth_fourcc_to_rs2_stream),
-            _owner(owner),
-            _depth_units(-1),
-            _hdr_cfg(nullptr)
-        { }
+    }
 
-        processing_blocks get_recommended_processing_blocks() const override
+    processing_blocks d400_depth_sensor::get_recommended_processing_blocks() const
+    {
+        return get_ds_depth_recommended_proccesing_blocks();
+    };
+
+    rs2_intrinsics d400_depth_sensor::get_intrinsics( const stream_profile & profile ) const
+    {
+        rs2_intrinsics result;
+
+        if (ds::try_get_d400_intrinsic_by_resolution_new(*_owner->_new_calib_table_raw,
+            profile.width, profile.height, &result))
         {
-            return get_ds_depth_recommended_proccesing_blocks();
-        };
-
-        rs2_intrinsics get_intrinsics(const stream_profile& profile) const override
-        {
-            rs2_intrinsics result;
-
-            if (ds::try_get_d400_intrinsic_by_resolution_new(*_owner->_new_calib_table_raw,
-                profile.width, profile.height, &result))
-            {
-                return result;
-            }
-            else 
-            {
-                return get_d400_intrinsic_by_resolution(
-                    *_owner->_coefficients_table_raw,
-                    ds::d400_calibration_table_id::coefficients_table_id,
-                    profile.width, profile.height);
-            }
+            return result;
         }
-
-        void set_frame_metadata_modifier(on_frame_md callback) override
+        else 
         {
-            _metadata_modifier = callback;
-            auto s = get_raw_sensor().get();
-            auto uvc = As< librealsense::uvc_sensor >(s);
-            if(uvc)
-                uvc->set_frame_metadata_modifier(callback);
+            return get_d400_intrinsic_by_resolution(
+                *_owner->_coefficients_table_raw,
+                ds::d400_calibration_table_id::coefficients_table_id,
+                profile.width, profile.height);
         }
+    }
 
-        void open(const stream_profiles& requests) override
-        {
-            group_multiple_fw_calls(*this, [&]() {
-                _depth_units = get_option(RS2_OPTION_DEPTH_UNITS).query();
-                set_frame_metadata_modifier([&](frame_additional_data& data) {data.depth_units = _depth_units.load(); });
+    void d400_depth_sensor::set_frame_metadata_modifier( on_frame_md callback )
+    {
+        _metadata_modifier = callback;
+        auto s = get_raw_sensor().get();
+        auto uvc = As< librealsense::uvc_sensor >(s);
+        if(uvc)
+            uvc->set_frame_metadata_modifier(callback);
+    }
 
-                synthetic_sensor::open(requests);
+    void d400_depth_sensor::open( const stream_profiles & requests )
+    {
+        group_multiple_fw_calls(*this, [&]() {
+            _depth_units = get_option(RS2_OPTION_DEPTH_UNITS).query();
+            set_frame_metadata_modifier([&](frame_additional_data& data) {data.depth_units = _depth_units.load(); });
 
-                // Activate Thermal Compensation tracking
-                if (supports_option(RS2_OPTION_THERMAL_COMPENSATION))
-                    _owner->_thermal_monitor->update(true);
-                }); //group_multiple_fw_calls
-        }
+            synthetic_sensor::open(requests);
 
-        void close() override
-        {
-            // Deactivate Thermal Compensation tracking
+            // Activate Thermal Compensation tracking
             if (supports_option(RS2_OPTION_THERMAL_COMPENSATION))
-                _owner->_thermal_monitor->update(false);
+                _owner->_thermal_monitor->update(true);
+            }); //group_multiple_fw_calls
+    }
 
-            synthetic_sensor::close();
-        }
+    void d400_depth_sensor::close()
+    {
+        // Deactivate Thermal Compensation tracking
+        if (supports_option(RS2_OPTION_THERMAL_COMPENSATION))
+            _owner->_thermal_monitor->update(false);
 
-        rs2_intrinsics get_color_intrinsics(const stream_profile& profile) const
+        synthetic_sensor::close();
+    }
+
+    rs2_intrinsics d400_depth_sensor::get_color_intrinsics( const stream_profile & profile ) const
+    {
+        if( _owner->_pid == ds::RS405_PID )
+            return ds::get_d405_color_stream_intrinsic( *_owner->_color_calib_table_raw,
+                                                        profile.width,
+                                                        profile.height );
+
+        return get_d400_intrinsic_by_resolution( *_owner->_color_calib_table_raw,
+                                                    ds::d400_calibration_table_id::rgb_calibration_id,
+                                                    profile.width,
+                                                    profile.height );
+    }
+
+    //Infrared profiles are initialized with the following logic:
+    //- If device has color sensor (D415 / D435), infrared profile is chosen with Y8 format
+    //- If device does not have color sensor:
+    //    * if it is a rolling shutter device (D400 / D410 / D415 / D405), infrared profile is chosen with RGB8 format
+    //    * for other devices (D420 / D430), infrared profile is chosen with Y8 format
+    stream_profiles d400_depth_sensor::init_stream_profiles()
+    {
+        auto lock = environment::get_instance().get_extrinsics_graph().lock();
+
+        auto&& results = synthetic_sensor::init_stream_profiles();
+
+        for (auto&& p : results)
         {
-            if( _owner->_pid == ds::RS405_PID )
-                return ds::get_d405_color_stream_intrinsic( *_owner->_color_calib_table_raw,
-                                                            profile.width,
-                                                            profile.height );
-
-            return get_d400_intrinsic_by_resolution( *_owner->_color_calib_table_raw,
-                                                     ds::d400_calibration_table_id::rgb_calibration_id,
-                                                     profile.width,
-                                                     profile.height );
-        }
-
-        /*
-        Infrared profiles are initialized with the following logic:
-        - If device has color sensor (D415 / D435), infrared profile is chosen with Y8 format
-        - If device does not have color sensor:
-           * if it is a rolling shutter device (D400 / D410 / D415 / D405), infrared profile is chosen with RGB8 format
-           * for other devices (D420 / D430), infrared profile is chosen with Y8 format
-        */
-        stream_profiles init_stream_profiles() override
-        {
-            auto lock = environment::get_instance().get_extrinsics_graph().lock();
-
-            auto&& results = synthetic_sensor::init_stream_profiles();
-
-            for (auto&& p : results)
+            // Register stream types
+            if (p->get_stream_type() == RS2_STREAM_DEPTH)
             {
-                // Register stream types
-                if (p->get_stream_type() == RS2_STREAM_DEPTH)
-                {
-                    assign_stream(_owner->_depth_stream, p);
-                }
-                else if (p->get_stream_type() == RS2_STREAM_INFRARED && p->get_stream_index() < 2)
-                {
-                    assign_stream(_owner->_left_ir_stream, p);
-                }
-                else if (p->get_stream_type() == RS2_STREAM_INFRARED  && p->get_stream_index() == 2)
-                {
-                    assign_stream(_owner->_right_ir_stream, p);
-                }
-                else if (p->get_stream_type() == RS2_STREAM_COLOR)
-                {
-                    assign_stream(_owner->_color_stream, p);
-                }
-                auto&& vid_profile = dynamic_cast<video_stream_profile_interface*>(p.get());
+                assign_stream(_owner->_depth_stream, p);
+            }
+            else if (p->get_stream_type() == RS2_STREAM_INFRARED && p->get_stream_index() < 2)
+            {
+                assign_stream(_owner->_left_ir_stream, p);
+            }
+            else if (p->get_stream_type() == RS2_STREAM_INFRARED  && p->get_stream_index() == 2)
+            {
+                assign_stream(_owner->_right_ir_stream, p);
+            }
+            else if (p->get_stream_type() == RS2_STREAM_COLOR)
+            {
+                assign_stream(_owner->_color_stream, p);
+            }
+            auto&& vid_profile = dynamic_cast<video_stream_profile_interface*>(p.get());
 
-                // used when color stream comes from depth sensor (as in D405)
-                if (p->get_stream_type() == RS2_STREAM_COLOR)
-                {
-                    const auto&& profile = to_profile(p.get());
-                    std::weak_ptr<d400_depth_sensor> wp =
-                        std::dynamic_pointer_cast<d400_depth_sensor>(this->shared_from_this());
-                    vid_profile->set_intrinsics([profile, wp]()
-                        {
-                            auto sp = wp.lock();
-                            if (sp)
-                                return sp->get_color_intrinsics(profile);
-                            else
-                                return rs2_intrinsics{};
-                        });
-                }
-                // Register intrinsics
-                else if (p->get_format() != RS2_FORMAT_Y16) // Y16 format indicate unrectified images, no intrinsics are available for these
-                {
-                    const auto&& profile = to_profile(p.get());
-                    std::weak_ptr<d400_depth_sensor> wp =
-                        std::dynamic_pointer_cast<d400_depth_sensor>(this->shared_from_this());
-                    vid_profile->set_intrinsics([profile, wp]()
+            // used when color stream comes from depth sensor (as in D405)
+            if (p->get_stream_type() == RS2_STREAM_COLOR)
+            {
+                const auto&& profile = to_profile(p.get());
+                std::weak_ptr<d400_depth_sensor> wp =
+                    std::dynamic_pointer_cast<d400_depth_sensor>(this->shared_from_this());
+                vid_profile->set_intrinsics([profile, wp]()
                     {
                         auto sp = wp.lock();
                         if (sp)
-                            return sp->get_intrinsics(profile);
+                            return sp->get_color_intrinsics(profile);
                         else
                             return rs2_intrinsics{};
                     });
-                }
             }
-
-            return results;
-        }
-
-        float get_depth_scale() const override
-        {
-            if (_depth_units < 0)
-                _depth_units = get_option(RS2_OPTION_DEPTH_UNITS).query();
-            return _depth_units;
-        }
-
-        void set_depth_scale(float val)
-        {
-            _depth_units = val;
-            set_frame_metadata_modifier([&](frame_additional_data& data) {data.depth_units = _depth_units.load(); });
-        }
-
-        void init_hdr_config(const option_range& exposure_range, const option_range& gain_range)
-        {
-            _hdr_cfg = std::make_shared<hdr_config>(*(_owner->_hw_monitor), get_raw_sensor(),
-                exposure_range, gain_range, ds::d400_hwmon_response::opcodes::NO_DATA_TO_RETURN);
-        }
-
-        std::shared_ptr<hdr_config> get_hdr_config() { return _hdr_cfg; }
-
-        float get_stereo_baseline_mm() const override { return _owner->get_stereo_baseline_mm(); }
-
-        float get_preset_max_value() const override
-        {
-            float preset_max_value = RS2_RS400_VISUAL_PRESET_COUNT - 1;
-            switch (_owner->_pid)
+            // Register intrinsics
+            else if (p->get_format() != RS2_FORMAT_Y16) // Y16 format indicate unrectified images, no intrinsics are available for these
             {
-            case ds::RS400_PID:
-            case ds::RS410_PID:
-            case ds::RS415_PID:
-            case ds::RS460_PID:
-                preset_max_value = static_cast<float>(RS2_RS400_VISUAL_PRESET_REMOVE_IR_PATTERN);
-                break;
-            default:
-                preset_max_value = static_cast<float>(RS2_RS400_VISUAL_PRESET_MEDIUM_DENSITY);
+                const auto&& profile = to_profile(p.get());
+                std::weak_ptr<d400_depth_sensor> wp =
+                    std::dynamic_pointer_cast<d400_depth_sensor>(this->shared_from_this());
+                vid_profile->set_intrinsics([profile, wp]()
+                {
+                    auto sp = wp.lock();
+                    if (sp)
+                        return sp->get_intrinsics(profile);
+                    else
+                        return rs2_intrinsics{};
+                });
             }
-            return preset_max_value;
         }
 
-    protected:
-        const d400_device* _owner;
-        mutable std::atomic<float> _depth_units;
-        float _stereo_baseline_mm;
-        std::shared_ptr<hdr_config> _hdr_cfg;
+        return results;
+    }
+
+    float d400_depth_sensor::get_depth_scale() const
+    {
+        if (_depth_units < 0)
+            _depth_units = get_option(RS2_OPTION_DEPTH_UNITS).query();
+        return _depth_units;
+    }
+
+    void d400_depth_sensor::set_depth_scale( float val )
+    {
+        _depth_units = val;
+        set_frame_metadata_modifier([&](frame_additional_data& data) {data.depth_units = _depth_units.load(); });
+    }
+
+    void d400_depth_sensor::init_hdr_config( const option_range & exposure_range, const option_range & gain_range )
+    {
+        _hdr_cfg = std::make_shared<hdr_config>(*(_owner->_hw_monitor), get_raw_sensor(),
+            exposure_range, gain_range, ds::d400_hwmon_response::opcodes::NO_DATA_TO_RETURN);
+    }
+
+    float d400_depth_sensor::get_stereo_baseline_mm() const
+    {
+        return _owner->get_stereo_baseline_mm();
     };
+
+    float d400_depth_sensor::get_preset_max_value() const
+    {
+        float preset_max_value = RS2_RS400_VISUAL_PRESET_COUNT - 1;
+        switch (_owner->_pid)
+        {
+        case ds::RS400_PID:
+        case ds::RS410_PID:
+        case ds::RS415_PID:
+        case ds::RS460_PID:
+            preset_max_value = static_cast<float>(RS2_RS400_VISUAL_PRESET_REMOVE_IR_PATTERN);
+            break;
+        default:
+            preset_max_value = static_cast<float>(RS2_RS400_VISUAL_PRESET_MEDIUM_DENSITY);
+        }
+        return preset_max_value;
+    }
 
     class ds5u_depth_sensor : public d400_depth_sensor
     {

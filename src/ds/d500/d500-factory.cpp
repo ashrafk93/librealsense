@@ -55,7 +55,7 @@ namespace librealsense
             , d500_active( dev_info )
             , d500_color( dev_info, RS2_FORMAT_M420 )
             , d500_motion( dev_info )
-            , ds_advanced_mode_base( d500_device::_hw_monitor, get_depth_sensor() )
+            , ds_advanced_mode_base( d500_device::_hw_monitor, *static_cast< device_interface * >( this ) )
             , extended_firmware_logger_device( dev_info,
                                                d500_device::_hw_monitor,
                                                get_firmware_logs_command() )
@@ -109,7 +109,7 @@ namespace librealsense
             , d500_safety( dev_info )
             , d500_depth_mapping( dev_info )
             , d500_motion( dev_info )
-            , ds_advanced_mode_base( d500_device::_hw_monitor, get_depth_sensor() )
+            , ds_advanced_mode_base( d500_device::_hw_monitor, *static_cast< device_interface * >( this ) )
             , extended_firmware_logger_device( dev_info,
                                                d500_device::_hw_monitor,
                                                get_firmware_logs_command() )
@@ -174,7 +174,7 @@ public:
         , d500_active( dev_info )
         , d500_color( dev_info, RS2_FORMAT_YUYV )
         , d500_motion( dev_info )
-        , ds_advanced_mode_base( d500_device::_hw_monitor, get_depth_sensor() )
+        , ds_advanced_mode_base( d500_device::_hw_monitor, *static_cast< device_interface * >( this ) )
         , extended_firmware_logger_device( dev_info, d500_device::_hw_monitor, get_firmware_logs_command() )
     {
         eth_config_device::init( static_cast< debug_interface * >( this ) );

@@ -5,7 +5,6 @@
 #include "json_loader.hpp"
 #include "ds/d400/d400-color.h"
 #include "ds/d500/d500-color.h"
-#include "ds/d500/d500-private.h"
 
 #include <src/ds/features/amplitude-factor-feature.h>
 #include <src/ds/features/remove-ir-pattern-feature.h>
@@ -17,25 +16,24 @@ namespace librealsense
 {
     void ds_advanced_mode_base::register_to_visual_preset_option()
     {
-        _preset_opt = std::make_shared<advanced_mode_preset_option>(*this,
-            _depth_sensor,
-            option_range{ 0,
-            _depth_sensor.get_preset_max_value(),
-            1,
-            RS2_RS400_VISUAL_PRESET_CUSTOM });
-        _depth_sensor.register_option(RS2_OPTION_VISUAL_PRESET, _preset_opt);
+        float max_preset = static_cast< float >( RS2_RS400_VISUAL_PRESET_MEDIUM_DENSITY );
+        if( synthetic_sensor * synt = dynamic_cast< synthetic_sensor * >( *_depth_sensor ) )
+            max_preset = synt->get_preset_max_value(); // "Remove IR Pattern" visual preset is available only for D400, D410, D415, D460
+        _preset_opt = std::make_shared< advanced_mode_preset_option >( *this,
+                                                                       **_depth_sensor,
+                                                                       option_range{ 0, max_preset, 1, RS2_RS400_VISUAL_PRESET_CUSTOM } );
+        (**_depth_sensor).register_option( RS2_OPTION_VISUAL_PRESET, _preset_opt );
     }
 
     void ds_advanced_mode_base::unregister_from_visual_preset_option()
     {
-        _depth_sensor.unregister_option(RS2_OPTION_VISUAL_PRESET);
+        (**_depth_sensor).unregister_option(RS2_OPTION_VISUAL_PRESET);
     }
 
-    ds_advanced_mode_base::ds_advanced_mode_base(std::shared_ptr<hw_monitor> hwm,
-        synthetic_sensor& depth_sensor)
-        : _hw_monitor(hwm),
-          _depth_sensor(depth_sensor),
-          _color_sensor(nullptr)
+    ds_advanced_mode_base::ds_advanced_mode_base( std::shared_ptr< hw_monitor > hwm, device_interface & dev )
+        : _dev( dev )
+        , _hw_monitor(hwm)
+        , _color_sensor(nullptr)
     {
         _enabled = [this]() {
             auto results = send_receive(encode_command(ds::fw_cmd::UAMG));
@@ -43,29 +41,36 @@ namespace librealsense
             return results[4] > 0;
         };
 
-        // "Remove IR Pattern" visual preset is available only for D400, D410, D415, D460
-        if (is_enabled())
-            register_to_visual_preset_option();
-
-        _color_sensor = [this]() -> synthetic_sensor *
+        _depth_sensor = [this]() -> sensor_base *
         {
-            auto & dev = _depth_sensor.get_device();
-            for( size_t i = 0; i < dev.get_sensors_count(); ++i )
+            for( size_t i = 0; i < _dev.get_sensors_count(); ++i )
             {
-                if( auto s = dynamic_cast< const d400_color_sensor * >( &( dev.get_sensor( i ) ) ) )
-                {
-                    return const_cast< d400_color_sensor * >( s );
-                }
-                if( auto s = dynamic_cast< const d500_color_sensor * >( &( dev.get_sensor( i ) ) ) )
-                {
-                    return const_cast< d500_color_sensor * >( s );
-                }
+                if( auto s = dynamic_cast< d400_depth_sensor * >( &( _dev.get_sensor( i ) ) ) )
+                    return s;
+                if( auto s = dynamic_cast< d500_depth_sensor * >( &( _dev.get_sensor( i ) ) ) )
+                    return s;
             }
-            return nullptr;
+            throw std::runtime_error( "Advanced mode expects camera to have a depth sensor" );
         };
 
+        _color_sensor = [this]() -> sensor_base *
+        {
+            for( size_t i = 0; i < _dev.get_sensors_count(); ++i )
+            {
+                if( auto s = dynamic_cast< d400_color_sensor * >( &( _dev.get_sensor( i ) ) ) )
+                    return s;
+                if( auto s = dynamic_cast< d500_color_sensor * >( &( _dev.get_sensor( i ) ) ) )
+                    return s;
+            }
+            return nullptr; // Not all models have a color sensor
+        };
+
+        
+        if( is_enabled() )
+            register_to_visual_preset_option();
+
         _amplitude_factor_support = [this]() {
-            return _depth_sensor.get_device().supports_feature( amplitude_factor_feature::ID );
+            return _dev.supports_feature( amplitude_factor_feature::ID );
         };
     }
 
@@ -89,8 +94,7 @@ namespace librealsense
     }
 
     void ds_advanced_mode_base::apply_preset(const std::vector<platform::stream_profile>& configuration,
-                                              rs2_rs400_visual_preset preset, uint16_t device_pid,
-                                              const firmware_version& fw_version)
+                                              rs2_rs400_visual_preset preset, uint16_t device_pid)
     {
         auto p = get_all();
         res_type res;
@@ -183,7 +187,7 @@ namespace librealsense
             break;
         case RS2_RS400_VISUAL_PRESET_REMOVE_IR_PATTERN:
         {
-            if( ! _depth_sensor.get_device().supports_feature( remove_ir_pattern_feature::ID ) )
+            if( ! _dev.supports_feature( remove_ir_pattern_feature::ID ) )
                 throw invalid_value_exception( "apply_preset(...) failed! The device does not support remove IR pattern feature" );
 
             switch (device_pid)
@@ -278,30 +282,30 @@ namespace librealsense
             []() { STAFactor af; af.amplitude = 0.f; return af; }();
     }
 
-    bool ds_advanced_mode_base::supports_option(const synthetic_sensor& sensor, rs2_option opt) const
+    bool ds_advanced_mode_base::supports_option(const sensor_base& sensor, rs2_option opt) const
     {
         return sensor.supports_option(opt);
     }
 
     void ds_advanced_mode_base::get_laser_power(laser_power_control* ptr) const
     {
-        if (supports_option(_depth_sensor, RS2_OPTION_LASER_POWER))
+        if (supports_option(**_depth_sensor, RS2_OPTION_LASER_POWER))
         {
-            ptr->laser_power = _depth_sensor.get_option(RS2_OPTION_LASER_POWER).query();
+            ptr->laser_power = (**_depth_sensor).get_option(RS2_OPTION_LASER_POWER).query();
             ptr->was_set = true;
         }
     }
 
     void ds_advanced_mode_base::get_laser_state(laser_state_control* ptr) const
     {
-        if (supports_option(_depth_sensor, RS2_OPTION_EMITTER_ENABLED))
+        if (supports_option(**_depth_sensor, RS2_OPTION_EMITTER_ENABLED))
         {
-            ptr->laser_state = static_cast<int>(_depth_sensor.get_option(RS2_OPTION_EMITTER_ENABLED).query());
+            ptr->laser_state = static_cast<int>((**_depth_sensor).get_option(RS2_OPTION_EMITTER_ENABLED).query());
             ptr->was_set = true;
         }
     }
 
-    void ds_advanced_mode_base::get_exposure(synthetic_sensor& sensor, exposure_control* ptr) const
+    void ds_advanced_mode_base::get_exposure(sensor_base& sensor, exposure_control* ptr) const
     {
         if (supports_option(sensor, RS2_OPTION_EXPOSURE))
         {
@@ -310,7 +314,7 @@ namespace librealsense
         }
     }
 
-    void ds_advanced_mode_base::get_auto_exposure(synthetic_sensor& sensor, auto_exposure_control* ptr) const
+    void ds_advanced_mode_base::get_auto_exposure(sensor_base& sensor, auto_exposure_control* ptr) const
     {
         if (supports_option(sensor, RS2_OPTION_ENABLE_AUTO_EXPOSURE))
         {
@@ -321,28 +325,28 @@ namespace librealsense
 
     void ds_advanced_mode_base::get_depth_exposure(exposure_control* ptr) const
     {
-        get_exposure(_depth_sensor, ptr);
+        get_exposure(**_depth_sensor, ptr);
     }
 
     void ds_advanced_mode_base::get_depth_auto_exposure(auto_exposure_control* ptr) const
     {
-        get_auto_exposure(_depth_sensor, ptr);
+        get_auto_exposure(**_depth_sensor, ptr);
     }
 
     void ds_advanced_mode_base::get_depth_gain(gain_control* ptr) const
     {
-        if (supports_option(_depth_sensor, RS2_OPTION_GAIN))
+        if (supports_option(**_depth_sensor, RS2_OPTION_GAIN))
         {
-            ptr->gain = _depth_sensor.get_option(RS2_OPTION_GAIN).query();
+            ptr->gain = (**_depth_sensor).get_option(RS2_OPTION_GAIN).query();
             ptr->was_set = true;
         }
     }
 
     void ds_advanced_mode_base::get_depth_auto_white_balance(auto_white_balance_control* ptr) const
     {
-        if (supports_option(_depth_sensor, RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE))
+        if (supports_option(**_depth_sensor, RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE))
         {
-            ptr->auto_white_balance = static_cast<int>(_depth_sensor.get_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE).query());
+            ptr->auto_white_balance = static_cast<int>((**_depth_sensor).get_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE).query());
             ptr->was_set = true;
         }
     }
@@ -552,21 +556,21 @@ namespace librealsense
     void ds_advanced_mode_base::set_laser_power(const laser_power_control& val)
     {
         if (val.was_set)
-            _depth_sensor.get_option(RS2_OPTION_LASER_POWER).set(val.laser_power);
+            (**_depth_sensor).get_option(RS2_OPTION_LASER_POWER).set(val.laser_power);
     }
 
     void ds_advanced_mode_base::set_laser_state(const laser_state_control& val)
     {
         if (val.was_set)
-            _depth_sensor.get_option(RS2_OPTION_EMITTER_ENABLED).set((float)val.laser_state);
+            (**_depth_sensor).get_option(RS2_OPTION_EMITTER_ENABLED).set((float)val.laser_state);
     }
 
-    void ds_advanced_mode_base::set_exposure(synthetic_sensor& sensor, const exposure_control& val)
+    void ds_advanced_mode_base::set_exposure(sensor_base& sensor, const exposure_control& val)
     {
         sensor.get_option(RS2_OPTION_EXPOSURE).set(val.exposure);
     }
 
-    void ds_advanced_mode_base::set_auto_exposure(synthetic_sensor& sensor, const auto_exposure_control& val)
+    void ds_advanced_mode_base::set_auto_exposure(sensor_base& sensor, const auto_exposure_control& val)
     {
         sensor.get_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE).set(float(val.auto_exposure));
     }
@@ -574,25 +578,25 @@ namespace librealsense
     void ds_advanced_mode_base::set_depth_exposure(const exposure_control& val)
     {
         if (val.was_set)
-            set_exposure(_depth_sensor, val);
+            set_exposure(**_depth_sensor, val);
     }
 
     void ds_advanced_mode_base::set_depth_auto_exposure(const auto_exposure_control& val)
     {
         if (val.was_set)
-            set_auto_exposure(_depth_sensor, val);
+            set_auto_exposure(**_depth_sensor, val);
     }
 
     void ds_advanced_mode_base::set_depth_gain(const gain_control& val)
     {
         if (val.was_set)
-            _depth_sensor.get_option(RS2_OPTION_GAIN).set(val.gain);
+            (**_depth_sensor).get_option(RS2_OPTION_GAIN).set(val.gain);
     }
 
     void ds_advanced_mode_base::set_depth_auto_white_balance(const auto_white_balance_control& val)
     {
         if (val.was_set)
-            _depth_sensor.get_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE).set(float(val.auto_white_balance));
+            (**_depth_sensor).get_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE).set(float(val.auto_white_balance));
     }
 
     void ds_advanced_mode_base::set_color_exposure(const exposure_control& val)
@@ -731,7 +735,7 @@ namespace librealsense
                                                      << "serialize_json() failed! Device is not in Advanced-Mode." );
 
         auto p = get_all();
-        return generate_json(_depth_sensor.get_device(), p);
+        return generate_json(_dev, p);
     }
 
     void ds_advanced_mode_base::load_json(const std::string& json_content)
@@ -741,7 +745,7 @@ namespace librealsense
                                                      << "load_json(...) failed! Device is not in Advanced-Mode." );
 
         auto p = get_all();
-        update_structs(_depth_sensor.get_device(),  json_content, p);
+        update_structs(_dev,  json_content, p);
         set_all(p);
         _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
     }
@@ -750,7 +754,7 @@ namespace librealsense
     {
         preset p;
 
-        rsutils::deferred depth_bulk = _depth_sensor.bulk_operation();
+        rsutils::deferred depth_bulk = (**_depth_sensor).bulk_operation();
         get_depth_control_group(&p.depth_controls);
         get_rsm(&p.rsm);
         get_rau_support_vector_control(&p.rsvc);
@@ -804,7 +808,7 @@ namespace librealsense
 
     void ds_advanced_mode_base::set_all_depth(const preset& p)
     {
-        rsutils::deferred depth_bulk = _depth_sensor.bulk_operation();
+        rsutils::deferred depth_bulk = (**_depth_sensor).bulk_operation();
 
         set(p.depth_controls, advanced_mode_traits<STDepthControlGroup>::group);
         set(p.rsm           , advanced_mode_traits<STRsm>::group);
@@ -870,7 +874,7 @@ namespace librealsense
 
     bool ds_advanced_mode_base::should_set_rgb_preset() const
     {
-        auto product_line = _depth_sensor.get_device().get_info( rs2_camera_info::RS2_CAMERA_INFO_PRODUCT_LINE );
+        auto product_line = _dev.get_info( rs2_camera_info::RS2_CAMERA_INFO_PRODUCT_LINE );
 
         return product_line != "D500";
     }
@@ -882,23 +886,22 @@ namespace librealsense
 
     void ds_advanced_mode_base::set_hdr_preset(const preset& p)
     {
-        auto& dev = _depth_sensor.get_device();
-        if (!dev.supports_info(RS2_CAMERA_INFO_NAME) || 
-            dev.get_info(RS2_CAMERA_INFO_NAME).find("D45") == std::string::npos)
+        if (!_dev.supports_info(RS2_CAMERA_INFO_NAME) || 
+            _dev.get_info(RS2_CAMERA_INFO_NAME).find("D45") == std::string::npos)
         {
             throw std::runtime_error("HDR preset is not supported on the connected device"); // feature only works for D45* cameras
         }
         // if auto exposure is not enabled, enable it if needed - temporary W/A until FW enable it
-        auto& auto_exp = _depth_sensor.get_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE);
+        auto& auto_exp = (**_depth_sensor).get_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE);
         if (auto_exp.get_value() == 0 && p.auto_hdr.is_auto)
         {
             auto_exp.set(1);
         }
         
         // some devices support multiple modes of auto exposure, for this feature to work correctly we need to set the correct mode
-        if (_depth_sensor.supports_option(RS2_OPTION_DEPTH_AUTO_EXPOSURE_MODE) && p.auto_hdr.is_auto)
+        if ((**_depth_sensor).supports_option(RS2_OPTION_DEPTH_AUTO_EXPOSURE_MODE) && p.auto_hdr.is_auto)
         {
-            auto& auto_exp_mode = _depth_sensor.get_option(RS2_OPTION_DEPTH_AUTO_EXPOSURE_MODE);
+            auto& auto_exp_mode = (**_depth_sensor).get_option(RS2_OPTION_DEPTH_AUTO_EXPOSURE_MODE);
             if (auto_exp_mode.get_value() != RS2_DEPTH_AUTO_EXPOSURE_ACCELERATED)
             {
                 auto_exp_mode.set( RS2_DEPTH_AUTO_EXPOSURE_ACCELERATED );
@@ -909,7 +912,7 @@ namespace librealsense
         auto buffer = serialize_hdr_preset(p.auto_hdr.header, p.auto_hdr.items);
         command cmd(ds::SETSUBPRESET, static_cast<int>(buffer.size()));
         cmd.data = buffer;
-        auto res = _hw_monitor->send(cmd);
+        send_no_receive(cmd.data);
     }
 
     std::vector<uint8_t> ds_advanced_mode_base::send_receive(const std::vector<uint8_t>& input) const
@@ -921,6 +924,12 @@ namespace librealsense
         }
         return res;
     }
+
+    void ds_advanced_mode_base::send_no_receive( const std::vector< uint8_t > & input ) const
+    {
+        _hw_monitor->send( input );
+    }
+
 
     uint32_t ds_advanced_mode_base::pack(uint8_t c0, uint8_t c1, uint8_t c2, uint8_t c3)
     {
@@ -984,18 +993,31 @@ namespace librealsense
         return raw_data;
     }
 
+    ds_advanced_mode_base::res_type ds_advanced_mode_base::get_res_type( uint32_t width, uint32_t height ) const
+    {
+        if( width == 256 )  // Crop resolution
+            return res_type::high_resolution;
+
+        if( width == 640 )
+            return res_type::medium_resolution;
+        else if( width < 640 )
+            return res_type::low_resolution;
+
+        return res_type::high_resolution;
+    }
+
     advanced_mode_preset_option::advanced_mode_preset_option(ds_advanced_mode_base& advanced,
-        synthetic_sensor& ep, const option_range& opt_range)
+        sensor_base& ep, const option_range& opt_range)
         : option_base(opt_range),
         _ep(ep),
         _advanced(advanced),
         _last_preset(RS2_RS400_VISUAL_PRESET_CUSTOM)
     {
         _ep.register_on_open([this](std::vector<platform::stream_profile> configurations) {
+            _sensor_profiles = configurations;
             std::lock_guard<std::mutex> lock(_mtx);
-            auto uvc_sen = As<uvc_sensor, sensor_base>(_ep.get_raw_sensor());
             if (_last_preset != RS2_RS400_VISUAL_PRESET_CUSTOM)
-                _advanced.apply_preset(configurations, _last_preset, get_device_pid(*uvc_sen), get_firmware_version(*uvc_sen));
+                _advanced.apply_preset(_sensor_profiles, _last_preset, get_device_pid(_ep));
         });
     }
 
@@ -1024,9 +1046,7 @@ namespace librealsense
             return;
         }
 
-        auto uvc_sen = As<uvc_sensor, sensor_base>(_ep.get_raw_sensor());
-        auto configurations = uvc_sen->get_configuration();
-        _advanced.apply_preset(configurations, preset, get_device_pid(*uvc_sen), get_firmware_version(*uvc_sen));
+        _advanced.apply_preset(_sensor_profiles, preset, get_device_pid(_ep));
         _last_preset = preset;
         _recording_function(*this);
     }
@@ -1060,7 +1080,7 @@ namespace librealsense
         }
     }
 
-    uint16_t advanced_mode_preset_option::get_device_pid(const uvc_sensor& sensor) const
+    uint16_t advanced_mode_preset_option::get_device_pid(const sensor_base& sensor) const
     {
         auto str_pid = sensor.get_info(RS2_CAMERA_INFO_PRODUCT_ID);
         uint16_t device_pid{};
@@ -1068,10 +1088,5 @@ namespace librealsense
         ss << std::hex << str_pid;
         ss >> device_pid;
         return device_pid;
-    }
-
-    firmware_version advanced_mode_preset_option::get_firmware_version(const uvc_sensor& sensor) const
-    {
-        return firmware_version(_ep.get_info(RS2_CAMERA_INFO_FIRMWARE_VERSION));
     }
 }

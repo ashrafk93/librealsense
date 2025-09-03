@@ -7,7 +7,7 @@
 namespace librealsense
 {
     d400_mipi_device::d400_mipi_device(std::shared_ptr<hw_monitor> hwm, synthetic_sensor& depth_sensor)
-        :ds_advanced_mode_base(hwm, depth_sensor)
+        : ds_advanced_mode_base( hwm, *static_cast< device_interface * >( this ) )
     {}
 
     void d400_mipi_device::hardware_reset()
