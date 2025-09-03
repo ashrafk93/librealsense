@@ -10,6 +10,7 @@
 #include <src/auto-calibrated-proxy.h>
 #include <src/device-calibration.h>
 #include <src/eth-config-device.h>
+#include <src/core/advanced_mode.h>
 
 #include <rsutils/json-fwd.h>
 #include <memory>
@@ -46,10 +47,11 @@ class dds_device_proxy
     , public debug_interface
     , public updatable                // unsigned, non-recovery-mode
     , public update_device_interface  // signed, recovery-mode
-    , public dds_serializable
+    //, public dds_serializable
     , public auto_calibrated_proxy
     , public calibration_change_device
     , public eth_config_device
+    , public ds_advanced_mode_base
 {
     std::shared_ptr< realdds::dds_device > _dds_dev;
     std::map< std::string, std::vector< std::shared_ptr< stream_profile_interface > > > _stream_name_to_profiles;
@@ -116,13 +118,22 @@ private:
 
     // dds_serializable
 private:
-    device_interface const & get_serializable_device() const override { return *this; }
-    std::vector< sensor_interface * > get_serializable_sensors() override;
-    std::vector< sensor_interface const * > get_serializable_sensors() const override;
+    //device_interface const & get_serializable_device() const override { return *this; }
+    //std::vector< sensor_interface * > get_serializable_sensors() override;
+    //std::vector< sensor_interface const * > get_serializable_sensors() const override;
 
     // eth_config_device
 public:
     bool supports_ethernet_configuration() override;
+
+    // ds_advanced_mode_base
+private:
+    void device_specific_initialization() override;
+    void toggle_advanced_mode( bool enable ) override {}; // Cannot be toggled on DDS devices. Set in device info.
+
+    // Override use of hw_monitor, use debug_interface functionality instead for DDS support
+    // std::vector< uint8_t > send_receive( const std::vector< uint8_t > & input ) const override;
+    // void send_no_receive( const std::vector< uint8_t > & input ) const override;
 };
 
 }  // namespace librealsense

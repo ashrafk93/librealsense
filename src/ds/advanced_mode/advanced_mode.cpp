@@ -30,47 +30,53 @@ namespace librealsense
         (**_depth_sensor).unregister_option(RS2_OPTION_VISUAL_PRESET);
     }
 
-    ds_advanced_mode_base::ds_advanced_mode_base( std::shared_ptr< hw_monitor > hwm, device_interface & dev )
-        : _dev( dev )
-        , _hw_monitor(hwm)
-        , _color_sensor(nullptr)
+    void ds_advanced_mode_base::initialize_advanced_mode( device_interface * dev )
     {
-        _enabled = [this]() {
-            auto results = send_receive(encode_command(ds::fw_cmd::UAMG));
-            assert_no_error(ds::fw_cmd::UAMG, results);
-            return results[4] > 0;
-        };
+        _dev = dev;
+        _debug_interface = dynamic_cast< debug_interface * >( dev );
+        if( ! dev || ! _debug_interface )
+            throw std::runtime_error( "Advanced mode should be initialized with a device supporting debug interface" );
 
         _depth_sensor = [this]() -> sensor_base *
         {
-            for( size_t i = 0; i < _dev.get_sensors_count(); ++i )
+            for( size_t i = 0; i < _dev->get_sensors_count(); ++i )
             {
-                if( auto s = dynamic_cast< d400_depth_sensor * >( &( _dev.get_sensor( i ) ) ) )
-                    return s;
-                if( auto s = dynamic_cast< d500_depth_sensor * >( &( _dev.get_sensor( i ) ) ) )
-                    return s;
+                auto base = dynamic_cast< sensor_base * >( &_dev->get_sensor( i ) );
+                if( dynamic_cast< depth_sensor * >( base ) )
+                    return base;
             }
             throw std::runtime_error( "Advanced mode expects camera to have a depth sensor" );
         };
 
         _color_sensor = [this]() -> sensor_base *
         {
-            for( size_t i = 0; i < _dev.get_sensors_count(); ++i )
+            for( size_t i = 0; i < _dev->get_sensors_count(); ++i )
             {
-                if( auto s = dynamic_cast< d400_color_sensor * >( &( _dev.get_sensor( i ) ) ) )
-                    return s;
-                if( auto s = dynamic_cast< d500_color_sensor * >( &( _dev.get_sensor( i ) ) ) )
-                    return s;
+                auto base = dynamic_cast< sensor_base * >( &_dev->get_sensor( i ) );
+                if( dynamic_cast< color_sensor * >( base ) )
+                    return base;
             }
-            return nullptr; // Not all models have a color sensor
+            return nullptr;  // Not all models have a color sensor
         };
 
-        
+        device_specific_initialization();
+    }
+
+    void ds_advanced_mode_base::device_specific_initialization()
+    {
+        _enabled = [this]()
+        {
+            auto results = send_receive( encode_command( ds::fw_cmd::UAMG ) );
+            assert_no_error( ds::fw_cmd::UAMG, results );
+            return results[4] > 0;
+        };
+
         if( is_enabled() )
             register_to_visual_preset_option();
 
-        _amplitude_factor_support = [this]() {
-            return _dev.supports_feature( amplitude_factor_feature::ID );
+        _amplitude_factor_support = [this]()
+        {
+            return _dev->supports_feature( amplitude_factor_feature::ID );
         };
     }
 
@@ -187,7 +193,7 @@ namespace librealsense
             break;
         case RS2_RS400_VISUAL_PRESET_REMOVE_IR_PATTERN:
         {
-            if( ! _dev.supports_feature( remove_ir_pattern_feature::ID ) )
+            if( ! _dev->supports_feature( remove_ir_pattern_feature::ID ) )
                 throw invalid_value_exception( "apply_preset(...) failed! The device does not support remove IR pattern feature" );
 
             switch (device_pid)
@@ -475,73 +481,85 @@ namespace librealsense
     void ds_advanced_mode_base::set_depth_control_group(const STDepthControlGroup& val)
     {
         set(val, advanced_mode_traits<STDepthControlGroup>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
     }
 
     void ds_advanced_mode_base::set_rsm(const STRsm& val)
     {
         set(val, advanced_mode_traits<STRsm>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_rau_support_vector_control(const STRauSupportVectorControl& val)
     {
         set(val, advanced_mode_traits<STRauSupportVectorControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_color_control(const STColorControl& val)
     {
         set(val, advanced_mode_traits<STColorControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_rau_color_thresholds_control(const STRauColorThresholdsControl& val)
     {
         set(val, advanced_mode_traits<STRauColorThresholdsControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_slo_color_thresholds_control(const STSloColorThresholdsControl& val)
     {
         set(val, advanced_mode_traits<STSloColorThresholdsControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_slo_penalty_control(const STSloPenaltyControl& val)
     {
         set(val, advanced_mode_traits<STSloPenaltyControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_hdad(const STHdad& val)
     {
         set(val, advanced_mode_traits<STHdad>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_color_correction(const STColorCorrection& val)
     {
         set(val, advanced_mode_traits<STColorCorrection>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_depth_table_control(const STDepthTableControl& val)
     {
         set(val, advanced_mode_traits<STDepthTableControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_ae_control(const STAEControl& val)
     {
         set(val, advanced_mode_traits<STAEControl>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_census_radius(const STCensusRadius& val)
     {
         set(val, advanced_mode_traits<STCensusRadius>::group);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     void ds_advanced_mode_base::set_amp_factor(const STAFactor& val)
@@ -549,7 +567,8 @@ namespace librealsense
         if (*_amplitude_factor_support)
         {
             set(val, advanced_mode_traits<STAFactor>::group);
-            _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+            if( _preset_opt )
+                _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
         }
     }
 
@@ -735,7 +754,7 @@ namespace librealsense
                                                      << "serialize_json() failed! Device is not in Advanced-Mode." );
 
         auto p = get_all();
-        return generate_json(_dev, p);
+        return generate_json(*_dev, p);
     }
 
     void ds_advanced_mode_base::load_json(const std::string& json_content)
@@ -745,9 +764,10 @@ namespace librealsense
                                                      << "load_json(...) failed! Device is not in Advanced-Mode." );
 
         auto p = get_all();
-        update_structs(_dev,  json_content, p);
+        update_structs(*_dev,  json_content, p);
         set_all(p);
-        _preset_opt->set(RS2_RS400_VISUAL_PRESET_CUSTOM);
+        if( _preset_opt )
+            _preset_opt->set( RS2_RS400_VISUAL_PRESET_CUSTOM );
     }
 
     preset ds_advanced_mode_base::get_all() const
@@ -874,7 +894,7 @@ namespace librealsense
 
     bool ds_advanced_mode_base::should_set_rgb_preset() const
     {
-        auto product_line = _dev.get_info( rs2_camera_info::RS2_CAMERA_INFO_PRODUCT_LINE );
+        auto product_line = _dev->get_info( rs2_camera_info::RS2_CAMERA_INFO_PRODUCT_LINE );
 
         return product_line != "D500";
     }
@@ -886,8 +906,8 @@ namespace librealsense
 
     void ds_advanced_mode_base::set_hdr_preset(const preset& p)
     {
-        if (!_dev.supports_info(RS2_CAMERA_INFO_NAME) || 
-            _dev.get_info(RS2_CAMERA_INFO_NAME).find("D45") == std::string::npos)
+        if (!_dev->supports_info(RS2_CAMERA_INFO_NAME) || 
+            _dev->get_info(RS2_CAMERA_INFO_NAME).find("D45") == std::string::npos)
         {
             throw std::runtime_error("HDR preset is not supported on the connected device"); // feature only works for D45* cameras
         }
@@ -917,7 +937,7 @@ namespace librealsense
 
     std::vector<uint8_t> ds_advanced_mode_base::send_receive(const std::vector<uint8_t>& input) const
     {
-        auto res = _hw_monitor->send(input);
+        auto res = _debug_interface->send_receive_raw_data( input );
         if (res.empty())
         {
             throw std::runtime_error("Advanced mode write failed!");
@@ -927,7 +947,7 @@ namespace librealsense
 
     void ds_advanced_mode_base::send_no_receive( const std::vector< uint8_t > & input ) const
     {
-        _hw_monitor->send( input );
+        _debug_interface->send_receive_raw_data( input );
     }
 
 

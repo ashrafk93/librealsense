@@ -2,12 +2,14 @@
 // Copyright(c) 2017 RealSense, Inc. All Rights Reserved.
 #pragma once
 
+#include <serializable-interface.h>
+#include <option.h>
+#include <core/device-interface.h>
+#include <core/debug.h>
 #include "ds/ds-private.h"
-#include "hw-monitor.h"
-#include "option.h"
-#include "ds/advanced_mode/presets.h"
+#include <ds/advanced_mode/presets.h>
+#include <platform/stream-profile.h>
 #include <librealsense2/h/rs_advanced_mode_command.h>
-#include "serializable-interface.h"
 #include <rsutils/lazy.h>
 
 
@@ -100,9 +102,8 @@ namespace librealsense
     class ds_advanced_mode_base : public ds_advanced_mode_interface
     {
     public:
-        explicit ds_advanced_mode_base( std::shared_ptr< hw_monitor > hwm, device_interface & dev );
-
         virtual ~ds_advanced_mode_base() = default;
+        virtual void initialize_advanced_mode( device_interface * dev );
 
         bool is_enabled() const override;
         void toggle_advanced_mode(bool enable) override;
@@ -140,9 +141,6 @@ namespace librealsense
         std::vector<uint8_t> serialize_json() const override;
         void load_json(const std::string& json_content) override;
 
-        void register_to_visual_preset_option();
-        void unregister_from_visual_preset_option();
-
         static const uint16_t HW_MONITOR_COMMAND_SIZE = 1000;
         static const uint16_t HW_MONITOR_BUFFER_SIZE = 1024;
 
@@ -150,7 +148,10 @@ namespace librealsense
         void unblock();
 
     protected:
+        virtual void device_specific_initialization();
+
         friend class auto_calibrated;
+
         void set_exposure( sensor_base & sensor, const exposure_control & val );
         void set_auto_exposure( sensor_base & sensor, const auto_exposure_control & val );
         void get_exposure( sensor_base & sensor, exposure_control * ptr ) const;
@@ -199,8 +200,8 @@ namespace librealsense
 
         bool supports_option( const sensor_base & sensor, rs2_option opt ) const;
 
-        device_interface & _dev;
-        std::shared_ptr<hw_monitor> _hw_monitor;
+        device_interface * _dev;
+        debug_interface * _debug_interface;
         rsutils::lazy< sensor_base * > _depth_sensor;
         rsutils::lazy< sensor_base * > _color_sensor;
         rsutils::lazy< bool > _enabled;
@@ -219,6 +220,9 @@ namespace librealsense
 
         virtual std::vector<uint8_t> send_receive(const std::vector<uint8_t>& input) const;
         virtual void send_no_receive( const std::vector< uint8_t > & input ) const;
+
+        void register_to_visual_preset_option();
+        void unregister_from_visual_preset_option();
 
         template<class T>
         void set(const T& strct, EtAdvancedModeRegGroup cmd) const
