@@ -2,6 +2,8 @@
 # Copyright(c) 2023 RealSense, Inc. All Rights Reserved.
 
 # test:device D585S
+# test:donotrun:!nightly
+
 
 import pyrealsense2 as rs
 from rspy import test, log
