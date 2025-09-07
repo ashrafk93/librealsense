@@ -54,5 +54,6 @@ add_subdirectory(gl)
 add_subdirectory(hdr)
 add_subdirectory(on-chip-calib)
 add_subdirectory(eth-config)
+add_subdirectory(decimation-dpp)
 
 unset_security_flags_for_executable()

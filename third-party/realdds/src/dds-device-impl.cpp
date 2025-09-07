@@ -144,6 +144,8 @@ void dds_device::impl::on_notification( json && j, dds_sample const & notificati
         { topics::reply::set_option::id, &dds_device::impl::on_set_option },
         { topics::reply::query_option::id, &dds_device::impl::on_set_option },  // Same handling as on_set_option
         { topics::reply::query_options::id, &dds_device::impl::on_query_options },
+        { topics::reply::set_filter::id, &dds_device::impl::on_set_filter },
+        { topics::reply::query_filter::id, &dds_device::impl::on_query_filter },
         { topics::notification::device_header::id, &dds_device::impl::on_device_header },
         { topics::notification::device_options::id, &dds_device::impl::on_device_options },
         { topics::notification::stream_header::id, &dds_device::impl::on_stream_header },
@@ -212,6 +214,14 @@ void dds_device::impl::on_notification( json && j, dds_sample const & notificati
     {
         LOG_DEBUG( "[" << debug_name() << "] reply error: unknown exception  " << j );
     }
+}
+
+void dds_device::impl::on_set_filter(rsutils::json const&, dds_sample const&)
+{
+}
+
+void dds_device::impl::on_query_filter(rsutils::json const&, dds_sample const&)
+{
 }
 
 

@@ -134,6 +134,9 @@ private:
 
     void on_notification( rsutils::json &&, dds_sample const & );
 
+    void on_set_filter(rsutils::json const&, dds_sample const&);
+    void on_query_filter(rsutils::json const&, dds_sample const&);
+
     on_metadata_available_signal _on_metadata_available;
     on_device_log_signal _on_device_log;
     on_notification_signal _on_notification;

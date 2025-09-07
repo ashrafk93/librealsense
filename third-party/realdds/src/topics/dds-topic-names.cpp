@@ -156,6 +156,13 @@ namespace control {
             std::string const cancel( "cancel", 6 );
         }
     }
+    namespace set_filter {
+        std::string const id("set-filter", 10);
+    }
+
+    namespace query_filter {
+        std::string const id("query-filter", 12);
+    }
 }
 
 namespace reply {

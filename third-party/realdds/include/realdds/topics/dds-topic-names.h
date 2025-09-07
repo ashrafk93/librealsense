@@ -196,6 +196,24 @@ namespace control {
             extern std::string const cancel;
         }
     }
+
+    namespace set_filter {
+        extern std::string const id;
+        namespace key {
+            extern std::string const name;
+            extern std::string const options;
+            extern std::string const stream_name;
+        }
+    }
+
+    namespace query_filter {
+        extern std::string const id;
+        namespace key {
+            using control::set_filter::key::name;
+            using control::set_filter::key::options;
+            using control::set_filter::key::stream_name;
+        }
+    }
 }
 
 namespace reply {
@@ -247,6 +265,22 @@ namespace reply {
     namespace dfu_apply {
         using control::dfu_apply::id;
         namespace key {
+        }
+    }
+    namespace set_filter {
+        using control::set_filter::id;
+        namespace key {
+            using control::set_filter::key::name;
+            using control::set_filter::key::options;
+            using control::set_filter::key::stream_name;
+        }
+    }
+    namespace query_filter {
+        using control::query_filter::id;
+        namespace key {
+            using control::set_filter::key::name;
+            using control::set_filter::key::options;
+            using control::set_filter::key::stream_name;
         }
     }
 }
