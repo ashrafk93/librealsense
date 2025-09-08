@@ -66,8 +66,8 @@ def find_built_exe( source, name ):
     """
     if platform.system() != 'Linux':
         name += '.exe'
-    paths = os.environ.get('PATH')
-    for p in paths.split(os.pathsep):
+    import sys
+    for p in sys.path:
         exe = os.path.join( p, name )
         if os.path.isfile( exe ):
             return exe
