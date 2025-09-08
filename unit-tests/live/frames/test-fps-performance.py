@@ -165,7 +165,7 @@ def time_to_first_frame(sensor, profile, max_delay_allowed):
 
 
 # The device starts at D0 (Operational) state, allow time for it to get into idle state
-time.sleep(1.5)  # Reduced from 3 seconds for faster testing
+time.sleep(DEVICE_INIT_SLEEP_SEC)
 
 
 #####################################################################################################
@@ -181,7 +181,7 @@ if len(devs) == 0:
 dev = devs[0]
 device_creation_time = device_creation_stopwatch.get_elapsed()
 is_dds = dev.supports(rs.camera_info.connection_type) and dev.get_info(rs.camera_info.connection_type) == "DDS"
-max_time_for_device_creation = 1 if not is_dds else 5  # currently, DDS devices take longer time to complete
+max_time_for_device_creation = DEFAULT_DEVICE_CREATION_TIMEOUT if not is_dds else DDS_DEVICE_CREATION_TIMEOUT  # currently, DDS devices take longer time to complete
 print("Device creation time is: {:.3f} [sec] max allowed is: {:.1f} [sec] ".format(device_creation_time, max_time_for_device_creation))
 test.check(device_creation_time < max_time_for_device_creation)
 test.finish()
@@ -468,9 +468,9 @@ def test_stream_fps_accuracy_generic(device, stream_name, stream_type, formats, 
                         break
             
             # Special case for very low FPS: allow early exit with fewer measurements if we have reasonable frame count
-            if expected_fps <= 6 and len(fps_measurements) >= 1 and frame_count >= 15:
+            if expected_fps <= 6 and len(fps_measurements) >= 1 and frame_count >= MIN_FRAME_COUNT_LOW_FPS:
                 elapsed = test_stopwatch.get_elapsed()
-                if elapsed >= (test_duration * 0.6):  # At least 60% of test duration
+                if elapsed >= (test_duration * MIN_TEST_DURATION_PERCENT):  # At least 60% of test duration
                     log.i(f"Very low FPS test ({expected_fps} FPS) collected {len(fps_measurements)} measurements with {frame_count} frames in {elapsed:.1f}s - acceptable for low FPS analysis")
                     break
             
@@ -659,18 +659,18 @@ def get_fps_test_parameters(fps_rate):
     Returns:
         Tuple[float, float]: (test_duration, tolerance)
     """
-    if fps_rate <= 6:
-        return 15.0, 0.35   # Very low FPS: extended test time and higher tolerance
-    elif fps_rate <= 15:
-        return 10.0, 0.25   # Low FPS: increased test time and tolerance
-    elif fps_rate <= 30:
-        return 8.0, 0.15    # Standard FPS: increased duration for better measurements
-    elif fps_rate <= 60:
-        return 6.0, 0.18    # High FPS: optimized duration and tolerance
-    elif fps_rate <= 90:
-        return 4.0, 0.20    # Very high FPS: shorter test with higher tolerance
-    else:
-        return 3.0, 0.25    # Extremely high FPS: quickest test, highest tolerance
+    # Configuration: list of (threshold, (duration, tolerance))
+    fps_test_config = [
+        (6,   (15.0, 0.35)),  # Very low FPS: extended test time and higher tolerance
+        (15,  (10.0, 0.25)),  # Low FPS: increased test time and tolerance
+        (30,  (8.0, 0.15)),   # Standard FPS: increased duration for better measurements
+        (60,  (6.0, 0.18)),   # High FPS: optimized duration and tolerance
+        (90,  (4.0, 0.20)),   # Very high FPS: shorter test with higher tolerance
+    ]
+    for threshold, params in fps_test_config:
+        if fps_rate <= threshold:
+            return params
+    return (3.0, 0.25)  # Extremely high FPS: quickest test, highest tolerance
 
 
 def test_stream_fps_accuracy_comprehensive(device, stream_type_name, test_function, get_fps_function):
@@ -1437,20 +1437,9 @@ def test_multistream_configurations_comprehensive(device):
         log.i(f"\nTesting multi-stream {i+1}/{len(combinations)}: {config_name}")
         
         try:
-            # Adjust test duration based on FPS rates (optimized for all combinations)
+            # Adjust test duration and tolerance based on FPS rates using shared logic
             min_fps = min(depth_fps, color_fps)
-            if min_fps <= 6:
-                test_duration = 12.0  # Longer for very low FPS
-                tolerance = 0.35
-            elif min_fps <= 15:
-                test_duration = 10.0  # Moderate for low FPS
-                tolerance = 0.30
-            elif min_fps <= 30:
-                test_duration = 8.0   # Standard for medium FPS
-                tolerance = 0.25
-            else:
-                test_duration = 6.0   # Faster for high FPS
-                tolerance = 0.20
+            test_duration, tolerance = get_fps_test_parameters(min_fps)
             
             passed, stats = test_multistream_fps_accuracy(
                 device, depth_config, color_config, test_duration, tolerance
@@ -1900,19 +1889,10 @@ log.i(f"  Overall result: {'PASS' if overall_passed else 'FAIL'}")
 # Calculate and display total test execution time
 overall_test_end_time = time.time()
 total_test_duration = overall_test_end_time - overall_test_start_time
-hours = int(total_test_duration // 3600)
-minutes = int((total_test_duration % 3600) // 60)
-seconds = total_test_duration % 60
-
 log.i(f"\n{'='*80}")
 log.i("TOTAL TEST EXECUTION TIME")
 log.i(f"{'='*80}")
-if hours > 0:
-    log.i(f"Total execution time: {hours:d}h {minutes:02d}m {seconds:05.2f}s ({total_test_duration:.2f} seconds)")
-elif minutes > 0:
-    log.i(f"Total execution time: {minutes:02d}m {seconds:05.2f}s ({total_test_duration:.2f} seconds)")
-else:
-    log.i(f"Total execution time: {seconds:.2f} seconds")
+log.i(f"Total execution time: {format_duration(total_test_duration)}")
 
 # Performance summary
 tests_per_second = (total_fps_tests + total_config_tests) / total_test_duration if total_test_duration > 0 else 0
