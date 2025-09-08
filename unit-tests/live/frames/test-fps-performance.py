@@ -34,7 +34,7 @@ from collections import deque
 from typing import List, Tuple, Dict
 
 # CI optimization: Detect if running in CI environment
-CI_MODE = os.getenv('CI') or os.getenv('CONTINUOUS_INTEGRATION') or os.getenv('GITHUB_ACTIONS')
+CI_MODE = bool(os.getenv('CI') or os.getenv('CONTINUOUS_INTEGRATION') or os.getenv('GITHUB_ACTIONS'))
 
 def optimize_for_ci(configurations, max_configs=8):
     """
