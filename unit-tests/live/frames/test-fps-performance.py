@@ -1,7 +1,7 @@
 # License: Apache 2.0. See LICENSE file in root directory.
 # Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 
-# test:donotrun:!local
+# test:donotrun:!weekly
 # test:device D400*
 # test:device D500*
 # test:timeout 14400
