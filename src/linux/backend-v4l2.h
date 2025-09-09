@@ -312,7 +312,6 @@ namespace librealsense
                     std::function<void(const uvc_device_info&,
                                        const std::string&)> action);
 
-            static std::vector<std::string> get_v4l_video_paths();
             static std::vector<std::string> get_mipi_dfu_paths();
 
             static bool is_usb_path_valid(const std::string& usb_video_path, const std::string &dev_name,
@@ -417,14 +416,16 @@ namespace librealsense
                 identifier key;
             };
 
+            static std::vector<path_and_identifier> collect_v4l_video_path_and_identifier();
             static bool get_identifier_from_v4l_video_path(const std::string& v4l_video_path, identifier& key);
             static bool get_devname_from_v4l_video_path(const std::string& v4l_video_path, std::string& devname,
                                                     const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths);
             static bool get_devname_from_mipi_dfu_path(const path_and_identifier& dfu_path, std::string& dev_name);
 
-            static std::vector<std::pair <std::string, std::string>> generate_v4l_to_dev_video_paths(const std::vector<std::string>& v4l_video_paths);
+            static std::vector<std::pair <std::string, std::string>> generate_v4l_to_dev_video_paths(const std::vector<path_and_identifier>& v4l_videos,
+                                                                                                     const std::vector<path_and_identifier>& dev_videos);
             static std::vector<node_info> get_mipi_rs_enum_nodes();
-            static std::vector<node_info> collect_uvc_nodes(const std::vector<std::string>& v4l_video_paths, const std::vector<node_info>& mipi_rs_enum_nodes,
+            static std::vector<node_info> collect_uvc_nodes(const std::vector<path_and_identifier>& v4l_videos, const std::vector<node_info>& mipi_rs_enum_nodes,
                                                             const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths);
             static std::vector<node_info> match_video_with_metadata_nodes(const std::vector<node_info>& uvc_nodes);
             static bool get_info_from_v4l_video_path(const std::string& v4l_video_path, const std::string& dev_name, uvc_device_info& info, bool is_mipi_rs_enum_nodes_empty,

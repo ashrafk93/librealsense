@@ -605,27 +605,22 @@ namespace librealsense
             return true;
         }
 
-        std::vector<std::pair <std::string, std::string>> v4l_uvc_device::generate_v4l_to_dev_video_paths(const std::vector<std::string>& v4l_video_paths)
+        std::vector<std::pair <std::string, std::string>> v4l_uvc_device::generate_v4l_to_dev_video_paths(const std::vector<path_and_identifier>& v4l_videos,
+                                                                                                          const std::vector<path_and_identifier>& dev_videos)
         {
             std::vector<std::pair<std::string, std::string>> v4l_to_dev_video_paths;
-            // building vector of /dev/videoX files with path, major, minor
-            std::vector<path_and_identifier> dev_videos = collect_dev_video_path_and_identifier();
 
             // going over video paths like /sys/class/video4linux/videoX
             // find their mapping in /dev/videoY
             // above videoX and videoY are often the same, but not always - for example when working in unprivileged container
-            for(auto&& v4l_video_path : v4l_video_paths)
+            for(auto&& v4l_video : v4l_videos)
             {
-                identifier key{0, 0};
-                if (!get_identifier_from_v4l_video_path(v4l_video_path, key))
-                    continue;
-
                 // searching for match in /dev, in means of major, minor
                 for (auto&& dev_video : dev_videos)
                 {
-                    if (key == dev_video.key)
+                    if (v4l_video.key== dev_video.key)
                     {
-                        v4l_to_dev_video_paths.push_back(std::make_pair(v4l_video_path, dev_video.path));
+                        v4l_to_dev_video_paths.push_back(std::make_pair(v4l_video.path, dev_video.path));
                         break;
                     }
                 }
@@ -683,15 +678,15 @@ namespace librealsense
             return false;
         }
 
-        std::vector<std::string> v4l_uvc_device::get_v4l_video_paths()
+        std::vector<v4l_uvc_device::path_and_identifier> v4l_uvc_device::collect_v4l_video_path_and_identifier()
         {
-            std::vector<std::string> v4l_video_paths;
+            std::vector<path_and_identifier> v4l_videos;
             // Enumerate all subdevices present on the system
             DIR * dir = opendir("/sys/class/video4linux");
             if(!dir)
             {
                 LOG_INFO("Cannot access /sys/class/video4linux");
-                return v4l_video_paths;
+                return v4l_videos;
             }
             while (dirent * entry = readdir(dir))
             {
@@ -702,32 +697,35 @@ namespace librealsense
                 static const std::regex video_dev_pattern("(\\/video\\d+)$");
 
                 std::string path = "/sys/class/video4linux/" + name;
-                std::string real_path{};
+                std::string v4l_path{};
                 char buff[PATH_MAX] = {0};
                 if (realpath(path.c_str(), buff) != nullptr)
                 {
-                    real_path = std::string(buff);
-                    if (real_path.find("virtual") != std::string::npos)
+                    v4l_path = std::string(buff);
+                    if (v4l_path.find("virtual") != std::string::npos)
                         continue;
-                    if (!std::regex_search(real_path, video_dev_pattern))
+                    if (!std::regex_search(v4l_path, video_dev_pattern))
                     {
-                        //LOG_INFO("Skipping Video4Linux entry " << real_path << " - not a device");
+                        //LOG_INFO("Skipping Video4Linux entry " << v4l_path << " - not a device");
                         continue;
                     }
-                    v4l_video_paths.push_back(real_path);
+                    identifier key{0, 0};
+                    if (!get_identifier_from_v4l_video_path(v4l_path, key))
+                        continue;
+
+                    v4l_videos.push_back({v4l_path, key});
                 }
             }
             closedir(dir);
 
-
             // UVC nodes shall be traversed in ascending order for metadata nodes assignment ("dev/video1, Video2..
             // Replace lexicographic with numeric sort to ensure "video2" is listed before "video11"
-            std::sort(v4l_video_paths.begin(), v4l_video_paths.end(),
-                      [](const std::string& first, const std::string& second)
+            std::sort(v4l_videos.begin(), v4l_videos.end(),
+                      [](const path_and_identifier& first, const path_and_identifier& second)
             {
                 // getting videoXX
-                std::string first_video = first.substr(first.find_last_of('/') + 1);
-                std::string second_video = second.substr(second.find_last_of('/') + 1);
+                std::string first_video = first.path.substr(first.path.find_last_of('/') + 1);
+                std::string second_video = second.path.substr(second.path.find_last_of('/') + 1);
 
                 // getting the index XX from videoXX
                 std::stringstream first_index(first_video.substr(first_video.find_first_of("0123456789")));
@@ -737,7 +735,7 @@ namespace librealsense
                 second_index >> right_id;
                 return left_id < right_id;
             });
-            return v4l_video_paths;
+            return v4l_videos;
         }
 
         std::vector<std::string> v4l_uvc_device::get_mipi_dfu_paths()
@@ -1362,7 +1360,7 @@ namespace librealsense
             return res;
         }
 
-        std::vector<node_info> v4l_uvc_device::collect_uvc_nodes(const std::vector<std::string>& v4l_video_paths,
+        std::vector<node_info> v4l_uvc_device::collect_uvc_nodes(const std::vector<path_and_identifier>& v4l_videos,
                                                                  const std::vector<node_info>& mipi_rs_enum_nodes,
                                                                  const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths)
         {
@@ -1373,18 +1371,18 @@ namespace librealsense
                 uvc_nodes.insert(uvc_nodes.end(), mipi_rs_enum_nodes.begin(), mipi_rs_enum_nodes.end());
             }
 
-            for(auto&& v4l_video_path : v4l_video_paths)
+            for(auto&& v4l_video : v4l_videos)
             {
                 try
                 {
                     std::string dev_name;
-                    if (!get_devname_from_v4l_video_path(v4l_video_path, dev_name, v4l_to_dev_video_paths))
+                    if (!get_devname_from_v4l_video_path(v4l_video.path, dev_name, v4l_to_dev_video_paths))
                     {
                         continue;
 
                     }
                     uvc_device_info info;
-                    if (get_info_from_v4l_video_path(v4l_video_path, dev_name, info, mipi_rs_enum_nodes.empty(), v4l_to_dev_video_paths))
+                    if (get_info_from_v4l_video_path(v4l_video.path, dev_name, info, mipi_rs_enum_nodes.empty(), v4l_to_dev_video_paths))
                     {
                         uvc_nodes.emplace_back(info, dev_name);
                     }
@@ -1401,12 +1399,17 @@ namespace librealsense
                 std::function<void(const uvc_device_info&,
                                    const std::string&)> action)
         {
-            std::vector<std::string> video_v4l_paths = get_v4l_video_paths();
-            auto v4l_to_dev_video_paths = generate_v4l_to_dev_video_paths(video_v4l_paths);
+            // building vector of /sys/class/video4linux/.../videoX files with path, major, minor
+            std::vector<path_and_identifier> v4l_videos = collect_v4l_video_path_and_identifier();
+            // building vector of /dev/videoX files with path, major, minor
+            std::vector<path_and_identifier> dev_videos = collect_dev_video_path_and_identifier();
+            // generate map of "/sys/class/video4linux/.../videoX" to "/dev/videoY"
+            auto v4l_to_dev_video_paths = generate_v4l_to_dev_video_paths(v4l_videos, dev_videos);
+
             std::vector<node_info> mipi_rs_enum_nodes = get_mipi_rs_enum_nodes();
 
             // Collect UVC nodes info to bundle metadata and video
-            std::vector<node_info> uvc_nodes = collect_uvc_nodes(video_v4l_paths, mipi_rs_enum_nodes, v4l_to_dev_video_paths);
+            std::vector<node_info> uvc_nodes = collect_uvc_nodes(v4l_videos, mipi_rs_enum_nodes, v4l_to_dev_video_paths);
 
             // Matching video and metadata nodes
             std::vector<node_info> uvc_devices = match_video_with_metadata_nodes(uvc_nodes);
