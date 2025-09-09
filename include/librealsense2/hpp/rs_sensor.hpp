@@ -751,5 +751,59 @@ namespace rs2
         }
         operator bool() const { return _sensor.get() != nullptr; }
     };
+
+    class embedded_filter_sensor : public sensor
+    {
+    public:
+        embedded_filter_sensor(sensor s)
+            : sensor(s.get())
+        {
+            rs2_error* e = nullptr;
+            if (rs2_is_sensor_extendable_to(_sensor.get(), RS2_EXTENSION_EMBEDDED_FILTER_SENSOR, &e) == 0 && !e)
+            {
+                _sensor.reset();
+            }
+            error::handle(e);
+        }
+
+        operator bool() const { return _sensor.get() != nullptr; }
+
+        bool supports(rs2_embedded_filter embedded_filter)
+        {
+            rs2_error* e = nullptr;
+            auto is_supported = rs2_supports_embedded_filter(_sensor.get(), embedded_filter, &e);
+            error::handle(e);
+            return is_supported > 0;
+        }
+
+        void set_filter(rs2_embedded_filter embedded_filter, std::vector<uint8_t> command)
+        {
+            rs2_error* e = nullptr;
+            rs2_set_embedded_filter(_sensor.get(), embedded_filter,
+                (void*)command.data(), (uint32_t)command.size(), &e);
+            error::handle(e);
+        }
+
+        std::vector<uint8_t> get_filter(rs2_embedded_filter embedded_filter)
+        {
+            rs2_error* e = nullptr;
+
+            std::shared_ptr<const rs2_raw_data_buffer> list(
+                rs2_get_embedded_filter(_sensor.get(), embedded_filter, &e),
+                rs2_delete_raw_data);
+            error::handle(e);
+
+            std::vector<uint8_t> results;
+            auto size = rs2_get_raw_data_size(list.get(), &e);
+            error::handle(e);
+
+            auto start = rs2_get_raw_data(list.get(), &e);
+            error::handle(e);
+
+            results.insert(results.begin(), start, start + size);
+
+            return results;
+        }
+    };
 }
 #endif // LIBREALSENSE_RS2_SENSOR_HPP

@@ -96,6 +96,21 @@ try
 
 	// setting decimation filter OFF
 	std::cout << "Setting decimation filter OFF" << std::endl;
+    rs2::embedded_filter_sensor sensor = depth_sensor.as<rs2::embedded_filter_sensor>();
+    if (!sensor.supports(RS2_EMBEDDED_FILTER_DECIMATION))
+    {
+        throw std::runtime_error("Depth sensor does not support embedded decimation filter!");
+    }
+    std::vector<uint8_t> request;
+    uint8_t on_off = 0; // OFF
+    request.push_back(on_off);
+    sensor.set_filter(RS2_EMBEDDED_FILTER_DECIMATION, request);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto ans = sensor.get_filter(RS2_EMBEDDED_FILTER_DECIMATION);
+    if (ans[0] == 0)
+    {
+        throw std::runtime_error("Decimation filter deactivation did not work!");
+    }
 
 	// streaming sensor and checking resolution is the nominal resolution
 	depth_sensor.open(depth_profile);
@@ -120,6 +135,16 @@ try
 
 	// setting decimation filter ON
 	std::cout << "Setting decimation filter ON" << std::endl;
+    std::vector<uint8_t> request;
+    uint8_t on_off = 1; // ON
+    request.push_back(on_off);
+    sensor.set_filter(RS2_EMBEDDED_FILTER_DECIMATION, request);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto ans = sensor.get_filter(RS2_EMBEDDED_FILTER_DECIMATION);
+    if (ans[0] == 1)
+    {
+        throw std::runtime_error("Decimation filter activation did not work!");
+    }
 
     // streaming sensor and checking resolution is the decimated resolution
 	auto decimation_factor = 2;

@@ -197,6 +197,7 @@ typedef enum rs2_extension
     RS2_EXTENSION_DEPTH_MAPPING_SENSOR,
     RS2_EXTENSION_LABELED_POINTS,
     RS2_EXTENSION_ETH_CONFIG,
+    RS2_EXTENSION_EMBEDDED_FILTER_SENSOR,
     RS2_EXTENSION_COUNT
 } rs2_extension;
 const char* rs2_extension_type_to_string(rs2_extension type);
@@ -259,6 +260,14 @@ typedef enum rs2_calib_location
 } rs2_calib_location;
 const char* rs2_calib_location_to_string(rs2_calib_location calib_location);
 
+typedef enum rs2_embedded_filter
+{
+    RS2_EMBEDDED_FILTER_FIRST,
+    RS2_EMBEDDED_FILTER_DECIMATION = RS2_EMBEDDED_FILTER_FIRST,
+    RS2_EMBEDDED_FILTER_TEMPORAL,
+    RS2_EMBEDDED_FILTER_COUNT
+} rs2_embedded_filter;
+const char* rs2_embedded_filter_to_string(rs2_embedded_filter embedded_filter);
 
 typedef struct rs2_device_info rs2_device_info;
 typedef struct rs2_device rs2_device;
