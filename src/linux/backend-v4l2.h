@@ -320,7 +320,7 @@ namespace librealsense
 
             static bool is_usb_device_path(const std::string& video_path);
 
-            static uvc_device_info get_info_from_usb_device_path(const std::string& video_path, const std::string& name, const std::vector<std::pair <std::string, std::string>>& sys_to_dev_video_paths);
+            static uvc_device_info get_info_from_usb_device_path(const std::string& video_path, const std::string& dev_name, const std::string& name, const std::vector<std::pair <std::string, std::string>>& sys_to_dev_video_paths);
 
             static uvc_device_info get_info_from_mipi_device_path(const std::string& video_path, const std::string& name);
 
@@ -427,7 +427,7 @@ namespace librealsense
             static std::vector<node_info> collect_uvc_nodes(const std::vector<std::string>& v4l_video_paths, const std::vector<node_info>& mipi_rs_enum_nodes,
                                                             const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths);
             static std::vector<node_info> match_video_with_metadata_nodes(const std::vector<node_info>& uvc_nodes);
-            static bool get_info_from_v4l_video_path(const std::string& v4l_video_path, uvc_device_info& info, bool is_mipi_rs_enum_nodes_empty,
+            static bool get_info_from_v4l_video_path(const std::string& v4l_video_path, const std::string& dev_name, uvc_device_info& info, bool is_mipi_rs_enum_nodes_empty,
                                                  const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths);
             static std::vector<path_and_identifier> collect_dev_video_path_and_identifier();
 

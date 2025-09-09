@@ -833,14 +833,10 @@ namespace librealsense
             return valid_path;
         }
 
-        uvc_device_info v4l_uvc_device::get_info_from_usb_device_path(const std::string& video_path, const std::string& name,
+        uvc_device_info v4l_uvc_device::get_info_from_usb_device_path(const std::string& video_path, const std::string& dev_name, const std::string& name,
                                                                       const std::vector<std::pair <std::string, std::string>>& sys_to_dev_video_paths)
         {
-            std::string busnum, devnum, devpath, dev_name;
-            if (!get_devname_from_v4l_video_path(video_path, dev_name, sys_to_dev_video_paths))
-            {
-                throw linux_backend_exception(rsutils::string::from() << "Unable to find dev_name from video_path: " << video_path);
-            }
+            std::string busnum, devnum, devpath;
 
             if (!is_usb_path_valid(video_path, dev_name, busnum, devnum, devpath))
             {
@@ -855,7 +851,7 @@ namespace librealsense
                throw linux_backend_exception("Failed to read busnum/devnum of usb device");
             }
 
-            LOG_INFO("Enumerating UVC " << name << " realpath=" << video_path << " dev_name=" << dev_name);
+            LOG_INFO("Enumerating UVC " << name << " v4l_path=" << video_path << " dev_name=" << dev_name);
             uint16_t vid{}, pid{}, mi{};
             usb_spec usb_specification(usb_undefined);
 
@@ -1337,7 +1333,7 @@ namespace librealsense
             return uvc_devices;
         }
 
-        bool v4l_uvc_device::get_info_from_v4l_video_path(const std::string& v4l_video_path, uvc_device_info& info, bool is_mipi_rs_enum_nodes_empty,
+        bool v4l_uvc_device::get_info_from_v4l_video_path(const std::string& v4l_video_path, const std::string& dev_name, uvc_device_info& info, bool is_mipi_rs_enum_nodes_empty,
                                                       const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths)
         {
             bool res = false;
@@ -1347,7 +1343,7 @@ namespace librealsense
 
             if (is_usb_device_path(v4l_video_path))
             {
-                info = get_info_from_usb_device_path(v4l_video_path, name, v4l_to_dev_video_paths);
+                info = get_info_from_usb_device_path(v4l_video_path, dev_name, name, v4l_to_dev_video_paths);
                 res = true;
             }
             else if(is_mipi_rs_enum_nodes_empty) //video4linux devices that are not USB devices and not previously enumerated by rs links
@@ -1381,12 +1377,14 @@ namespace librealsense
             {
                 try
                 {
-                    uvc_device_info info;
-                    if (!get_info_from_v4l_video_path(v4l_video_path, info, mipi_rs_enum_nodes.empty(), v4l_to_dev_video_paths))
+                    std::string dev_name;
+                    if (!get_devname_from_v4l_video_path(v4l_video_path, dev_name, v4l_to_dev_video_paths))
+                    {
                         continue;
 
-                    std::string dev_name;
-                    if (get_devname_from_v4l_video_path(v4l_video_path, dev_name, v4l_to_dev_video_paths))
+                    }
+                    uvc_device_info info;
+                    if (get_info_from_v4l_video_path(v4l_video_path, dev_name, info, mipi_rs_enum_nodes.empty(), v4l_to_dev_video_paths))
                     {
                         uvc_nodes.emplace_back(info, dev_name);
                     }
