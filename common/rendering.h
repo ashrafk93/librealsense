@@ -763,7 +763,7 @@ namespace rs2
                 }();
 
             // We want to reverse the data's bit, because AICV algo is packing each 8 cells into one byte, but in an opposite order
-            // than we (and OpenGL) expect. The rightest bit (LSB) inside the packed byte from AICV algo represnts the first bit we want to draw from this byte
+            // than we (and OpenGL) expect. The rightest bit (LSB) inside the packed byte from AICV algo represents the first bit we want to draw from this byte
             // e.g. Occupancy Cells: 0 0 1 1 0 0 1 0 ---> AICV packing algo ---> bytes[i] = 01001100. The order is reversed, so we reverse it again.
             // Each byte represents 8 cells (1 bit <==> 1 cell), therefore the size is ==> rows(height) * cols(width) / 8
 
