@@ -560,10 +560,6 @@ namespace librealsense
             while (dirent * entry = readdir(dev_dir))
             {
                 std::string name = entry->d_name;
-                if (name.compare(0, 5, "video") != 0)
-                {
-                    continue;
-                }
                 std::string dev_path = "/dev/" + name;
 
                 struct stat st = {};
@@ -612,7 +608,9 @@ namespace librealsense
 
             // going over video paths like /sys/class/video4linux/videoX
             // find their mapping in /dev/videoY
-            // above videoX and videoY are often the same, but not always - for example when working in unprivileged container
+            // above videoX and videoY are often the same, but not alway
+            // for example when working in unprivileged container, the name in /dev even not be with the name "video"
+            // (depends how the mapping of the video devices has been done for the container building)
             for(auto&& v4l_video : v4l_videos)
             {
                 // searching for match in /dev, in means of major, minor
