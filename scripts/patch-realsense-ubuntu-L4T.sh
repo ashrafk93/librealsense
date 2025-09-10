@@ -14,13 +14,6 @@ exec 2>&3
 function DisplayNvidiaLicense {
     revision=$1
 
-    # verify that curl is installed
-    if  ! which curl > /dev/null  ; then
-      echo "curl is not installed."
-      echo "curl can be installed by 'sudo apt-get install curl'."
-      exit 1
-    fi
-
     # By default referencing license agreement of JP 5.0.2
     license_path="https://developer.download.nvidia.com/embedded/L4T/${revision}/release/Tegra_Software_License_Agreement-Tegra-Linux.txt"
 
@@ -32,6 +25,16 @@ function DisplayNvidiaLicense {
     echo -e "${license}"
 
     read -t 30 -n 1 -s -r -e -p 'Press any key to continue (or wait 30 seconds..)'
+}
+
+function version_lt {
+	IFS='.' read -r -a v1 <<< "$1"
+	IFS='.' read -r -a v2 <<< "$2"
+	for i in 0 1 2; do
+		[[ v1[i] -lt v2[i] ]] && return 0
+		[[ v1[i] -gt v2[i] ]] && return 1
+	done
+	return 1
 }
 
 if [[ $con_dev -ne 0 ]];
@@ -107,8 +110,8 @@ esac
 echo -e "\e[32mL4T ${JETSON_L4T_VERSION} to use patches revision ${PATCHES_REV}\e[0m"
 
 # Get the required tools to build the patched modules
-sudo apt-get install build-essential git libssl-dev -y
-if [[ "$PATCHES_REV" < "6.0" ]]; then
+sudo apt-get install build-essential git libssl-dev curl -y
+if version_lt "$PATCHES_REV" "6.0"; then
 # Get the linux kernel repo, extract the L4T tag
 	echo -e "\e[32mRetrieve the corresponding L4T git tag the kernel source tree\e[0m"
 	l4t_gh_dir=../linux-${KERNEL_RELEASE}-source-tree
@@ -160,8 +163,7 @@ DisplayNvidiaLicense "r${JETSON_L4T_RELEASE}_Release_v${JETSON_L4T_REVISION_LONG
 # Download NVIDIA source
 ./Tegra/$TEGRA_SOURCE_SYNC_SH -k ${TEGRA_TAG}
 
-echo ${KBASE}
-pushd ${KBASE}
+pushd ${KBASE} > /dev/null
 
 echo -e "\e[32mCopy LibRealSense patches to the sandbox\e[0m"
 L4T_Patches_Dir=${sdk_dir}/scripts/Tegra/LRS_Patches/
@@ -175,7 +177,9 @@ fi
 #Clean the kernel WS
 echo -e "\e[32mPrepare workspace for kernel build\e[0m"
 
-if [[ "$PATCHES_REV" >= "6.0" ]]; then
+if version_lt "$PATCHES_REV" "6.0"; then
+	make ARCH=arm64 mrproper -j$(($(nproc)-1)) && make ARCH=arm64 tegra_defconfig -j$(($(nproc)-1))
+else
 	make ARCH=arm64 mrproper -j$(($(nproc)-1)) 
 	echo -e "\e[32mUpdate the kernel tree to support HID IMU sensors\e[0m"
 	# appending config to defconfig so later .config will be generated with all necessary dependencies
@@ -185,8 +189,6 @@ if [[ "$PATCHES_REV" >= "6.0" ]]; then
 	echo 'CONFIG_HID_SENSOR_IIO_COMMON=m' >> ./arch/arm64/configs/defconfig
 	echo 'CONFIG_HID_SENSOR_IIO_TRIGGER=m' >> ./arch/arm64/configs/defconfig
 	make ARCH=arm64 defconfig -j$(($(nproc)-1))
-else
-	make ARCH=arm64 mrproper -j$(($(nproc)-1)) && make ARCH=arm64 tegra_defconfig -j$(($(nproc)-1))
 fi
 
 #Reuse existing module.symver
@@ -217,7 +219,7 @@ make ARCH=arm64 prepare modules_prepare LOCALVERSION='' -j$(($(nproc)-1))
 #Remove previously applied patches
 git reset --hard
 echo -e "\e[32mApply Librealsense Kernel Patches\e[0m"
-if [[ "$PATCHES_REV" < "6.0" ]]; then
+if version_lt "${PATCHES_REV}" "6.0"; then
 	patch -p1 < ./LRS_Patches/01-realsense-camera-formats-L4T-${PATCHES_REV}.patch
 	patch -p1 < ./LRS_Patches/02-realsense-metadata-L4T-${PATCHES_REV}.patch
 	if [[ "$PATCHES_REV" = "4.4" ]]; then # for Jetpack 4.4 and older
@@ -227,9 +229,7 @@ if [[ "$PATCHES_REV" < "6.0" ]]; then
 		patch -p1 < ./LRS_Patches/04-media-uvcvideo-mark-buffer-error-where-overflow.patch
 	fi
 	patch -p1 < ./LRS_Patches/05-realsense-powerlinefrequency-control-fix.patch
-fi
-
-if [[ "$PATCHES_REV" >= "6.0" ]]; then
+else
 	patch -p1 < ${sdk_dir}/scripts/realsense-camera-formats-"${UBUNTU_CODENAME}"-master.patch
 	patch -p1 < ${sdk_dir}/scripts/realsense-metadata-"${UBUNTU_CODENAME}"-master.patch
 	[[ -f ${sdk_dir}/scripts/realsense-powerlinefrequency-control-fix-"${UBUNTU_CODENAME}".patch ]] \
@@ -247,18 +247,16 @@ if [[ "$PATCHES_REV" = "4.4" ]]; then # for Jetpack 4.4 and older
 	echo -e "\e[32mCompiling accelerometer and gyro modules\e[0m"
 	make -j$(($(nproc)-1)) ARCH=arm64  M=drivers/iio modules
 fi
-if [[ "$PATCHES_REV" >= "6.0" ]]; then # from Jetpack 6.0 onward
-	echo -e "\e[32mCompiling hid support, accelerometer and gyro modules\e[0m"
-	make -j$(($(nproc)-1)) ARCH=arm64  M=drivers/hid modules
-	export KBUILD_MODPOST_WARN=1
-	make -j$(($(nproc)-1)) ARCH=arm64  M=drivers/iio modules
-fi
-if [[ "$PATCHES_REV" < "6.0" ]]; then # for Jetpack 4-5
+if version_lt "$PATCHES_REV" "6.0"; then # for Jetpack 4-5
 	echo -e "\e[32mCopying the patched modules to (~/) \e[0m"
 	sudo cp drivers/media/usb/uvc/uvcvideo.ko ~/${TEGRA_TAG}-uvcvideo.ko
 	sudo cp drivers/media/v4l2-core/videobuf-vmalloc.ko ~/${TEGRA_TAG}-videobuf-vmalloc.ko
 	sudo cp drivers/media/v4l2-core/videobuf-core.ko ~/${TEGRA_TAG}-videobuf-core.ko
 else
+	echo -e "\e[32mCompiling hid support, accelerometer and gyro modules\e[0m"
+	make -j$(($(nproc)-1)) ARCH=arm64  M=drivers/hid modules
+	export KBUILD_MODPOST_WARN=1
+	make -j$(($(nproc)-1)) ARCH=arm64  M=drivers/iio modules
 	echo -e "\e[32mCopying the patched modules to destination \e[0m"
 fi
 if [[ "$PATCHES_REV" = "4.4" ]]; then # for Jetpack 4.4 and older
@@ -268,7 +266,7 @@ if [[ "$PATCHES_REV" = "4.4" ]]; then # for Jetpack 4.4 and older
 	sudo cp drivers/iio/gyro/hid-sensor-gyro-3d.ko ~/${TEGRA_TAG}-hid-sensor-gyro-3d.ko
 fi
 
-if [[ "$PATCHES_REV" >= "6.0" ]]; then # from Jetpack 6 onward
+if ! version_lt "$PATCHES_REV" "6.0"; then # from Jetpack 6 onward
 	sudo mkdir -p /lib/modules/$(uname -r)/extra/
 	# uvc modules with formats/sku support
 	sudo cp drivers/media/usb/uvc/uvcvideo.ko /lib/modules/$(uname -r)/extra/
@@ -301,7 +299,7 @@ fi
 sudo depmod
 
 echo -e "\e[32mInsert the modified kernel modules\e[0m"
-if [[ "$PATCHES_REV" < "6.0" ]]; then
+if version_lt "$PATCHES_REV" "6.0"; then
 	try_module_insert uvcvideo              ~/${TEGRA_TAG}-uvcvideo.ko                /lib/modules/`uname -r`/kernel/drivers/media/usb/uvc/uvcvideo.ko
 	try_load_module  uvcvideo
 	try_load_module  hid-sensor-gyro-3d
