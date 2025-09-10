@@ -32,6 +32,7 @@ function version_lt {
 	IFS='.' read -r -a v2 <<< "$2"
 	for i in 0 1 2; do
 		[[ v1[i] -lt v2[i] ]] && return 0
+		[[ v1[i] -gt v2[i] ]] && return 1
 	done
 	return 1
 }
