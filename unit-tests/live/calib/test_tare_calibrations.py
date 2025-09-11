@@ -92,7 +92,7 @@ with test.closure("Tare calibration test with host assistance"):
             test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
         
         tare_json = tare_calibration_json(None, host_assistance)
-        health_factor = calibration_main(host_assistance, False, tare_json, _target_z)
+        health_factor = calibration_main(256, 144, 90, False, tare_json, _target_z)
 
         test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
     except Exception as e:
@@ -111,7 +111,7 @@ with test.closure("Tare calibration test"):
             test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
 
         tare_json = tare_calibration_json(None, host_assistance)
-        health_factor = calibration_main(host_assistance, False, tare_json, _target_z)
+        health_factor = calibration_main(1280, 720, 30, False, tare_json, _target_z)
         
         test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
     except Exception as e:

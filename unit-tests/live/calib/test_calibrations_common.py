@@ -6,6 +6,9 @@ import time
 import copy
 import pyrealsense2 as rs
 from rspy import test, log
+import struct
+import zlib
+import ctypes
 
 # Constants for calibration
 CALIBRATION_TIMEOUT_SECONDS = 30
@@ -14,13 +17,39 @@ TARE_TIMEOUT_MS = 10000
 FRAME_PROCESSING_TIMEOUT_MS = 5000
 HARDWARE_RESET_DELAY_SECONDS = 3
 
+# Global variable to store original calibration table
+_global_original_calib_table = None
+
 def on_calib_cb(progress):
     """Callback function for calibration progress reporting."""
     pp = int(progress)
     log.d( f"Calibration at {progress}%" )
 
+def get_calibration_device(image_width, image_height, fps):
+    """
+    Setup and configure the calibration device.
+    
+    Args:
+        image_width (int): Image width
+        image_height (int): Image height
+        fps (int): Frames per second
+        
+    Returns:
+        tuple: (pipeline, auto_calibrated_device)
+    """
+    config = rs.config()
+    pipeline = rs.pipeline()
+    pipeline_wrapper = rs.pipeline_wrapper(pipeline)
+    config.enable_stream(rs.stream.depth, image_width, image_height, rs.format.z16, fps)            
 
-def calibration_main(host_assistance, occ_calib, json_config, ground_truth):
+    pipeline_profile = config.resolve(pipeline_wrapper)
+    auto_calibrated_device = rs.auto_calibrated_device(pipeline_profile.get_device())
+    if not auto_calibrated_device:
+        raise RuntimeError("Failed to open auto_calibrated_device for calibration")
+    
+    return config, pipeline, auto_calibrated_device
+
+def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground_truth):
     """
     Main calibration function for both OCC and Tare calibrations.
     
@@ -33,21 +62,9 @@ def calibration_main(host_assistance, occ_calib, json_config, ground_truth):
     Returns:
         float: Health factor from calibration
     """
-    config = rs.config()
-    pipeline = rs.pipeline()
-    pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-    if host_assistance:
-        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)            
-    else:    
-        config.enable_stream(rs.stream.depth, 256, 144, rs.format.z16, 90)
-    pipeline_profile = config.resolve(pipeline_wrapper)
-    auto_calibrated_device = rs.auto_calibrated_device(pipeline_profile.get_device())
-    if not auto_calibrated_device:
-        raise RuntimeError("Failed to open auto_calibrated_device for calibration")
 
     conf = pipeline.start(config)
     pipeline.wait_for_frames()  # Verify streaming started before calling calibration methods
-    calib_dev = rs.auto_calibrated_device(conf.get_device())
 
     depth_sensor = conf.get_device().first_depth_sensor()
     if depth_sensor.supports(rs.option.emitter_enabled):
@@ -94,124 +111,246 @@ def is_mipi_device():
     return device.supports(rs.camera_info.connection_type) and device.get_info(rs.camera_info.connection_type) == "GMSL"
 
 # for step 2 -  not in use for now
-"""
-def read_and_modify_calibration_table(device):
-    Demonstrates how to read, modify, and write calibration table.
-    Returns original and modified calibration tables.
+
+def get_current_rect_params(auto_calib_device):
+    """Return per-eye principal points (ppx, ppy) using intrinsic matrices; minimal logging."""
+    calib_table = auto_calib_device.get_calibration_table()
+    if isinstance(calib_table, list) or (hasattr(calib_table, '__iter__') and not isinstance(calib_table, (bytes, bytearray, str))):
+        calib_table = bytes(calib_table)
+    if len(calib_table) < 280:
+        log.e("Calibration table is too small")
+        return None
     try:
-        # Get the auto calibrated device interface
-        auto_calib_device = rs.auto_calibrated_device(device)
-        if not auto_calib_device:
-            log.e("Device does not support auto calibration")
-            return None, None
-        
-        # Read current calibration table
+        header_size = 16
+        intrinsic_left_offset = header_size
+        intrinsic_right_offset = header_size + 36
+        rect_params_base_offset = header_size + 36 + 36 + 36 + 36 + 4 + 4 + 88  # 256
+        rect_params_1280_800_offset = rect_params_base_offset + (8 * 16)
+        if (intrinsic_right_offset + 36 > len(calib_table) or
+            intrinsic_left_offset + 36 > len(calib_table) or
+            rect_params_1280_800_offset + 16 > len(calib_table)):
+            log.e("Calibration table too small for intrinsics")
+            return None
+        left_intrinsics_raw = struct.unpack('<9f', calib_table[intrinsic_left_offset:intrinsic_left_offset + 36])
+        right_intrinsics_raw = struct.unpack('<9f', calib_table[intrinsic_right_offset:intrinsic_right_offset + 36])
+        rect_params_1280_800 = struct.unpack('<4f', calib_table[rect_params_1280_800_offset:rect_params_1280_800_offset + 16])
+        width = 1280.0
+        height = 800.0
+        # Empirically determined indices: ppx uses element 2 (normalized), ppy uses element 3 (direct * height)
+        left_ppx = left_intrinsics_raw[2] * width
+        right_ppx = right_intrinsics_raw[2] * width
+        left_ppy = left_intrinsics_raw[3] * height
+        right_ppy = right_intrinsics_raw[3] * height
+        offsets_dict = {
+            'intrinsic_left_offset': intrinsic_left_offset,
+            'intrinsic_right_offset': intrinsic_right_offset
+        }
+        return (left_ppx, left_ppy), (right_ppx, right_ppy), offsets_dict
+    except Exception as e:
+        log.e(f"Error reading principal points: {e}")
+        return None
+
+
+def modify_calibration_table(device, new_calib_params, rect_param_offset, image_width=None, image_height=None):
+    """
+    Modifies the calibration table of an auto-calibrated RealSense device
+    Args:
+        device: RealSense device object that supports auto calibration
+        new_calib_params: tuple of (fx, fy, ppx, ppy) new calibration parameters
+        rect_param_offset: offset in calibration table for the specific resolution
+        image_width: original image width (for scaling)
+        image_height: original image height (for scaling)
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    global _global_original_calib_table
+    
+    # Get the auto calibrated device interface
+    auto_calib_device = rs.auto_calibrated_device(device)
+    if not auto_calib_device:
+        log.e("Device does not support auto calibration")
+        return False
+    
+    # Read current calibration table if not already stored
+    if _global_original_calib_table is None:
         log.i("Reading current calibration table...")
-        original_calib_table = auto_calib_device.get_calibration_table()
-        log.i(f"Original calibration table size: {len(original_calib_table)} bytes")
+        _global_original_calib_table = auto_calib_device.get_calibration_table()
         
-        # Make a copy for modification
-        modified_calib_table = copy.deepcopy(original_calib_table)
+        # Convert to bytes if it's returned as a list
+        if isinstance(_global_original_calib_table, list):
+            _global_original_calib_table = bytes(_global_original_calib_table)
+        elif hasattr(_global_original_calib_table, '__iter__') and not isinstance(_global_original_calib_table, (bytes, bytearray, str)):
+            _global_original_calib_table = bytes(_global_original_calib_table)
+            
+        log.i(f"Original calibration table size: {len(_global_original_calib_table)} bytes")
+    
+    # Make a copy for modification
+    modified_calib_table = bytearray(_global_original_calib_table)  # Use bytearray for easier modification
+
+    try:
+        new_fx, new_fy, new_ppx, new_ppy = new_calib_params
         
-        # Example modification: demonstrate table manipulation
-        # Note: This is just for demonstration - in real scenarios you would
-        # modify specific calibration parameters based on your needs
-        if len(modified_calib_table) > 10:
-            # Create a backup flag to indicate this table was modified
-            # This doesn't change actual calibration parameters, just marks the table
-            log.i("Marking calibration table as modified (demo purposes)")
-            # In a real scenario, you would modify actual calibration parameters
-            # based on the specific calibration table structure
+        # If we're working with 256x144 that was scaled from 424x240, we need to reverse the scaling
+        if image_width == 256 and image_height == 144:
+            # Reverse scale factors: 424/256 ≈ 1.656, 240/144 ≈ 1.667
+            scale_x = 424.0 / 256.0
+            scale_y = 240.0 / 144.0
+            
+            # Reverse scale the parameters back to 424x240 space for storage
+            storage_fx = new_fx * scale_x
+            storage_fy = new_fy * scale_y
+            storage_ppx = new_ppx * scale_x
+            storage_ppy = new_ppy * scale_y
+            
+            log.i(f"  Modifying calibration - fx: {new_fx:.3f}, fy: {new_fy:.3f}, ppx: {new_ppx:.3f}, ppy: {new_ppy:.3f}")
+            log.i(f"  Storing as 424x240 - fx: {storage_fx:.3f}, fy: {storage_fy:.3f}, ppx: {storage_ppx:.3f}, ppy: {storage_ppy:.3f}")
+            
+            # Pack the reverse-scaled values
+            new_rect_params = struct.pack('<ffff', storage_fx, storage_fy, storage_ppx, storage_ppy)
+        else:
+            log.i(f"  Modifying calibration - fx: {new_fx:.3f}, fy: {new_fy:.3f}, ppx: {new_ppx:.3f}, ppy: {new_ppy:.3f}")
+            # Pack new values normally
+            new_rect_params = struct.pack('<ffff', new_fx, new_fy, new_ppx, new_ppy)
+        
+        # Replace the section in the bytearray
+        modified_calib_table[rect_param_offset:rect_param_offset + 16] = new_rect_params
+        
+        # Update CRC32 for the modified table
+        # CRC is calculated over all data after the header (excluding the CRC field itself)
+        header_fmt = '<IIII'  # 4 uint32 values in header
+        header_size = struct.calcsize(header_fmt)
+        
+        # Extract original header values
+        header_data = struct.unpack(header_fmt, modified_calib_table[:header_size])
+        table_type, table_size, param, old_crc32 = header_data
+        
+        actual_data = bytes(modified_calib_table[header_size:])
+        new_crc32 = zlib.crc32(actual_data) & 0xffffffff
+        
+        # Update the CRC in the header
+        new_header = struct.pack('<IIII', table_type, table_size, param, new_crc32)
+        modified_calib_table[:header_size] = new_header
+        
+        # Convert back to bytes for setting
+        modified_calib_table = bytes(modified_calib_table)
+        
+        log.i(f"  Updated CRC: 0x{old_crc32:08x} -> 0x{new_crc32:08x}")
+        log.i("  Calibration table modification completed successfully")
         
         # Set the modified calibration table (temporarily)
         log.i("Setting modified calibration table...")
-        auto_calib_device.set_calibration_table(modified_calib_table)
+        # Convert bytes to list for the API
+        table_as_list = list(modified_calib_table)
+        auto_calib_device.set_calibration_table(table_as_list)
         
-        # Verify the table was set by reading it back
-        readback_table = auto_calib_device.get_calibration_table()
-        log.i(f"Readback calibration table size: {len(readback_table)} bytes")
+        # Write the modified calibration table to flash
+        log.i("Writing calibration table to flash...")
+        auto_calib_device.write_calibration()
+        log.i("✓ Calibration table written to flash successfully")
         
-        # Restore original calibration table
-        log.i("Restoring original calibration table...")
-        auto_calib_device.set_calibration_table(original_calib_table)
-        
-        return original_calib_table, modified_calib_table
+        return True
         
     except Exception as e:
-        log.e(f"Error in calibration table manipulation: {e}")
-        return None, None
-"""
-# for step 2 -  not in use for now
-"""
-def perform_calibration_with_table_backup(host_assistance, occ_calib, json_config, ground_truth):    
-    Perform calibration while backing up and restoring calibration table.
-    Can be used for both OCC and Tare calibrations.
-    
-    Args:
-        host_assistance (bool): Whether to use host assistance mode
-        occ_calib (bool): True for OCC calibration, False for Tare calibration
-        json_config (str): JSON configuration string
-        ground_truth (float): Ground truth value for Tare calibration (None for OCC)
-    
-    Returns:
-        float: Health factor from calibration, or None if failed
+        log.e(f"Failed to modify calibration table: {e}")
+        return False
 
+        
+def restore_calibration_table(device):
+    global _global_original_calib_table
+
+    # Get the auto calibrated device interface
+    auto_calib_device = rs.auto_calibrated_device(device)
+    if not auto_calib_device:
+        log.e("Device does not support auto calibration")
+        return False
+
+    auto_calib_device.reset_to_factory_calibration()
+    return True
+
+    # Restore the original calibration table
+    if _global_original_calib_table is not None:
+        log.i("Restoring original calibration table...")
+        try:
+            # Convert bytes to list if needed
+            if isinstance(_global_original_calib_table, bytes):
+                table_as_list = list(_global_original_calib_table)
+            else:
+                table_as_list = _global_original_calib_table
+            auto_calib_device.set_calibration_table(table_as_list)
+            auto_calib_device.write_calibration()
+            log.i("✓ Original calibration table restored successfully")
+            return True
+        except Exception as e:
+            log.e(f"Failed to restore original calibration table: {e}")
+            log.w("Attempting factory calibration restore as fallback...")
+            try:
+                auto_calib_device.reset_to_factory_calibration()
+                log.i("✓ Factory calibration restored as fallback")
+                return True
+            except Exception as factory_e:
+                log.e(f"Factory calibration restore also failed: {factory_e}")
+                return False
+    else:
+        log.e("No original calibration table stored to restore")
+        try:
+            auto_calib_device.reset_to_factory_calibration()
+            log.i("✓ Factory calibration restored as fallback")
+            return True
+        except Exception as e:
+            log.e(f"Factory calibration restore failed: {e}")
+            return False
+
+
+def get_d400_calibration_table(device):
+    """Get current calibration table from device"""
     try:
-        # Get device
-        ctx = rs.context()
-        devices = ctx.query_devices()
-        if len(devices) == 0:
-            log.e("No devices found")
-            return None
-        
-        device = devices[0]
-        auto_calib_device = rs.auto_calibrated_device(device)
-        if not auto_calib_device:
-            log.e("Device does not support auto calibration")
-            return None
-        
-        # Step 1: Read and backup original calibration table
-        log.i("=== Step 1: Backup original calibration ===")
-        original_table = auto_calib_device.get_calibration_table()
-        log.i(f"Backed up calibration table ({len(original_table)} bytes)")
-        
-        # Step 2: Perform calibration using calibration_main
-        calib_type = "OCC" if occ_calib else "Tare"
-        log.i(f"=== Step 2: Perform {calib_type} calibration ===")
-        status, health_factor = calibration_main(host_assistance, occ_calib, json_config, ground_truth)
-        
-        if not status:
-            log.w("Calibration was skipped")
-            return None
-            
-        log.i(f"Calibration health factor: {health_factor}")
-        
-        # Step 3: Read new calibration table after calibration
-        log.i("=== Step 3: Read new calibration after calibration ===")
-        new_table = auto_calib_device.get_calibration_table()
-        log.i(f"New calibration table size: {len(new_table)} bytes")
-        
-        # Step 4: Compare tables
-        tables_different = (original_table != new_table)
-        log.i(f"Calibration table changed: {tables_different}")
-        
-        # Step 5: Demonstrate table manipulation
-        log.i("=== Step 4: Demonstrate table read/write ===")
-        orig_table, mod_table = read_and_modify_calibration_table(device)
-        
-        # Step 6: Write new calibration to flash (if calibration was successful)
-        if abs(health_factor) < 0.25:  # Good calibration
-            log.i("=== Step 5: Writing good calibration to flash ===")
-            auto_calib_device.write_calibration()
-            log.i("New calibration written to flash")
-        else:
-            log.w("Calibration health not good enough, restoring original")
-            auto_calib_device.set_calibration_table(original_table)
-            auto_calib_device.write_calibration()
-        
-        return health_factor
+        # device is already an auto_calibrated_device
+        calib_table = device.get_calibration_table()
+        # Convert to bytes if it's a list
+        if isinstance(calib_table, list):
+            calib_table = bytes(calib_table)
+        return calib_table
+    except Exception as e:
+        print(f"-E- Failed to get calibration table: {e}")
+        return None
+
+
+def analyze_calibration_table(calib_table):
+    """Analyze calibration table structure and content - minimal output"""
+    try:
+        # Just return without verbose output - function kept for compatibility
+        pass
         
     except Exception as e:
-        log.e(f"Error in calibration with table backup: {e}")
-        return None
-"""
+        print(f"-E- Error analyzing calibration table: {e}")
+
+
+def write_calibration_table_with_crc(device, modified_data):
+    """Write modified calibration table with updated CRC"""
+    try:
+        # Calculate CRC32 for the data after the header (skip first 16 bytes)
+        actual_data = modified_data[16:]
+        new_crc32 = zlib.crc32(actual_data) & 0xffffffff
+        
+        # Get old CRC for comparison
+        old_crc32 = struct.unpack('<I', modified_data[12:16])[0]
+        
+        # Update CRC in the header
+        final_data = bytearray(modified_data)
+        final_data[12:16] = struct.pack('<I', new_crc32)
+        
+        print("-I-   Updated CRC: 0x{:08x} -> 0x{:08x}".format(old_crc32, new_crc32))
+        
+        # Convert to list of ints for the API
+        calib_list = list(final_data)
+        
+        # Write to device - device is already auto_calibrated_device
+        device.set_calibration_table(calib_list)
+        device.write_calibration()
+        
+        print("-I- ✓ Modified calibration table written to device")
+        return True, bytes(final_data)
+        
+    except Exception as e:
+        print(f"-E- Error writing calibration table: {e}")
+        return False, str(e)
