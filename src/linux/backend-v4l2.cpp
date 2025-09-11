@@ -608,9 +608,9 @@ namespace librealsense
 
             // going over video paths like /sys/class/video4linux/videoX
             // find their mapping in /dev/videoY
-            // above videoX and videoY are often the same, but not alway
-            // for example when working in unprivileged container, the name in /dev even not be with the name "video"
-            // (depends how the mapping of the video devices has been done for the container building)
+            // above videoX and videoY are often the same, but not always
+            // for example when working with unprivileged containers, the name in /dev may not contain the string "video"
+            // it depends on how the devices have been mapped (bind-mounted) into the container
             for(auto&& v4l_video : v4l_videos)
             {
                 // searching for match in /dev, in means of major, minor
