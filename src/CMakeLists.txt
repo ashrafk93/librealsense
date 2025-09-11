@@ -105,7 +105,7 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/labeled-points.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/to-string.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/eth-config-device.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-sensor.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/embedded-filter.cpp"
 
         "${CMAKE_CURRENT_LIST_DIR}/algo.h"
         "${CMAKE_CURRENT_LIST_DIR}/api.h"
@@ -190,7 +190,7 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/synthetic-options-watcher.h"
         "${CMAKE_CURRENT_LIST_DIR}/synthetic-options-watcher.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/eth-config-device.h"
-        "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-sensor.h"
+        "${CMAKE_CURRENT_LIST_DIR}/embedded-filter.h"
 )
 
 if(BUILD_WITH_DDS)

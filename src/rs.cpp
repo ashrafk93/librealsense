@@ -64,6 +64,7 @@
 #include "points.h"
 #include "labeled-points.h"
 #include "eth-config-device.h"
+#include "embedded-filter.h"
 
 #include <src/core/time-service.h>
 #include <rsutils/string/from.h>
@@ -443,19 +444,21 @@ HANDLE_EXCEPTIONS_AND_RETURN( nullptr, sensor )
 void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter_type, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
-    auto embedded_filter_sensor = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor);
+    VALIDATE_ENUM(embedded_filter_type);
+    auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_interface);
     auto raw_data_buffer = static_cast<uint8_t*>(raw_data_to_send);
     std::vector<uint8_t> filter_params(raw_data_buffer, raw_data_buffer + size_of_raw_data_to_send);
-    return embedded_filter_sensor->set(embedded_filter_type, filter_params);
+    return embedded_filter->set(embedded_filter_type, filter_params);
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor, raw_data_to_send)
+HANDLE_EXCEPTIONS_AND_RETURN( , sensor, raw_data_to_send)
 
-rs2_stream_profile_list* rs2_get_embedded_filter(rs2_sensor* sensor, rs2_embedded_filter embedded_filter_type, rs2_error** error) BEGIN_API_CALL
+const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter_type, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
-    auto embedded_filter_sensor = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor);
-    auto ret_data = embedded_filter_sensor->get(embedded_filter_type);
-    return new rs2_raw_data_buffer{ std::move(ret_data) };
+    VALIDATE_ENUM(embedded_filter_type);
+    auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_interface);
+    auto filter_params = embedded_filter->get(embedded_filter_type);
+    return new rs2_raw_data_buffer{ std::move(filter_params) };
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor)
 
@@ -463,9 +466,9 @@ int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter e
 {
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);
-    auto embedded_filter_sensor = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor);
+    auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_interface);
 
-    return embedded_filter_sensor->supports(embedded_filter_type);
+    return embedded_filter->supports(embedded_filter_type);
 }
 HANDLE_EXCEPTIONS_AND_RETURN(false, sensor)
 
@@ -1920,7 +1923,7 @@ int rs2_is_sensor_extendable_to(const rs2_sensor* sensor, rs2_extension extensio
     case RS2_EXTENSION_DEBUG_STREAM_SENSOR     : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::debug_stream_sensor )   != nullptr;
     case RS2_EXTENSION_SAFETY_SENSOR           : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::safety_sensor)          != nullptr;
     case RS2_EXTENSION_DEPTH_MAPPING_SENSOR: return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::depth_mapping_sensor) != nullptr;
-    case RS2_EXTENSION_EMBEDDED_FILTER_SENSOR  : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::embedded_filter_sensor)   != nullptr;
+    case RS2_EXTENSION_EMBEDDED_FILTER_SENSOR  : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::embedded_filter_interface)   != nullptr;
 
 
     default:

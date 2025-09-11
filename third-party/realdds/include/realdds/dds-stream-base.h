@@ -31,6 +31,7 @@ protected:
     dds_stream_profiles _profiles;
     dds_options _options;
     std::vector< std::string > _recommended_filters;
+    dds_embedded_filters _embedded_filters;
     bool _metadata_enabled = false;
     bool _compressed = false;
 
@@ -44,6 +45,7 @@ public:
     void init_profiles( dds_stream_profiles const & profiles, size_t default_profile_index = 0 );
     void init_options( dds_options const & options );
     void set_recommended_filters( std::vector< std::string > && recommended_filters );
+    void set_embedded_filters( std::vector< std::string > && embedded_filters );
 
     std::string const & name() const { return _name; }
     std::string const & sensor_name() const { return _sensor_name; }
@@ -51,6 +53,7 @@ public:
     size_t default_profile_index() const { return _default_profile_index; }
     dds_options const & options() const { return _options; }
     std::vector< std::string > const & recommended_filters() const { return _recommended_filters; }
+    dds_embedded_filters const & embedded_filters() const { return _embedded_filters; }
     bool metadata_enabled() const { return _metadata_enabled; }
 
     std::shared_ptr< dds_stream_profile > default_profile() const

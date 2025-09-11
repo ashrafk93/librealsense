@@ -303,6 +303,12 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
             {
                 sensor_info.proxy->add_processing_block( filter_name );
             }
+
+            auto& embedded_filters = stream->embedded_filters();
+            for (auto& embedded_filter_name : embedded_filters)
+            {
+                sensor_info.proxy->add_dds_stream_embedded_filter(embedded_filter_name);
+            }
         } );  // End foreach_stream lambda
 
     for( auto & name_info : sensor_name_to_info )

@@ -21,6 +21,7 @@
 #include <rsutils/json.h>
 
 #include <cassert>
+#include <realdds/dds-embedded-filter.h>
 
 using rsutils::json;
 
@@ -119,6 +120,7 @@ void dds_device::impl::reset()
     if( _metadata_reader )
         _metadata_reader->stop();
     _metadata_reader.reset();
+    _embedded_filters.clear();
 }
 
 
@@ -216,12 +218,63 @@ void dds_device::impl::on_notification( json && j, dds_sample const & notificati
     }
 }
 
-void dds_device::impl::on_set_filter(rsutils::json const&, dds_sample const&)
+void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
 {
+    if (!is_ready())
+        return;
+
+    // This is the handler for "set-filter" or "query-filter", meaning someone sent a control request to set/get an
+    // filter value. In either case a value will be returned; we want to update our local copy to reflect it:
+
+    std::string explanation;
+    if (!dds_device::check_reply(j, &explanation))
+        return;  // we don't care about errors
+
+    // We need the original control request as part of the reply, 
+    // otherwise we can't know what filter this is for
+    auto control = j.nested(topics::reply::key::control);
+    if (!control.is_object())
+        throw std::runtime_error("missing control object");
+
+    // Find the relevant filter to update
+	dds_embedded_filters const* filters = &_embedded_filters;
+
+    std::string const& stream_name = control.nested(topics::control::set_filter::key::stream_name).
+        string_ref_or_empty();
+    if (!stream_name.empty())
+    {
+        auto stream_it = _streams.find(stream_name);
+        if (stream_it == _streams.end())
+            throw std::runtime_error("stream '" + stream_name + "' not found");
+        filters = &stream_it->second->embedded_filters();
+    }
+    auto filter_name_j = j.nested(topics::reply::set_filter::key::name);
+    if (!filter_name_j.exists())
+        throw std::runtime_error("missing name");
+
+    auto options_j = j.nested(topics::reply::set_filter::key::options);
+    if (!options_j.exists())
+        throw std::runtime_error("missing options");
+
+
+    /* TODO - below code to be corrected and enabled
+    auto& filter_name = filter_name_j.string_ref();
+    for (auto& filter : *filters)
+    {
+		auto filter_type = embedded_filter_type_from_string(filter_name);
+        if (filter->get_filter_type() == filter_type)
+        {
+			auto options = filter->get_options();
+            filter->set_options(value_j);  // throws!
+            return;
+        }
+    }
+    throw std::runtime_error("option '" + option_name + "' not found");*/
 }
 
 void dds_device::impl::on_query_filter(rsutils::json const&, dds_sample const&)
 {
+	// TODO - to be implemented
 }
 
 

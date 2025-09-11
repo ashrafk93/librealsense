@@ -10,6 +10,7 @@
 
 #include <realdds/dds-defines.h>
 #include <realdds/dds-metadata-syncer.h>
+#include <realdds/dds-embedded-filter.h>
 
 #include <rsutils/json-fwd.h>
 #include <memory>
@@ -63,6 +64,7 @@ private:
 
     formats_converter _formats_converter;
     stream_profiles _active_converted_profiles;
+    realdds::dds_embedded_filters _embedded_filters;
 
 public:
     dds_sensor_proxy( std::string const & sensor_name,
@@ -83,6 +85,7 @@ public:
     void add_option( std::shared_ptr< realdds::dds_option > option );
 
     void add_processing_block( std::string const & filter_name );
+    void add_dds_stream_embedded_filter( std::string const & embedded_filter_name );
 
     const std::map< sid_index, std::shared_ptr< realdds::dds_stream > > & streams() const { return _streams; }
     void set_frames_callback( rs2_frame_callback_sptr callback ) override;

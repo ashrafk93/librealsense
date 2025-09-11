@@ -481,3 +481,7 @@ EXPORTS
     rs2_get_transmission_delay
     rs2_set_transmission_delay
     rs2_restore_default_eth_config
+
+    rs2_set_embedded_filter
+    rs2_get_embedded_filter
+    rs2_supports_embedded_filter
