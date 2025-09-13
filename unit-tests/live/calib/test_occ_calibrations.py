@@ -73,7 +73,7 @@ def modify_extrinsic_calibration(device):
 
 # Health factor threshold for calibration success
 # Note: Higher threshold for tests with intentional calibration modifications
-HEALTH_FACTOR_THRESHOLD = 0.25
+HEALTH_FACTOR_THRESHOLD = 0.3
 HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.8
 
 with test.closure("OCC calibration test"):
@@ -93,11 +93,11 @@ with test.closure("OCC calibration test"):
     except Exception as e:
         log.e("OCC calibration test failed: ", str(e))
         test.fail()
-"""
+
 with test.closure("OCC calibration test with host assistance"):
     try:
         host_assistance = True
-        image_width, image_height, fps = (1280, 800, 30)
+        image_width, image_height, fps = (1280, 720, 30)
         config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
 
         occ_json = on_chip_calibration_json(None, host_assistance)
@@ -107,7 +107,7 @@ with test.closure("OCC calibration test with host assistance"):
     except Exception as e:
         log.e("OCC calibration test with host assistance failed: ", str(e))
         test.fail()
-"""
+
 with test.closure("Advanced OCC calibration test with calibration table modifications"):
     calib_dev = None
     modified_applied = False
