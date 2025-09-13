@@ -49,7 +49,7 @@ def get_calibration_device(image_width, image_height, fps):
     
     return config, pipeline, auto_calibrated_device
 
-def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground_truth):
+def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground_truth, return_table=False):
     """
     Main calibration function for both OCC and Tare calibrations.
     
@@ -72,6 +72,7 @@ def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground
     if depth_sensor.supports(rs.option.thermal_compensation):
         depth_sensor.set_option(rs.option.thermal_compensation, 0)
 
+    new_calib_result = b''
     # Execute calibration based on type
     try:
         if occ_calib:    
@@ -91,6 +92,11 @@ def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground
             depth_frame = frame_set.get_depth_frame()
             new_calib, health = calib_dev.process_calibration_frame(depth_frame, on_calib_cb, FRAME_PROCESSING_TIMEOUT_MS)
             calib_done = len(new_calib) > 0
+        # Preserve final table
+        if isinstance(new_calib, list):
+            new_calib_result = bytes(new_calib)
+        else:
+            new_calib_result = bytes(new_calib) if new_calib else b''
             
         log.i("Calibration completed successfully")
         log.i("Health factor = ", health[0])
@@ -102,6 +108,8 @@ def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground
         # Stop pipeline
         pipeline.stop()
 
+    if return_table:
+        return health[0], new_calib_result
     return health[0]
 
 
@@ -234,17 +242,14 @@ def modify_calibration_table(device, new_calib_params, rect_param_offset, image_
         # Convert back to bytes for setting
         modified_calib_table = bytes(modified_calib_table)
         
-        log.i(f"  Updated CRC: 0x{old_crc32:08x} -> 0x{new_crc32:08x}")
         log.i("  Calibration table modification completed successfully")
         
         # Set the modified calibration table (temporarily)
-        log.i("Setting modified calibration table...")
         # Convert bytes to list for the API
         table_as_list = list(modified_calib_table)
         auto_calib_device.set_calibration_table(table_as_list)
         
         # Write the modified calibration table to flash
-        log.i("Writing calibration table to flash...")
         auto_calib_device.write_calibration()
         log.i("✓ Calibration table written to flash successfully")
         
@@ -267,40 +272,6 @@ def restore_calibration_table(device):
     auto_calib_device.reset_to_factory_calibration()
     return True
 
-    # Restore the original calibration table
-    if _global_original_calib_table is not None:
-        log.i("Restoring original calibration table...")
-        try:
-            # Convert bytes to list if needed
-            if isinstance(_global_original_calib_table, bytes):
-                table_as_list = list(_global_original_calib_table)
-            else:
-                table_as_list = _global_original_calib_table
-            auto_calib_device.set_calibration_table(table_as_list)
-            auto_calib_device.write_calibration()
-            log.i("✓ Original calibration table restored successfully")
-            return True
-        except Exception as e:
-            log.e(f"Failed to restore original calibration table: {e}")
-            log.w("Attempting factory calibration restore as fallback...")
-            try:
-                auto_calib_device.reset_to_factory_calibration()
-                log.i("✓ Factory calibration restored as fallback")
-                return True
-            except Exception as factory_e:
-                log.e(f"Factory calibration restore also failed: {factory_e}")
-                return False
-    else:
-        log.e("No original calibration table stored to restore")
-        try:
-            auto_calib_device.reset_to_factory_calibration()
-            log.i("✓ Factory calibration restored as fallback")
-            return True
-        except Exception as e:
-            log.e(f"Factory calibration restore failed: {e}")
-            return False
-
-
 def get_d400_calibration_table(device):
     """Get current calibration table from device"""
     try:
@@ -311,20 +282,8 @@ def get_d400_calibration_table(device):
             calib_table = bytes(calib_table)
         return calib_table
     except Exception as e:
-        print(f"-E- Failed to get calibration table: {e}")
+        log.e(f"-E- Failed to get calibration table: {e}")
         return None
-
-
-def analyze_calibration_table(calib_table):
-    """Analyze calibration table structure and content - minimal output"""
-    try:
-        # Just return without verbose output - function kept for compatibility
-        pass
-        
-    except Exception as e:
-        print(f"-E- Error analyzing calibration table: {e}")
-
-
 def write_calibration_table_with_crc(device, modified_data):
     """Write modified calibration table with updated CRC"""
     try:
@@ -338,9 +297,7 @@ def write_calibration_table_with_crc(device, modified_data):
         # Update CRC in the header
         final_data = bytearray(modified_data)
         final_data[12:16] = struct.pack('<I', new_crc32)
-        
-        print("-I-   Updated CRC: 0x{:08x} -> 0x{:08x}".format(old_crc32, new_crc32))
-        
+                
         # Convert to list of ints for the API
         calib_list = list(final_data)
         
@@ -348,9 +305,8 @@ def write_calibration_table_with_crc(device, modified_data):
         device.set_calibration_table(calib_list)
         device.write_calibration()
         
-        print("-I- ✓ Modified calibration table written to device")
         return True, bytes(final_data)
         
     except Exception as e:
-        print(f"-E- Error writing calibration table: {e}")
+        log.e(f"-E- Error writing calibration table: {e}")
         return False, str(e)
