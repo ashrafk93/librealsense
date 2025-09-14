@@ -4,6 +4,7 @@
 
 #include <rsutils/json.h>
 #include <rsutils/type/ip-address.h>
+#include <include/librealsense2/h/rs_types.h>
 
 #include <memory>
 #include <map>
@@ -13,46 +14,42 @@
 
 namespace realdds {
 
-
-// Forward declarations
-enum class embedded_filter_type {
-    decimation,
-    temporal
-};
-
 // Abstract base class for all embedded filters.
 // Embedded filter types are Decimation and Temporal filter
 class dds_embedded_filter
 {
 protected:
     std::string _name;
-    rsutils::json _options;
-    rsutils::json _stream_type;
-    embedded_filter_type _filter_type;
+    rsutils::json _filter_params;
+    rs2_embedded_filter_type _filter_type;
     std::map<std::string, rsutils::json> _current_values;
     bool _initialized;
 
+private:
+    friend class dds_stream_base;
+    std::weak_ptr< dds_stream_base > _stream;
+    void init_stream(std::shared_ptr< dds_stream_base > const&);
+
 public:
     dds_embedded_filter();
-    virtual ~dds_embedded_filter() = default;
+    //virtual ~dds_embedded_filter() = default;
 
     // Initialization functions - must be called before first set_value()
-    virtual void init(const std::string& name, embedded_filter_type type);
-    virtual void init_options(const rsutils::json& options);
-    virtual void init_stream_type(const rsutils::json& stream_type);
+    virtual void init(const std::string& name, rs2_embedded_filter_type type);
+    virtual void init_filter_params(const rsutils::json& filter_params);
     virtual void init_default_values(const rsutils::json& defaults);
 
     // Core functionality
-    virtual void set_filter_data(const std::vector<uint8_t>& data) = 0;
-    virtual std::vector<uint8_t> get_filter_data() const = 0;
+    virtual void set_filter_params(const rsutils::json& filter_params);
+    virtual rsutils::json get_filter_params() const { return _filter_params; }
     virtual bool supports_filter() const = 0;
+	virtual bool is_enabled() const = 0;
 
     // Getters
     const std::string& get_name() const { return _name; }
-    rsutils::json const& get_options() const { return _options; }
-    rsutils::json const& get_stream_type() const { return _stream_type; }
-    embedded_filter_type get_filter_type() const { return _filter_type; }
+    rs2_embedded_filter_type get_filter_type() const { return _filter_type; }
     bool is_initialized() const { return _initialized; }
+    std::shared_ptr< dds_stream_base > get_stream() const { return _stream.lock(); }
 
     // JSON serialization
     virtual rsutils::json to_json() const;
@@ -65,6 +62,7 @@ protected:
     // Helper methods for derived classes
     void set_current_value(const std::string& key, const rsutils::json& value);
     rsutils::json get_current_value(const std::string& key) const;
+    void check_filter_params(const rsutils::json& filter_params) const;
 };
 
 // Decimation filter implementation
@@ -79,8 +77,6 @@ public:
     virtual ~dds_decimation_filter() = default;
 
     // Override base class methods
-    void set_filter_data(const std::vector<uint8_t>& data) override;
-    std::vector<uint8_t> get_filter_data() const override;
     bool supports_filter() const override { return true; }
 
     // Decimation-specific methods
@@ -107,8 +103,6 @@ public:
     virtual ~dds_temporal_filter() = default;
 
     // Override base class methods
-    void set_filter_data(const std::vector<uint8_t>& data) override;
-    std::vector<uint8_t> get_filter_data() const override;
     bool supports_filter() const override { return true; }
 
     // Temporal-specific methods
@@ -130,10 +124,10 @@ public:
 typedef std::vector<std::shared_ptr<dds_embedded_filter>> dds_embedded_filters;
 
 // Factory function to create appropriate filter based on type
-std::shared_ptr<dds_embedded_filter> create_embedded_filter(embedded_filter_type type);
+std::shared_ptr<dds_embedded_filter> create_embedded_filter(rs2_embedded_filter_type type);
 
 // Utility functions
-std::string embedded_filter_type_to_string(embedded_filter_type type);
-embedded_filter_type embedded_filter_type_from_string(const std::string& type_str);
+std::string embedded_filter_type_to_string(rs2_embedded_filter_type type);
+rs2_embedded_filter_type embedded_filter_type_from_string(const std::string& type_str);
 
 }  // namespace realdds

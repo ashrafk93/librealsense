@@ -97,16 +97,16 @@ try
 	// setting decimation filter OFF
 	std::cout << "Setting decimation filter OFF" << std::endl;
     rs2::embedded_filter_sensor embed_filter_sensor = depth_sensor.as<rs2::embedded_filter_sensor>();
-    if (!embed_filter_sensor.supports(RS2_EMBEDDED_FILTER_DECIMATION))
+    if (!embed_filter_sensor.supports(RS2_EMBEDDED_FILTER_TYPE_DECIMATION))
     {
         throw std::runtime_error("Depth sensor does not support embedded decimation filter!");
     }
     std::vector<uint8_t> request;
     uint8_t on_off = 0; // OFF
     request.push_back(on_off);
-    embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_DECIMATION, request);
+    embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    auto ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_DECIMATION);
+    auto ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
     if (ans.empty() || ans[0] == 0)
     {
         throw std::runtime_error("Decimation filter deactivation did not work!");
@@ -138,9 +138,9 @@ try
     request.clear();
     on_off = 1; // ON
     request.push_back(on_off);
-    embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_DECIMATION, request);
+    embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_DECIMATION);
+    ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
     if (ans.empty() || ans[0] == 1)
     {
         throw std::runtime_error("Decimation filter activation did not work!");

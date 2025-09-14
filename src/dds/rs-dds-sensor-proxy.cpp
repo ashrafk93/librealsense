@@ -29,6 +29,7 @@
 
 #include <rsutils/string/nocase.h>
 #include <rsutils/json.h>
+using namespace realdds;
 using rsutils::json;
 
 
@@ -770,17 +771,20 @@ rs2_frame_callback_sptr dds_sensor_proxy::get_frames_callback() const
 }
 
 
-void dds_sensor_proxy::add_dds_stream_embedded_filter( std::string const & embedded_filter_name )
+void dds_sensor_proxy::add_embedded_filter( std::string const & embedded_filter_name )
 {
     // Log the embedded filter name for debugging
     LOG_DEBUG( "Adding embedded filter: " << embedded_filter_name << " to sensor " << _name );
     
+	auto embedded_filter_type = realdds::embedded_filter_type_from_string(embedded_filter_name);
     // 1. Create an embedded filter instance based on the name
-	auto embedded_filter = create_embedded_filter(realdds::embedded_filter_type_from_string(embedded_filter_name));
+	auto embedded_filter = create_embedded_filter(embedded_filter_type);
     // 2. Store it in a collection for later access
 	_embedded_filters.push_back(embedded_filter);
     // 3. Set up communication with the DDS device for filter management
-	
+	// TODO
+    // 4. Log success message
+	// LOG_DEBUG("Successfully added embedded filter: " << embedded_filter_name << " to sensor " << _name);
 }
 
 

@@ -441,7 +441,7 @@ rs2_stream_profile_list * rs2_get_debug_stream_profiles( rs2_sensor * sensor,
 }
 HANDLE_EXCEPTIONS_AND_RETURN( nullptr, sensor )
 
-void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter_type, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error) BEGIN_API_CALL
+void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);
@@ -452,7 +452,7 @@ void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embed
 }
 HANDLE_EXCEPTIONS_AND_RETURN( , sensor, raw_data_to_send)
 
-const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter_type, rs2_error** error) BEGIN_API_CALL
+const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);
@@ -462,7 +462,7 @@ const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor)
 
-int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter_type, rs2_error** error) BEGIN_API_CALL
+int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);

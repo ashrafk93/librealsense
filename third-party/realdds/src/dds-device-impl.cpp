@@ -234,7 +234,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     // otherwise we can't know what filter this is for
     auto control = j.nested(topics::reply::key::control);
     if (!control.is_object())
-        throw std::runtime_error("missing control object");
+        DDS_THROW(runtime_error, "missing control object");
 
     // Find the relevant filter to update
 	dds_embedded_filters const* filters = &_embedded_filters;
@@ -245,31 +245,30 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     {
         auto stream_it = _streams.find(stream_name);
         if (stream_it == _streams.end())
-            throw std::runtime_error("stream '" + stream_name + "' not found");
+            DDS_THROW(runtime_error, "stream '" + stream_name + "' not found");
         filters = &stream_it->second->embedded_filters();
     }
     auto filter_name_j = j.nested(topics::reply::set_filter::key::name);
     if (!filter_name_j.exists())
-        throw std::runtime_error("missing name");
+        DDS_THROW(runtime_error, "missing name");
 
-    auto options_j = j.nested(topics::reply::set_filter::key::options);
-    if (!options_j.exists())
-        throw std::runtime_error("missing options");
+    auto filter_params_j = j.nested(topics::reply::set_filter::key::filter_params);
+    if (!filter_params_j.exists())
+        DDS_THROW(runtime_error, "missing filter_params");
 
 
-    /* TODO - below code to be corrected and enabled
+    // TODO - below code to be corrected and enabled
     auto& filter_name = filter_name_j.string_ref();
     for (auto& filter : *filters)
     {
 		auto filter_type = embedded_filter_type_from_string(filter_name);
         if (filter->get_filter_type() == filter_type)
         {
-			auto options = filter->get_options();
-            filter->set_options(value_j);  // throws!
+            filter->set_filter_params(filter_params_j);  // throws!
             return;
         }
     }
-    throw std::runtime_error("option '" + option_name + "' not found");*/
+    throw std::runtime_error("filter '" + filter_name + "' not found");
 }
 
 void dds_device::impl::on_query_filter(rsutils::json const&, dds_sample const&)
@@ -293,7 +292,7 @@ void dds_device::impl::on_set_option( json const & j, dds_sample const & )
     // We need the original control request as part of the reply, otherwise we can't know what option this is for
     auto control = j.nested( topics::reply::key::control );
     if( ! control.is_object() )
-        throw std::runtime_error( "missing control object" );
+        DDS_THROW(runtime_error, "missing control object" );
 
     // Find the relevant (stream) options to update
     dds_options const * options = &_options;
@@ -303,17 +302,17 @@ void dds_device::impl::on_set_option( json const & j, dds_sample const & )
     {
         auto stream_it = _streams.find( stream_name );
         if( stream_it == _streams.end() )
-            throw std::runtime_error( "stream '" + stream_name + "' not found" );
+            DDS_THROW(runtime_error, "stream '" + stream_name + "' not found" );
         options = &stream_it->second->options();
     }
 
     auto value_j = j.nested( topics::reply::set_option::key::value );
     if( ! value_j.exists() )
-        throw std::runtime_error( "missing value" );
+        DDS_THROW(runtime_error, "missing value" );
 
     auto option_name_j = control.nested( topics::control::set_option::key::option_name );
     if( ! option_name_j.is_string() )
-        throw std::runtime_error( "missing option-name" );
+        DDS_THROW(runtime_error, "missing option-name" );
     auto & option_name = option_name_j.string_ref();
     for( auto & option : *options )
     {
@@ -323,7 +322,7 @@ void dds_device::impl::on_set_option( json const & j, dds_sample const & )
             return;
         }
     }
-    throw std::runtime_error( "option '" + option_name + "' not found" );
+    DDS_THROW(runtime_error, "option '" + option_name + "' not found" );
 }
 
 
@@ -515,6 +514,41 @@ json dds_device::impl::query_option_value( const std::shared_ptr< dds_option > &
     return reply.at( topics::reply::query_option::key::value );
 }
 
+void dds_device::impl::set_embedded_filter_value(const std::shared_ptr< dds_embedded_filter >& filter, json new_value)
+{
+    if (!filter)
+        DDS_THROW(runtime_error, "must provide an embedded filter to set");
+
+    json j = json::object({
+        { topics::control::key::id, topics::control::set_filter::id },
+        { topics::control::set_filter::key::name, filter->get_name() },
+        { topics::control::set_filter::key::filter_params, new_value }
+        });
+    if (auto stream = filter->get_stream())
+        j[topics::control::set_filter::key::stream_name] = stream->name();
+
+    json reply;
+    write_control_message(j, &reply);
+    // the reply will contain the new value (which may be different) and will update the cached one
+}
+
+json dds_device::impl::query_embedded_filter_value(const std::shared_ptr< dds_embedded_filter >& filter)
+{
+    if (!filter)
+        DDS_THROW(runtime_error, "must provide an embedded filter to query");
+
+    json j = json::object({
+        { topics::control::key::id, topics::control::query_filter::id },
+        { topics::control::query_filter::key::name, filter->get_name() }
+        });
+    if (auto stream = filter->get_stream())
+        j[topics::control::query_filter::key::stream_name] = stream->name();
+
+    json reply;
+    write_control_message(j, &reply);
+
+    return reply.at(topics::reply::query_filter::key::filter_params);
+}
 
 void dds_device::impl::write_control_message( json const & j, json * reply )
 {

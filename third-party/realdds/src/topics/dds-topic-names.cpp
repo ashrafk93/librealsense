@@ -160,7 +160,7 @@ namespace control {
         std::string const id("set-filter", 10);
         namespace key {
             std::string const name("name", 4);
-            std::string const options("options", 7);
+            std::string const filter_params("filter_params", 13);
             std::string const stream_name("stream_name", 11);
         }
     }

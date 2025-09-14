@@ -360,7 +360,7 @@ rs2_stream_profile_list * rs2_get_debug_stream_profiles( rs2_sensor * sensor, rs
 * \param[in] size_of_raw_data_to_send   Size of data
 * \param[out] error                     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 */
-void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error);
+void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error);
 
 /**
 * get embedded filter current params
@@ -369,7 +369,7 @@ void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embed
 * \param[out] error             if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return                       Embedded filter current params
 */
-const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter, rs2_error** error);
+const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter, rs2_error** error);
 
 /**
 * check if specific sensor info is supported
@@ -378,7 +378,7 @@ const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2
 * \param[out] error             if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return                true if the parameter both exist and well-defined for the specific sensor
 */
-int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter embedded_filter, rs2_error** error);
+int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter, rs2_error** error);
 
 /**
 * check how subdevice is streaming

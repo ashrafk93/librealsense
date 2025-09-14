@@ -768,7 +768,7 @@ namespace rs2
 
         operator bool() const { return _sensor.get() != nullptr; }
 
-        bool supports(rs2_embedded_filter embedded_filter)
+        bool supports(rs2_embedded_filter_type embedded_filter)
         {
             rs2_error* e = nullptr;
             auto is_supported = rs2_supports_embedded_filter(_sensor.get(), embedded_filter, &e);
@@ -776,7 +776,7 @@ namespace rs2
             return is_supported > 0;
         }
 
-        void set_filter(rs2_embedded_filter embedded_filter, std::vector<uint8_t> command)
+        void set_filter(rs2_embedded_filter_type embedded_filter, std::vector<uint8_t> command)
         {
             rs2_error* e = nullptr;
             rs2_set_embedded_filter(_sensor.get(), embedded_filter,
@@ -784,7 +784,7 @@ namespace rs2
             error::handle(e);
         }
 
-        std::vector<uint8_t> get_filter(rs2_embedded_filter embedded_filter)
+        std::vector<uint8_t> get_filter(rs2_embedded_filter_type embedded_filter)
         {
             rs2_error* e = nullptr;
 

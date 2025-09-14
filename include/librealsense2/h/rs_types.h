@@ -260,14 +260,14 @@ typedef enum rs2_calib_location
 } rs2_calib_location;
 const char* rs2_calib_location_to_string(rs2_calib_location calib_location);
 
-typedef enum rs2_embedded_filter
+typedef enum rs2_embedded_filter_type
 {
-    RS2_EMBEDDED_FILTER_FIRST,
-    RS2_EMBEDDED_FILTER_DECIMATION = RS2_EMBEDDED_FILTER_FIRST,
-    RS2_EMBEDDED_FILTER_TEMPORAL,
-    RS2_EMBEDDED_FILTER_COUNT
-} rs2_embedded_filter;
-const char* rs2_embedded_filter_to_string(rs2_embedded_filter embedded_filter);
+    RS2_EMBEDDED_FILTER_TYPE_FIRST,
+    RS2_EMBEDDED_FILTER_TYPE_DECIMATION = RS2_EMBEDDED_FILTER_TYPE_FIRST,
+    RS2_EMBEDDED_FILTER_TYPE_TEMPORAL,
+    RS2_EMBEDDED_FILTER_TYPE_COUNT
+} rs2_embedded_filter_type;
+const char* rs2_embedded_filter_to_string(rs2_embedded_filter_type embedded_filter);
 
 typedef struct rs2_device_info rs2_device_info;
 typedef struct rs2_device rs2_device;

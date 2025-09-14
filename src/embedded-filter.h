@@ -17,13 +17,15 @@ namespace librealsense {
         virtual ~embedded_filter_interface() = default;
 
         // Pure virtual interface methods
-        virtual void set(rs2_embedded_filter embedded_filter_type, std::vector<uint8_t> params) = 0;
-        virtual std::vector<uint8_t> get(rs2_embedded_filter embedded_filter_type) = 0;
-        virtual bool supports(rs2_embedded_filter embedded_filter_type) const = 0;
+        virtual void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) = 0;
+        virtual std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) = 0;
+        virtual bool supports(rs2_embedded_filter_type embedded_filter_type) const = 0;
+		virtual bool is_enabled() const = 0;
     };
     MAP_EXTENSION(RS2_EXTENSION_EMBEDDED_FILTER_SENSOR, librealsense::embedded_filter_interface);
 
     using embedded_filters = std::vector< std::shared_ptr< embedded_filter_interface > >;
+
 
     // Decimation filter implementation
     class embedded_decimation_filter : public embedded_filter_interface
@@ -33,13 +35,13 @@ namespace librealsense {
         virtual ~embedded_decimation_filter() = default;
 
         // Override interface methods
-        void set(rs2_embedded_filter embedded_filter_type, std::vector<uint8_t> params) override;
-        std::vector<uint8_t> get(rs2_embedded_filter embedded_filter_type) override;
-        bool supports(rs2_embedded_filter embedded_filter_type) const override;
+        void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
+        std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) override;
+        bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
+        bool is_enabled() const override { return _enabled; }
 
         // Decimation-specific methods
         void set_enabled(bool enabled);
-        bool is_enabled() const { return _enabled; }
         int32_t get_magnitude() const { return _magnitude; }
 
     private:
@@ -55,13 +57,13 @@ namespace librealsense {
         virtual ~embedded_temporal_filter() = default;
 
         // Override interface methods
-        void set(rs2_embedded_filter embedded_filter_type, std::vector<uint8_t> params) override;
-        std::vector<uint8_t> get(rs2_embedded_filter embedded_filter_type) override;
-        bool supports(rs2_embedded_filter embedded_filter_type) const override;
+        void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
+        std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) override;
+        bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
+        bool is_enabled() const override { return _enabled; }
 
         // Temporal-specific methods
         void set_enabled(bool enabled);
-        bool is_enabled() const { return _enabled; }
         void set_alpha(float alpha);
         float get_alpha() const { return _alpha; }
         void set_delta(int32_t delta);

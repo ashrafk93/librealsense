@@ -7,6 +7,7 @@
 #include <realdds/dds-stream-profile.h>
 #include <realdds/dds-option.h>
 #include <realdds/dds-defines.h>
+#include <realdds/dds-embedded-filter.h>
 
 #include <memory>
 #include <string>
@@ -43,9 +44,9 @@ public:
     // Init functions can only be called once!
     void enable_metadata(); // Must call before init_profiles
     void init_profiles( dds_stream_profiles const & profiles, size_t default_profile_index = 0 );
-    void init_options( dds_options const & options );
+    void init_options(dds_options const& options);
+    void init_embedded_filters( dds_embedded_filters const & embedded_filters);
     void set_recommended_filters( std::vector< std::string > && recommended_filters );
-    void set_embedded_filters( std::vector< std::string > && embedded_filters );
 
     std::string const & name() const { return _name; }
     std::string const & sensor_name() const { return _sensor_name; }

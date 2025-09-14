@@ -85,7 +85,7 @@ public:
     void add_option( std::shared_ptr< realdds::dds_option > option );
 
     void add_processing_block( std::string const & filter_name );
-    void add_dds_stream_embedded_filter( std::string const & embedded_filter_name );
+    void add_embedded_filter( std::string const & embedded_filter_name );
 
     const std::map< sid_index, std::shared_ptr< realdds::dds_stream > > & streams() const { return _streams; }
     void set_frames_callback( rs2_frame_callback_sptr callback ) override;

@@ -63,6 +63,16 @@ void dds_stream_base::init_options( dds_options const & options )
     _options = options;
 }
 
+void dds_stream_base::init_embedded_filters(dds_embedded_filters const& embedded_filters)
+{
+    if (!embedded_filters.empty())
+        DDS_THROW(runtime_error, "stream '" + _name + "' embedded filters are already initialized");
+
+    auto this_stream = shared_from_this();
+    for (auto filter : embedded_filters)
+        filter->init_stream(this_stream);
+    _embedded_filters = embedded_filters;
+}
 
 void dds_stream_base::set_recommended_filters( std::vector< std::string > && recommended_filters )
 {
@@ -70,15 +80,6 @@ void dds_stream_base::set_recommended_filters( std::vector< std::string > && rec
         DDS_THROW( runtime_error, "stream '" + _name + "' recommended filters are already set" );
 
     _recommended_filters = std::move( recommended_filters );
-}
-
-
-void dds_stream_base::set_embedded_filters( std::vector< std::string > && embedded_filters )
-{
-    if( !_embedded_filters.empty() )
-        DDS_THROW( runtime_error, "stream '" + _name + "' embedded filters are already set" );
-
-    _embedded_filters = std::move( embedded_filters );
 }
 
 
