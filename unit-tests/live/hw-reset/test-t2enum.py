@@ -3,6 +3,7 @@
 
 # test:device each(D400*) !D457  # D457 device is known for HW reset issues..
 # test:device each(D500*)
+# test:donotrun:!nightly
 
 import pyrealsense2 as rs
 from rspy import test, log

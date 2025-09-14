@@ -2,7 +2,8 @@
 // Copyright(c) 2021 RealSense, Inc. All Rights Reserved.
 
 //#cmake: static!
-//#test:device D435
+//#test:device each(D400*)
+//#test:donotrun:!nightly
 
 
 #include <unit-tests/test.h>
