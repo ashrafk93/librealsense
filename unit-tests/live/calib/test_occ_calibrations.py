@@ -53,25 +53,26 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
 def run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
     """Run advanced OCC calibration test with calibration table modifications.
 
-    Flow:
-      1. Restore factory calibration
-      2. Read & log original principal point
-      3. Apply controlled raw intrinsic perturbation (ppy or ppx)
-      4. Verify perturbation was applied
-      5. Run OCC once and capture returned table
-      6. Write table, read final principal point, compute correction metrics
+        Flow:
+            1. OCC (baseline) or Restore factory calibration
+            2. Read & log base principal point
+            3. Apply controlled raw intrinsic perturbation (ppy or ppx)
+            4. Verify perturbation was applied
+            5. Run OCC once and capture returned table
+            6. Write table, read final principal point, compute correction metrics
     """
     config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
     try:
-        
-        # run OCC for the first time to ensure we start from a known state
+
+        # 1. run OCC for the first time to ensure we start from a known state
         occ_json = on_chip_calibration_json(None, host_assistance)
         new_calib_bytes = None
         try:
             health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, True, occ_json, None, return_table=True)
         except Exception as e:
             log.e(f"Calibration_main failed: {e}")
-            health_factor = None
+            restore_calibration_table(calib_dev)
+            test.fail()
 
         if not (new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION):
             log.e(f"OCC calibration failed or health factor out of threshold (hf={health_factor})")
@@ -86,15 +87,15 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             test.fail()
 
 
-        # red original reference principal points
+        # 2. Read base (reference) principal points
         principal_points_result = get_current_rect_params(calib_dev)
         if principal_points_result is None:
             log.e("Could not read current principal points")
             test.fail()
-        orig_left_pp, orig_right_pp, orig_offsets = principal_points_result
-        log.i(f"  Original principal points (Right) ppx={orig_right_pp[0]:.6f} ppy={orig_right_pp[1]:.6f}")
+        base_left_pp, base_right_pp, base_offsets = principal_points_result
+        log.i(f"  Base principal points (Right) ppx={base_right_pp[0]:.6f} ppy={base_right_pp[1]:.6f}")
 
-        original_axis_val = orig_right_pp[1]
+        base_axis_val = base_right_pp[1]
 
         # 3. Apply perturbation
         log.i(f"Applying manual raw intrinsic correction: delta={PIXEL_CORRECTION:+.3f} px")
@@ -115,9 +116,9 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
         if abs(modified_axis_val - returned_modified_axis_val) > EPSILON:
             log.e(f"Modification mismatch for ppy. Expected {returned_modified_axis_val:.6f} got {modified_axis_val:.6f}")
             test.fail()
-        applied_delta = modified_axis_val - original_axis_val
+        applied_delta = modified_axis_val - base_axis_val
 
-        # 5. Run OCC once
+        # 5. Run OCC again
         occ_json = on_chip_calibration_json(None, host_assistance)
         new_calib_bytes = None
         try:
@@ -145,14 +146,21 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
         final_axis_val = fin_right_pp[1]
         log.i(f"  Final principal points (Right) ppx={fin_right_pp[0]:.6f} ppy={fin_right_pp[1]:.6f}")
 
+        # Reversion checks:
+        # 1. Final must differ from modified (change happened)
+        # 2. Final must be closer to base than to modified (strict revert expectation)
+        dist_from_original = abs(final_axis_val - base_axis_val)
+        dist_from_modified = abs(final_axis_val - modified_axis_val)
+        log.i(f"  ppy distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
+
         if abs(final_axis_val - modified_axis_val) <= EPSILON:
             log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
             test.fail()
-        elif original_axis_val + PIXEL_CORRECTION <= abs(final_axis_val - original_axis_val):
-            log.e(f"OCC did not revert toward original")
+        elif dist_from_modified + EPSILON <= dist_from_original:
+            log.e("OCC did not revert toward base (still closer to modified)")
             test.fail()
         else:
-            log.i(f"OCC reverted toward original successfully")
+            log.i("OCC reverted ppy toward base successfully")
     finally:
         # Always stop pipeline before returning device so subsequent tests can reset factory calibration
         try:
@@ -181,8 +189,7 @@ with test.closure("Advanced OCC calibration test with host assistance"):
     except Exception as e:
         log.e("OCC calibration with principal point modification failed: ", str(e))
         restore_calibration_table(calib_dev)
-        test.fail()
-
+        test.fail()        
             
 
 test.print_results_and_exit()
