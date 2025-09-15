@@ -310,3 +310,182 @@ def write_calibration_table_with_crc(device, modified_data):
     except Exception as e:
         log.e(f"-E- Error writing calibration table: {e}")
         return False, str(e)
+
+def modify_extrinsic_calibration(device, pixel_correction, modify_ppy=True):
+    """Modify either raw right intrinsic ppx or ppy by pixel_correction (in pixels).
+
+    Args:
+        device: auto_calibrated_device (rs.auto_calibrated_device)
+        pixel_correction (float): delta in pixels to add
+        modify_ppy (bool): if True adjust ppy else adjust ppx
+    Returns:
+        tuple: (success(bool), modified_table_bytes(or error str), new_ppx, new_ppy)
+    """
+    try:
+        calib_table = get_d400_calibration_table(device)
+        if not calib_table:
+            return False, "Failed to get calibration table", None, None
+        modified_data = bytearray(calib_table)
+        header_size = 16
+        right_intrinsics_offset = header_size + 36  # skip left 9 floats (left eye)
+        right_intrinsics = list(struct.unpack('<9f', modified_data[right_intrinsics_offset:right_intrinsics_offset+36]))
+        width = 1280.0
+        height = 800.0
+        original_raw_ppx = right_intrinsics[2] * width
+        original_raw_ppy = right_intrinsics[3] * height
+        if modify_ppy:
+            corrected_raw_ppy = original_raw_ppy + pixel_correction
+            right_intrinsics[3] = corrected_raw_ppy / height
+            log.i(f"  Raw Right ppy original={original_raw_ppy:.6f} modified={corrected_raw_ppy:.6f}")
+        else:
+            corrected_raw_ppx = original_raw_ppx + pixel_correction
+            right_intrinsics[2] = corrected_raw_ppx / width
+            log.i(f"  Raw Right ppx original={original_raw_ppx:.6f} modified={corrected_raw_ppx:.6f}")
+        modified_data[right_intrinsics_offset:right_intrinsics_offset+36] = struct.pack('<9f', *right_intrinsics)
+        write_ok, modified_table_or_err = write_calibration_table_with_crc(device, bytes(modified_data))
+        if not write_ok:
+            return False, modified_table_or_err, None, None
+        new_ppx = right_intrinsics[2] * width
+        new_ppy = right_intrinsics[3] * height
+        return True, modified_table_or_err, new_ppx, new_ppy
+    except Exception as e:
+        log.e(f"Error modifying calibration: {e}")
+        return False, str(e), None, None
+
+# ---------------------------------------------------------------------------
+# Advanced OCC calibration test helper (moved from test_occ_calibrations.py)
+# ---------------------------------------------------------------------------
+
+# Pixel correction constant for DSCalibrationModifier-style corrections
+PIXEL_CORRECTION = -1
+EPSILON = 0.001  # Small tolerance for floating point precision
+
+# Health factor thresholds
+HEALTH_FACTOR_THRESHOLD = 0.3
+HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.8
+
+def on_chip_calibration_json(occ_json_file, host_assistance):
+    """Return OCC JSON string (default if file not provided)."""
+    occ_json = None
+    if occ_json_file is not None:
+        try:
+            occ_json = open(occ_json_file).read()
+        except Exception:
+            occ_json = None
+            log.e('Error reading occ_json_file: ', occ_json_file)
+    if occ_json is None:
+        log.i('Using default parameters for on-chip calibration.')
+        occ_json = '{\n  ' + \
+                   '"calib type": 0,\n' + \
+                   '"host assistance": ' + str(int(host_assistance)) + ',\n' + \
+                   '"keep new value after successful scan": 1,\n' + \
+                   '"fl data sampling": 0,\n' + \
+                   '"adjust both sides": 0,\n' + \
+                   '"fl scan location": 0,\n' + \
+                   '"fy scan direction": 0,\n' + \
+                   '"white wall mode": 0,\n' + \
+                   '"speed": 2,\n' + \
+                   '"scan parameter": 0,\n' + \
+                   '"apply preset": 0,\n' + \
+                   '"scan only": ' + str(int(host_assistance)) + ',\n' + \
+                   '"interactive scan": 0,\n' + \
+                   '"resize factor": 1\n' + \
+                   '}'
+    return occ_json
+
+def run_advanced_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
+    """Run advanced OCC calibration test with calibration table modifications.
+
+    Args:
+        host_assistance (bool)
+        image_width (int)
+        image_height (int)
+        fps (int)
+        modify_ppy (bool): True to modify ppy, False to modify ppx
+    Returns:
+        auto_calibrated_device (rs.auto_calibrated_device)
+    """
+    config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+
+    # Ensure we start from factory calibration (clean baseline) before applying any modifications
+    log.i("Restoring factory calibration before test scenario...")
+    if not restore_calibration_table(calib_dev):
+        log.e("Failed to restore factory calibration")
+        test.fail()
+
+    principal_points_result = get_current_rect_params(calib_dev)
+    if principal_points_result is not None:
+        orig_left_pp, orig_right_pp, orig_offsets = principal_points_result
+        log.i(f"  Current principal points (pixel coordinates) - Right: ppx={orig_right_pp[0]:.6f}, ppy={orig_right_pp[1]:.6f}")
+    else:
+        log.e("Could not read current principal points")
+        test.fail()
+
+    # Apply manual raw intrinsic correction
+    target_label = 'ppy' if modify_ppy else 'ppx'
+    log.i(f"Applying manual raw intrinsic {target_label} correction...")
+    modification_success, _modified_table_bytes, modified_ppx, modified_ppy = modify_extrinsic_calibration(
+        calib_dev, PIXEL_CORRECTION, modify_ppy=modify_ppy)
+    if not modification_success:
+        log.e("Failed to modify calibration table")
+        test.fail()
+
+    modified_principal_points_result = get_current_rect_params(calib_dev)
+    # Verify the modification was applied correctly
+    if modified_principal_points_result is not None:
+        modified_left_pp, modified_right_pp, modified_offsets = modified_principal_points_result
+        log.i(f"  Modified principal points (pixel coordinates) - Right: ppx={modified_right_pp[0]:.6f}, ppy={modified_right_pp[1]:.6f}")
+
+        # Determine expected modified value and original for selected axis
+        original_axis_val = orig_right_pp[1] if modify_ppy else orig_right_pp[0]
+        reported_modified_axis_val = modified_right_pp[1] if modify_ppy else modified_right_pp[0]
+        returned_modified_axis_val = modified_ppy if modify_ppy else modified_ppx
+        if abs(reported_modified_axis_val - returned_modified_axis_val) > EPSILON:
+            log.e(f"Calibration modification not applied correctly. Expected {target_label}={returned_modified_axis_val:.6f}, got {reported_modified_axis_val:.6f}")
+            test.fail()
+        else:
+            log.i(f"Calibration modification applied correctly. {target_label} changed by {reported_modified_axis_val - original_axis_val:.6f} pixels")
+    else:
+        log.e("Could not read current principal points after modification")
+        test.fail()
+
+    # Run OCC calibration via calibration_main (captures table)
+    occ_json = on_chip_calibration_json(None, host_assistance)
+    new_calib_bytes = None  # ensure defined even if calibration_main raises
+    try:
+        health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, True, occ_json, None, return_table=True)
+    except Exception as e:
+        log.e(f"Calibration_main failed: {e}")
+        health_factor = None
+
+    if new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION:
+        log.i("OCC calibration completed (health factor within threshold)")
+        write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
+        if not write_ok:
+            log.e("Failed to write OCC calibration table to device")
+            test.fail()
+        # Analyze what corrections OCC made after OCC
+        final_principal_points_result = get_current_rect_params(calib_dev)
+        if final_principal_points_result is None:
+            log.e("Could not read final principal points")
+            test.fail()
+        else:
+            final_left_pp, final_right_pp, final_offsets = final_principal_points_result
+            log.i(f"  Final principal points (pixel coordinates) - Right: ppx={final_right_pp[0]:.6f}, ppy={final_right_pp[1]:.6f}")
+            # Select axis for comparison
+            final_axis_val = final_right_pp[1] if modify_ppy else final_right_pp[0]
+            original_axis_val = orig_right_pp[1] if modify_ppy else orig_right_pp[0]
+            modified_axis_val = modified_right_pp[1] if modify_ppy else modified_right_pp[0]
+            distance_from_original = abs(final_axis_val - original_axis_val)
+            distance_from_modified = abs(final_axis_val - modified_axis_val)
+            log.i(f"  (Right {target_label}) Distance from original: {distance_from_original:.6f} Distance from modified: {distance_from_modified:.6f}")
+            # Success criteria (current expectation): OCC should revert toward original (fail if it stays near modified)
+            if distance_from_modified + EPSILON <= distance_from_original or abs(distance_from_modified) == 0:
+                log.e(f"OCC preserved the manual {target_label} correction (unexpected per test expectation)")
+                test.fail()
+            else:
+                log.i(f"OCC reverted {target_label} closer to original calibration as expected")
+    else:
+        log.e("OCC calibration failed or health factor out of threshold")
+        test.fail()
+    return calib_dev

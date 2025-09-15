@@ -84,6 +84,104 @@ TARGET_Z_MIN = 600
 TARGET_Z_MAX = 1500
 _target_z = None
 
+def run_advanced_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
+    """Run advanced OCC calibration test with calibration table modifications.
+
+    Args:
+        host_assistance (bool)
+        image_width (int)
+        image_height (int)
+        fps (int)
+        modify_ppy (bool): True to modify ppy, False to modify ppx
+    Returns:
+        auto_calibrated_device (rs.auto_calibrated_device)
+    """
+    config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+
+    # Ensure we start from factory calibration (clean baseline) before applying any modifications
+    log.i("Restoring factory calibration before test scenario...")
+    if not restore_calibration_table(calib_dev):
+        log.e("Failed to restore factory calibration")
+        test.fail()
+
+    principal_points_result = get_current_rect_params(calib_dev)
+    if principal_points_result is not None:
+        orig_left_pp, orig_right_pp, orig_offsets = principal_points_result
+        log.i(f"  Current principal points (pixel coordinates) - Right: ppx={orig_right_pp[0]:.6f}, ppy={orig_right_pp[1]:.6f}")
+    else:
+        log.e("Could not read current principal points")
+        test.fail()
+
+    # Apply manual raw intrinsic correction
+    target_label = 'ppy' if modify_ppy else 'ppx'
+    log.i(f"Applying manual raw intrinsic {target_label} correction...")
+    modification_success, _modified_table_bytes, modified_ppx, modified_ppy = modify_extrinsic_calibration(
+        calib_dev, PIXEL_CORRECTION, modify_ppy=modify_ppy)
+    if not modification_success:
+        log.e("Failed to modify calibration table")
+        test.fail()
+
+    modified_principal_points_result = get_current_rect_params(calib_dev)
+    # Verify the modification was applied correctly
+    if modified_principal_points_result is not None:
+        modified_left_pp, modified_right_pp, modified_offsets = modified_principal_points_result
+        log.i(f"  Modified principal points (pixel coordinates) - Right: ppx={modified_right_pp[0]:.6f}, ppy={modified_right_pp[1]:.6f}")
+
+        # Determine expected modified value and original for selected axis
+        original_axis_val = orig_right_pp[1] if modify_ppy else orig_right_pp[0]
+        reported_modified_axis_val = modified_right_pp[1] if modify_ppy else modified_right_pp[0]
+        returned_modified_axis_val = modified_ppy if modify_ppy else modified_ppx
+        if abs(reported_modified_axis_val - returned_modified_axis_val) > EPSILON:
+            log.e(f"Calibration modification not applied correctly. Expected {target_label}={returned_modified_axis_val:.6f}, got {reported_modified_axis_val:.6f}")
+            test.fail()
+        else:
+            log.i(f"Calibration modification applied correctly. {target_label} changed by {reported_modified_axis_val - original_axis_val:.6f} pixels")
+    else:
+        log.e("Could not read current principal points after modification")
+        test.fail()
+
+    # Run OCC calibration via calibration_main (captures table)
+    occ_json = on_chip_calibration_json(None, host_assistance)
+    new_calib_bytes = None  # ensure defined even if calibration_main raises
+    try:
+        health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, True, occ_json, None, return_table=True)
+    except Exception as e:
+        log.e(f"Calibration_main failed: {e}")
+        health_factor = None
+
+    if new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION:
+        log.i("OCC calibration completed (health factor within threshold)")
+        write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
+        if not write_ok:
+            log.e("Failed to write OCC calibration table to device")
+            test.fail()
+        # Analyze what corrections OCC made after OCC
+        final_principal_points_result = get_current_rect_params(calib_dev)
+        if final_principal_points_result is None:
+            log.e("Could not read final principal points")
+            test.fail()
+        else:
+            final_left_pp, final_right_pp, final_offsets = final_principal_points_result
+            log.i(f"  Final principal points (pixel coordinates) - Right: ppx={final_right_pp[0]:.6f}, ppy={final_right_pp[1]:.6f}")
+            # Select axis for comparison
+            final_axis_val = final_right_pp[1] if modify_ppy else final_right_pp[0]
+            original_axis_val = orig_right_pp[1] if modify_ppy else orig_right_pp[0]
+            modified_axis_val = modified_right_pp[1] if modify_ppy else modified_right_pp[0]
+            distance_from_original = abs(final_axis_val - original_axis_val)
+            distance_from_modified = abs(final_axis_val - modified_axis_val)
+            log.i(f"  (Right {target_label}) Distance from original: {distance_from_original:.6f} Distance from modified: {distance_from_modified:.6f}")
+            # Success criteria (current expectation): OCC should revert toward original (fail if it stays near modified)
+            if distance_from_modified + EPSILON <= distance_from_original or abs(distance_from_modified) == 0:
+                log.e(f"OCC preserved the manual {target_label} correction (unexpected per test expectation)")
+                test.fail()
+            else:
+                log.i(f"OCC reverted {target_label} closer to original calibration as expected")
+    else:
+        log.e("OCC calibration failed or health factor out of threshold")
+        test.fail()
+return calib_dev
+
+
 with test.closure("Tare calibration test with host assistance"):
     try:
         host_assistance = True
@@ -146,4 +244,5 @@ with test.closure("Tare calibration with table backup and modification"):
     log.i("Done\n")
 
 test.print_results_and_exit()
+change exposuere 8500 (tried with various exposure values)/ host assisatnece true
 """
