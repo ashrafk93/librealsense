@@ -40,14 +40,29 @@ set_target_properties (${PROJECT_NAME} PROPERTIES FOLDER Resources)
 function(target_binary url version sha1 symbol ext)
   set(binary "${CMAKE_CURRENT_BINARY_DIR}/${symbol}-${version}${ext}")
   message(STATUS "... ${url}/${symbol}-${version}${ext}")
-  file(DOWNLOAD "${url}/${symbol}-${version}${ext}" "${binary}"
-       EXPECTED_HASH SHA1=${sha1}
-       STATUS status)
-  list(GET status 0 error_code)
-  if (NOT ${error_code} EQUAL 0)
-      message(FATAL_ERROR "FAILED with status ${status}")
-  else()
-      #message(STATUS "Download firmware ${status} for ${symbol}-${version}${ext}")
+  
+  # Check if file exists and has correct hash
+  set(need_download TRUE)
+  if(EXISTS "${binary}")
+    file(SHA1 "${binary}" existing_hash)
+    if("${existing_hash}" STREQUAL "${sha1}")
+      set(need_download FALSE)
+      message(STATUS "Firmware file already exists with correct hash: ${symbol}-${version}${ext}")
+    else()
+      message(STATUS "Firmware file exists but hash mismatch, re-downloading: ${symbol}-${version}${ext}")
+    endif()
+  endif()
+  
+  if(need_download)
+    file(DOWNLOAD "${url}/${symbol}-${version}${ext}" "${binary}"
+         EXPECTED_HASH SHA1=${sha1}
+         STATUS status)
+    list(GET status 0 error_code)
+    if (NOT ${error_code} EQUAL 0)
+        message(FATAL_ERROR "FAILED with status ${status}")
+    else()
+        message(STATUS "Downloaded firmware ${symbol}-${version}${ext}")
+    endif()
   endif()
   string(TOUPPER ${symbol} SYMBOL)
   string(REPLACE "." "," version_commas ${version})
