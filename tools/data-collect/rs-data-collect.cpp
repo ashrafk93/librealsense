@@ -338,7 +338,7 @@ int main(int argc, char** argv) try
         if (serial_number.isSet())
         {
             auto target_sn = serial_number.getValue();
-            for (auto& d : list)
+            for (const auto& d : list)
             {
                 if (target_sn == d.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER))
                 {
@@ -348,7 +348,7 @@ int main(int argc, char** argv) try
             }
             if (!dev)
             {
-                std::cout << "The Device Not FOUND! Serial Number: " << target_sn << std::endl;
+                std::cout << "The device not found! Serial Number: " << target_sn << std::endl;
                 return EXIT_FAILURE;
             }
         }
