@@ -295,6 +295,7 @@ int main(int argc, char** argv) try
     cli::value<int>    max_frames('m', "MaxFrames_Number", "", 100, "Maximum number of frames-per-stream to receive");
     cli::value<string> out_file('f', "FullFilePath", "path", "", "the file where the data will be saved to");
     cli::value<string> config_file('c', "ConfigurationFile", "path", "", "Specify file path with the requested configuration");
+    cli::value<string> serial_number('s', "SerialNumber", "serial_number", "", "the device Serial Number");
 
     auto settings = cli( "librealsense rs-data-collect tool" )
                         .default_log_level( RS2_LOG_SEVERITY_WARN )
@@ -302,6 +303,7 @@ int main(int argc, char** argv) try
                         .arg( max_frames )
                         .arg( out_file )
                         .arg( config_file )
+                        .arg( serial_number )
                         .process( argc, argv );
 
     std::cout << "Running rs-data-collect: ";
@@ -332,7 +334,28 @@ int main(int argc, char** argv) try
             continue;
         }
 
-        auto dev = std::make_shared<rs2::device>(list.front());
+        std::shared_ptr<rs2::device> dev;
+        if (serial_number.isSet())
+        {
+            auto target_sn = serial_number.getValue();
+            for (const auto& d : list)
+            {
+                if (target_sn == d.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER))
+                {
+                    dev = std::make_shared<rs2::device>(d);
+                    break;
+                }
+            }
+            if (!dev)
+            {
+                std::cout << "The device not found! Serial Number: " << target_sn << std::endl;
+                return EXIT_FAILURE;
+            }
+        }
+        else
+        {
+            dev = std::make_shared<rs2::device>(list.front());
+        }
 
         data_collector  dc(dev,timeout,max_frames);         // Parser and the data aggregator
 
