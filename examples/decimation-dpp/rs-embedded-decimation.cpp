@@ -107,7 +107,7 @@ try
     embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     auto ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
-    if (ans.empty() || ans[0] == 0)
+    if (ans.empty() || ans[0] != 0)
     {
         throw std::runtime_error("Decimation filter deactivation did not work!");
     }
@@ -141,7 +141,7 @@ try
     embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
-    if (ans.empty() || ans[0] == 1)
+    if (ans.empty() || ans[0] == 0)
     {
         throw std::runtime_error("Decimation filter activation did not work!");
     }
