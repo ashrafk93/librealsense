@@ -102,6 +102,12 @@ try
     {
         throw std::runtime_error("Depth sensor does not support embedded decimation filter!");
     }
+	// getting initial value
+    auto ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
+    if (ans.empty() || ans[0] != 0)
+    {
+        throw std::runtime_error("Decimation filter deactivation did not work!");
+    }
     std::vector<uint8_t> request;
     uint8_t on_off = 0; // OFF
     auto decimation_magnitude = 2; // not needed now, but partial set not enabled yet
@@ -109,7 +115,7 @@ try
     request.push_back(decimation_magnitude);
     embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    auto ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
+    ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
     if (ans.empty() || ans[0] != 0)
     {
         throw std::runtime_error("Decimation filter deactivation did not work!");
