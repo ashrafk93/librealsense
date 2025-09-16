@@ -12,6 +12,7 @@ from test_calibrations_common import (
     modify_extrinsic_calibration,
     restore_calibration_table,
     write_calibration_table_with_crc,
+    measure_depth_fill_rate,
 )
 
 # Constants & thresholds (reintroduce after import fix)
@@ -118,6 +119,14 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             test.fail()
         applied_delta = modified_axis_val - base_axis_val
 
+        # Measure depth fill rate before OCC correction
+        pre_occ_fill = measure_depth_fill_rate(width=image_width, height=image_height, fps=fps)
+        if pre_occ_fill is not None:
+            log.i(f"Depth fill rate before OCC: {pre_occ_fill:.2f}%")
+        else:
+            log.e("Depth fill rate before OCC unavailable")
+            test.fail()
+
         # 5. Run OCC again
         occ_json = on_chip_calibration_json(None, host_assistance)
         new_calib_bytes = None
@@ -152,6 +161,17 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
         dist_from_original = abs(final_axis_val - base_axis_val)
         dist_from_modified = abs(final_axis_val - modified_axis_val)
         log.i(f"  ppy distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
+
+        # Measure depth fill rate after OCC correction
+        post_occ_fill = measure_depth_fill_rate(width=image_width, height=image_height, fps=fps)
+        if post_occ_fill is not None:
+            log.i(f"Depth fill rate after OCC: {post_occ_fill:.2f}%")
+            if pre_occ_fill is not None and post_occ_fill + 0.01 < pre_occ_fill:
+                log.e(f"Depth fill rate did not improve (pre={pre_occ_fill:.2f}% post={post_occ_fill:.2f}%)")
+                test.fail()
+        else:
+            log.e("Depth fill rate after OCC unavailable")
+            test.fail()
 
         if abs(final_axis_val - modified_axis_val) <= EPSILON:
             log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")

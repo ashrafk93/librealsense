@@ -5,7 +5,16 @@ import sys
 import time
 import pyrealsense2 as rs
 from rspy import test, log
-from test_calibrations_common import calibration_main, is_mipi_device
+from test_calibrations_common import (
+    calibration_main,
+    is_mipi_device,
+    get_calibration_device,
+    get_current_rect_params,
+    modify_extrinsic_calibration,
+    restore_calibration_table,
+    write_calibration_table_with_crc,
+    measure_depth_fill_rate,
+)
 
 #disabled until we stabilize lab
 #test:donotrun
@@ -84,102 +93,151 @@ TARGET_Z_MIN = 600
 TARGET_Z_MAX = 1500
 _target_z = None
 
-def run_advanced_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
+# Additional constants & thresholds for advanced calibration modification test
+PIXEL_CORRECTION = -0.8  # pixel shift to apply to principal point (right IR)
+EPSILON = 0.001          # distance comparison tolerance for reversion checks
+HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.8  # OCC health factor acceptance for modified run
+
+
+def run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
     """Run advanced OCC calibration test with calibration table modifications.
 
-    Args:
-        host_assistance (bool)
-        image_width (int)
-        image_height (int)
-        fps (int)
-        modify_ppy (bool): True to modify ppy, False to modify ppx
-    Returns:
-        auto_calibrated_device (rs.auto_calibrated_device)
+        Flow:
+            1. OCC (baseline) or Restore factory calibration
+            2. Read & log base principal point
+            3. Apply controlled raw intrinsic perturbation (ppy or ppx)
+            4. Verify perturbation was applied
+            5. Run OCC once and capture returned table
+            6. Write table, read final principal point, compute correction metrics
     """
     config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
-
-    # Ensure we start from factory calibration (clean baseline) before applying any modifications
-    log.i("Restoring factory calibration before test scenario...")
-    if not restore_calibration_table(calib_dev):
-        log.e("Failed to restore factory calibration")
-        test.fail()
-
-    principal_points_result = get_current_rect_params(calib_dev)
-    if principal_points_result is not None:
-        orig_left_pp, orig_right_pp, orig_offsets = principal_points_result
-        log.i(f"  Current principal points (pixel coordinates) - Right: ppx={orig_right_pp[0]:.6f}, ppy={orig_right_pp[1]:.6f}")
-    else:
-        log.e("Could not read current principal points")
-        test.fail()
-
-    # Apply manual raw intrinsic correction
-    target_label = 'ppy' if modify_ppy else 'ppx'
-    log.i(f"Applying manual raw intrinsic {target_label} correction...")
-    modification_success, _modified_table_bytes, modified_ppx, modified_ppy = modify_extrinsic_calibration(
-        calib_dev, PIXEL_CORRECTION, modify_ppy=modify_ppy)
-    if not modification_success:
-        log.e("Failed to modify calibration table")
-        test.fail()
-
-    modified_principal_points_result = get_current_rect_params(calib_dev)
-    # Verify the modification was applied correctly
-    if modified_principal_points_result is not None:
-        modified_left_pp, modified_right_pp, modified_offsets = modified_principal_points_result
-        log.i(f"  Modified principal points (pixel coordinates) - Right: ppx={modified_right_pp[0]:.6f}, ppy={modified_right_pp[1]:.6f}")
-
-        # Determine expected modified value and original for selected axis
-        original_axis_val = orig_right_pp[1] if modify_ppy else orig_right_pp[0]
-        reported_modified_axis_val = modified_right_pp[1] if modify_ppy else modified_right_pp[0]
-        returned_modified_axis_val = modified_ppy if modify_ppy else modified_ppx
-        if abs(reported_modified_axis_val - returned_modified_axis_val) > EPSILON:
-            log.e(f"Calibration modification not applied correctly. Expected {target_label}={returned_modified_axis_val:.6f}, got {reported_modified_axis_val:.6f}")
-            test.fail()
-        else:
-            log.i(f"Calibration modification applied correctly. {target_label} changed by {reported_modified_axis_val - original_axis_val:.6f} pixels")
-    else:
-        log.e("Could not read current principal points after modification")
-        test.fail()
-
-    # Run OCC calibration via calibration_main (captures table)
-    occ_json = on_chip_calibration_json(None, host_assistance)
-    new_calib_bytes = None  # ensure defined even if calibration_main raises
     try:
-        health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, True, occ_json, None, return_table=True)
-    except Exception as e:
-        log.e(f"Calibration_main failed: {e}")
-        health_factor = None
 
-    if new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION:
-        log.i("OCC calibration completed (health factor within threshold)")
+        # 1. run tare for the first time to ensure we start from a known state
+        occ_json = tare_calibration_json(None, host_assistance)
+        new_calib_bytes = None
+        try:
+            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, occ_json, None, return_table=True)
+        except Exception as e:
+            log.e(f"Calibration_main failed: {e}")
+            restore_calibration_table(calib_dev)
+            test.fail()
+
+        if not (new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION):
+            log.e(f"OCC calibration failed or health factor out of threshold (hf={health_factor})")
+            restore_calibration_table(calib_dev)
+            test.fail()
+        log.i(f"OCC calibration completed (health factor={health_factor:+.4f})")
+
+        write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
+        if not write_ok:
+            log.e("Failed to write OCC calibration table to device")
+            restore_calibration_table(calib_dev)
+            test.fail()
+
+
+        # 2. Read base (reference) principal points
+        principal_points_result = get_current_rect_params(calib_dev)
+        if principal_points_result is None:
+            log.e("Could not read current principal points")
+            test.fail()
+        base_left_pp, base_right_pp, base_offsets = principal_points_result
+        log.i(f"  Base principal points (Right) ppx={base_right_pp[0]:.6f} ppy={base_right_pp[1]:.6f}")
+
+        base_axis_val = base_right_pp[1]
+
+        # Measure depth fill rate before applying any manual perturbation
+        try:
+            pre_fill_rate = measure_depth_fill_rate(image_width, image_height, fps, frame_count=25)
+            log.i(f"  Depth fill rate before modification: {pre_fill_rate:.2f}%")
+        except Exception as e:
+            pre_fill_rate = None
+            log.w(f"Depth fill rate measurement before modification unavailable: {e}")
+
+        # 3. Apply perturbation
+        log.i(f"Applying manual raw intrinsic correction: delta={PIXEL_CORRECTION:+.3f} px")
+        modification_success, _modified_table_bytes, modified_ppx, modified_ppy = modify_extrinsic_calibration(
+            calib_dev, PIXEL_CORRECTION, False)
+        if not modification_success:
+            log.e("Failed to modify calibration table")
+            test.fail()
+
+        # 4. Verify modification
+        modified_principal_points_result = get_current_rect_params(calib_dev)
+        if modified_principal_points_result is None:
+            log.e("Could not read principal points after modification")
+            test.fail()
+        mod_left_pp, mod_right_pp, mod_offsets = modified_principal_points_result
+        if abs(modified_ppx - mod_right_pp[0]) > EPSILON:
+            log.e(f"Modification mismatch for ppx. Expected {modified_ppx:.6f} got {mod_right_pp[0]:.6f}")
+            test.fail()
+
+        # 5. Run tare again
+        occ_json = tare_calibration_json(None, host_assistance)
+        new_calib_bytes = None
+        try:
+            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, True, occ_json, None, return_table=True)
+        except Exception as e:
+            log.e(f"Calibration_main failed: {e}")
+            health_factor = None
+
+        if not (new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION):
+            log.e(f"OCC calibration failed or health factor out of threshold (hf={health_factor})")
+            test.fail()
+        log.i(f"OCC calibration completed (health factor={health_factor:+.4f})")
+
+        # 6. Write updated table & evaluate
         write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
         if not write_ok:
             log.e("Failed to write OCC calibration table to device")
             test.fail()
-        # Analyze what corrections OCC made after OCC
+
         final_principal_points_result = get_current_rect_params(calib_dev)
         if final_principal_points_result is None:
             log.e("Could not read final principal points")
             test.fail()
+        fin_left_pp, fin_right_pp, fin_offsets = final_principal_points_result
+        final_axis_val = fin_right_pp[1]
+        log.i(f"  Final principal points (Right) ppx={fin_right_pp[0]:.6f} ppy={fin_right_pp[1]:.6f}")
+
+        # Measure depth fill rate after calibration re-run
+        try:
+            post_fill_rate = measure_depth_fill_rate(image_width, image_height, fps, frame_count=25)
+            log.i(f"  Depth fill rate after calibration: {post_fill_rate:.2f}%")
+        except Exception as e:
+            post_fill_rate = None
+            log.w(f"Depth fill rate measurement after calibration unavailable: {e}")
+
+        # Reversion checks:
+        # 1. Final must differ from modified (change happened)
+        # 2. Final must be closer to base than to modified (strict revert expectation)
+        dist_from_original = abs(final_axis_val - base_axis_val)
+        dist_from_modified = abs(final_axis_val - modified_ppx)
+        log.i(f"  ppy distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
+
+        if abs(final_axis_val - modified_ppx) <= EPSILON:
+            log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
+            test.fail()
+        elif dist_from_modified + EPSILON <= dist_from_original:
+            log.e("OCC did not revert toward base (still closer to modified)")
+            test.fail()
         else:
-            final_left_pp, final_right_pp, final_offsets = final_principal_points_result
-            log.i(f"  Final principal points (pixel coordinates) - Right: ppx={final_right_pp[0]:.6f}, ppy={final_right_pp[1]:.6f}")
-            # Select axis for comparison
-            final_axis_val = final_right_pp[1] if modify_ppy else final_right_pp[0]
-            original_axis_val = orig_right_pp[1] if modify_ppy else orig_right_pp[0]
-            modified_axis_val = modified_right_pp[1] if modify_ppy else modified_right_pp[0]
-            distance_from_original = abs(final_axis_val - original_axis_val)
-            distance_from_modified = abs(final_axis_val - modified_axis_val)
-            log.i(f"  (Right {target_label}) Distance from original: {distance_from_original:.6f} Distance from modified: {distance_from_modified:.6f}")
-            # Success criteria (current expectation): OCC should revert toward original (fail if it stays near modified)
-            if distance_from_modified + EPSILON <= distance_from_original or abs(distance_from_modified) == 0:
-                log.e(f"OCC preserved the manual {target_label} correction (unexpected per test expectation)")
+            log.i("OCC reverted ppy toward base successfully")
+
+        # Depth fill non-degradation assertion (only if both measurements succeeded)
+        if pre_fill_rate is not None and post_fill_rate is not None:
+            if post_fill_rate + 0.01 < pre_fill_rate:  # allow tiny numerical tolerance
+                log.e(f"Depth fill rate decreased: pre={pre_fill_rate:.2f}% post={post_fill_rate:.2f}%")
                 test.fail()
             else:
-                log.i(f"OCC reverted {target_label} closer to original calibration as expected")
-    else:
-        log.e("OCC calibration failed or health factor out of threshold")
-        test.fail()
-return calib_dev
+                log.i("Depth fill rate non-decreased (or improved)")
+    finally:
+        # Always stop pipeline before returning device so subsequent tests can reset factory calibration
+        try:
+            pipeline.stop()
+        except Exception:
+            pass
+    return calib_dev
 
 
 with test.closure("Tare calibration test with host assistance"):
