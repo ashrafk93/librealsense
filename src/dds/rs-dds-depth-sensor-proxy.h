@@ -12,7 +12,7 @@ namespace librealsense {
 class dds_depth_sensor_proxy
     : public dds_sensor_proxy
     , public depth_stereo_sensor
-    , public embedded_decimation_filter
+    , public embedded_decimation_filter_sensor
 {
     using super = dds_sensor_proxy;
 

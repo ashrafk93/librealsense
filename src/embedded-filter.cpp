@@ -8,13 +8,13 @@ namespace librealsense {
 
 // ========== Embedded Decimation Filter Implementation ==========
 
-embedded_decimation_filter::embedded_decimation_filter()
+embedded_decimation_filter_sensor::embedded_decimation_filter_sensor()
     : _enabled(false)
     , _magnitude(2) // Always 2 for decimation
 {
 }
 
-void embedded_decimation_filter::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
+void embedded_decimation_filter_sensor::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
 {
     if (embedded_filter_type != RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
     {
@@ -35,7 +35,7 @@ void embedded_decimation_filter::set(rs2_embedded_filter_type embedded_filter_ty
 
 }
 
-std::vector<uint8_t> embedded_decimation_filter::get(rs2_embedded_filter_type embedded_filter_type)
+std::vector<uint8_t> embedded_decimation_filter_sensor::get(rs2_embedded_filter_type embedded_filter_type)
 {
     if (embedded_filter_type != RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
     {
@@ -49,20 +49,20 @@ std::vector<uint8_t> embedded_decimation_filter::get(rs2_embedded_filter_type em
     return data;
 }
 
-bool embedded_decimation_filter::supports(rs2_embedded_filter_type embedded_filter_type) const
+bool embedded_decimation_filter_sensor::supports(rs2_embedded_filter_type embedded_filter_type) const
 {
     // TODO - check if the device actually supports decimation filter
     return embedded_filter_type == RS2_EMBEDDED_FILTER_TYPE_DECIMATION;
 }
 
-void embedded_decimation_filter::set_enabled(bool enabled)
+void embedded_decimation_filter_sensor::set_enabled(bool enabled)
 {
     _enabled = enabled;
 }
 
 // ========== Embedded Temporal Filter Implementation ==========
 
-embedded_temporal_filter::embedded_temporal_filter()
+embedded_temporal_filter_sensor::embedded_temporal_filter_sensor()
     : _enabled(false)
     , _alpha(0.4f)
     , _delta(20)
@@ -70,7 +70,7 @@ embedded_temporal_filter::embedded_temporal_filter()
 {
 }
 
-void embedded_temporal_filter::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
+void embedded_temporal_filter_sensor::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
 {
     if (embedded_filter_type != RS2_EMBEDDED_FILTER_TYPE_TEMPORAL)
     {
@@ -105,7 +105,7 @@ void embedded_temporal_filter::set(rs2_embedded_filter_type embedded_filter_type
     }
 }
 
-std::vector<uint8_t> embedded_temporal_filter::get(rs2_embedded_filter_type embedded_filter_type)
+std::vector<uint8_t> embedded_temporal_filter_sensor::get(rs2_embedded_filter_type embedded_filter_type)
 {
     if (embedded_filter_type != RS2_EMBEDDED_FILTER_TYPE_TEMPORAL)
     {
@@ -129,17 +129,17 @@ std::vector<uint8_t> embedded_temporal_filter::get(rs2_embedded_filter_type embe
     return data;
 }
 
-bool embedded_temporal_filter::supports(rs2_embedded_filter_type embedded_filter_type) const
+bool embedded_temporal_filter_sensor::supports(rs2_embedded_filter_type embedded_filter_type) const
 {
     return embedded_filter_type == RS2_EMBEDDED_FILTER_TYPE_TEMPORAL;
 }
 
-void embedded_temporal_filter::set_enabled(bool enabled)
+void embedded_temporal_filter_sensor::set_enabled(bool enabled)
 {
     _enabled = enabled;
 }
 
-void embedded_temporal_filter::set_alpha(float alpha)
+void embedded_temporal_filter_sensor::set_alpha(float alpha)
 {
     if (alpha < 0.0f || alpha > 1.0f)
     {
@@ -148,7 +148,7 @@ void embedded_temporal_filter::set_alpha(float alpha)
     _alpha = alpha;
 }
 
-void embedded_temporal_filter::set_delta(int32_t delta)
+void embedded_temporal_filter_sensor::set_delta(int32_t delta)
 {
     if (delta < 0)
     {
@@ -157,7 +157,7 @@ void embedded_temporal_filter::set_delta(int32_t delta)
     _delta = delta;
 }
 
-void embedded_temporal_filter::set_persistency_index(int32_t persistency)
+void embedded_temporal_filter_sensor::set_persistency_index(int32_t persistency)
 {
     if (persistency < 0)
     {

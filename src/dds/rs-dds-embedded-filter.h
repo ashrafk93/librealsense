@@ -19,7 +19,7 @@ namespace librealsense {
 
 // A facade for a realdds::dds_embedded_filter exposing librealsense interface
 // TODO - check if needed
-class rs_dds_embedded_filter : public embedded_filter_interface
+class rs_dds_embedded_filter : public embedded_filter_sensor_interface
 {
     std::shared_ptr< realdds::dds_embedded_filter > _dds_ef;
     rs2_embedded_filter_type const _rs_type;

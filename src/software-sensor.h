@@ -15,7 +15,7 @@ namespace librealsense {
 class software_device;
 class stream_profile_interface;
 class video_stream_profile_interface;
-class embedded_filter_interface;
+class embedded_filter_sensor_interface;
 
 
 class software_sensor
@@ -68,7 +68,7 @@ protected:
 
     processing_blocks get_recommended_processing_blocks() const override { return _pbs; }
     void add_processing_block( std::shared_ptr< processing_block_interface > const & );
-    void add_embedded_filter(std::shared_ptr< embedded_filter_interface > const& block);
+    void add_embedded_filter(std::shared_ptr< embedded_filter_sensor_interface > const& block);
 
     // We build profiles using add_video_stream(), etc., and feed those into init_stream_profiles() which could in
     // theory change them: so these are our "raw" profiles before initialization...

@@ -11,10 +11,10 @@
 
 namespace librealsense {
     // Interface class for embedded filter sensors
-    class embedded_filter_interface
+    class embedded_filter_sensor_interface
     {
     public:
-        virtual ~embedded_filter_interface() = default;
+        virtual ~embedded_filter_sensor_interface() = default;
 
         // Pure virtual interface methods
         virtual void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) = 0;
@@ -22,17 +22,17 @@ namespace librealsense {
         virtual bool supports(rs2_embedded_filter_type embedded_filter_type) const = 0;
 		virtual bool is_enabled() const = 0;
     };
-    MAP_EXTENSION(RS2_EXTENSION_EMBEDDED_FILTER_SENSOR, librealsense::embedded_filter_interface);
+    MAP_EXTENSION(RS2_EXTENSION_EMBEDDED_FILTER_SENSOR, librealsense::embedded_filter_sensor_interface);
 
-    using embedded_filters = std::vector< std::shared_ptr< embedded_filter_interface > >;
+    using embedded_filters = std::vector< std::shared_ptr< embedded_filter_sensor_interface > >;
 
 
     // Decimation filter implementation
-    class embedded_decimation_filter : public embedded_filter_interface
+    class embedded_decimation_filter_sensor : public embedded_filter_sensor_interface
     {
     public:
-        embedded_decimation_filter();
-        virtual ~embedded_decimation_filter() = default;
+        embedded_decimation_filter_sensor();
+        virtual ~embedded_decimation_filter_sensor() = default;
 
         // Override interface methods
         void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
@@ -50,11 +50,11 @@ namespace librealsense {
     };
 
     // Temporal filter implementation
-    class embedded_temporal_filter : public embedded_filter_interface
+    class embedded_temporal_filter_sensor : public embedded_filter_sensor_interface
     {
     public:
-        embedded_temporal_filter();
-        virtual ~embedded_temporal_filter() = default;
+        embedded_temporal_filter_sensor();
+        virtual ~embedded_temporal_filter_sensor() = default;
 
         // Override interface methods
         void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;

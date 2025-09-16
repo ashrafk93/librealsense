@@ -54,7 +54,7 @@ static rs2_option_type rs_type_from_dds_option( std::shared_ptr< realdds::dds_op
 rs_dds_embedded_filter::rs_dds_embedded_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
     set_embedded_filter_callback set_ef_cb,
     query_embedded_filter_callback query_ef_cb)
-    : embedded_filter_interface()
+    : embedded_filter_sensor_interface()
     , _dds_ef(dds_embedded_filter)
 	, _rs_type(dds_embedded_filter->get_filter_type())
     , _set_ef_cb( set_ef_cb )
