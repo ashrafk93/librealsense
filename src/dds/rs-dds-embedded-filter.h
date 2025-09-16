@@ -41,7 +41,6 @@ public:
     virtual void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
     virtual std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) override;
     virtual bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
-    virtual bool is_enabled() const override;
 };
 
 
