@@ -178,8 +178,8 @@ dds_temporal_filter::dds_temporal_filter()
     : dds_embedded_filter()
     , _enabled(false)
     , _alpha(0.4f)
-    , _delta(20.0f)
-    , _persistence(3)
+    , _delta(20)           // Changed from 20.0f to 20 (int32_t)
+    , _persistency(3)
 {
     _filter_type = RS2_EMBEDDED_FILTER_TYPE_TEMPORAL;
 }
@@ -199,22 +199,22 @@ void dds_temporal_filter::set_alpha(float alpha)
     set_current_value("alpha", alpha);
 }
 
-void dds_temporal_filter::set_delta(float delta)
+void dds_temporal_filter::set_delta(int32_t delta)              // Changed parameter type from float to int32_t
 {
-    if (delta < 0.0f) {
+    if (delta < 0) {        // Changed from 0.0f to 0
         throw std::invalid_argument("Delta must be non-negative");
     }
     _delta = delta;
     set_current_value("delta", delta);
 }
 
-void dds_temporal_filter::set_persistence(int persistence)
+void dds_temporal_filter::set_persistency(int32_t persistency)    // Changed parameter type from int to int32_t
 {
-    if (persistence < 0) {
-        throw std::invalid_argument("Persistence must be non-negative");
+    if (persistency < 0) {
+        throw std::invalid_argument("Persistency must be non-negative");
     }
-    _persistence = persistence;
-    set_current_value("persistence", persistence);
+    _persistency = persistency;
+    set_current_value("persistency", persistency);
 }
 
 rsutils::json dds_temporal_filter::to_json() const
@@ -223,7 +223,7 @@ rsutils::json dds_temporal_filter::to_json() const
     props["enabled"] = _enabled;
     props["alpha"] = _alpha;
     props["delta"] = _delta;
-    props["persistence"] = _persistence;
+    props["persistency"] = _persistency;
     return props;
 }
 

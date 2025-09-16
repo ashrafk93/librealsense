@@ -14,6 +14,7 @@
 
 namespace realdds {
 
+// Class dds_embedded_filter - Handles DDS communication, JSON serialization, stream association
 // Abstract base class for all embedded filters.
 // Embedded filter types are Decimation and Temporal filter
 class dds_embedded_filter
@@ -95,8 +96,8 @@ class dds_temporal_filter : public dds_embedded_filter
 private:
     bool _enabled;
     float _alpha;
-    float _delta;
-    int _persistence;
+    int32_t _delta;
+    int32_t _persistency;
 
 public:
     dds_temporal_filter();
@@ -112,11 +113,11 @@ public:
     void set_alpha(float alpha);
     float get_alpha() const { return _alpha; }
     
-    void set_delta(float delta);
-    float get_delta() const { return _delta; }
+    void set_delta(int32_t delta);
+    int32_t get_delta() const { return _delta; }
     
-    void set_persistence(int persistence);
-    int get_persistence() const { return _persistence; }
+    void set_persistency(int32_t persistency);
+    int32_t get_persistency() const { return _persistency; }
 
     rsutils::json to_json() const override;
 };

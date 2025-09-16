@@ -63,9 +63,13 @@ void dds_depth_sensor_proxy::set(rs2_embedded_filter_type embedded_filter_type, 
     switch (embedded_filter_type)
     {
     case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
+        if (!_decimation_filter)
+            throw std::runtime_error("Decimation filter not available");
         _decimation_filter->set(params);
         break;
     case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
+        if (!_temporal_filter)
+            throw std::runtime_error("Temporal filter not available");
         throw not_implemented_exception("Temporal Embedded filter is not supported by the device");
         // above line to be removed after temporal filter is enabled in FW
         _temporal_filter->set(params);
@@ -81,11 +85,15 @@ std::vector<uint8_t> dds_depth_sensor_proxy::get(rs2_embedded_filter_type embedd
     switch (embedded_filter_type)
     {
     case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
+        if (!_decimation_filter)
+            throw std::runtime_error("Decimation filter not available");
         ans = _decimation_filter->get();
         break;
     case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
         throw not_implemented_exception("Temporal Embedded filter is not supported by the device");
         // above line to be removed after temporal filter is enabled in FW
+        if (!_temporal_filter)
+            throw std::runtime_error("Temporal filter not available");
         ans = _temporal_filter->get();
         break;
     default:
@@ -110,7 +118,7 @@ bool dds_depth_sensor_proxy::supports(rs2_embedded_filter_type embedded_filter_t
     default:
         throw not_implemented_exception("Embedded filter is not supported by the device");
     }
-    return false;
+    return is_supported;
 }
 
 void dds_depth_sensor_proxy::add_no_metadata( frame * const f, streaming_impl & streaming )

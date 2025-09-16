@@ -89,10 +89,4 @@ bool rs_dds_embedded_filter::supports(rs2_embedded_filter_type embedded_filter_t
 }
 
 
-bool rs_dds_embedded_filter::is_enabled() const
-{
-    return _dds_ef->is_enabled();
-}
-
-
 }  // namespace librealsense

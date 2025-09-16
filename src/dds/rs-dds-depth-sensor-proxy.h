@@ -23,6 +23,8 @@ public:
                             software_device * owner,
                             std::shared_ptr< realdds::dds_device > const & dev )
         : super( sensor_name, owner, dev )
+        , _decimation_filter(std::make_unique<dds_depth_sensor_decimation_filter>())
+        , _temporal_filter(std::make_unique<dds_depth_sensor_temporal_filter>())
     {
     }
 
@@ -42,8 +44,8 @@ protected:
     void add_frame_metadata( frame *, rsutils::json const & md, streaming_impl & ) override;
 
 private:
-    std::shared_ptr<dds_depth_sensor_decimation_filter> _decimation_filter;
-    std::shared_ptr<dds_depth_sensor_temporal_filter> _temporal_filter;
+    std::unique_ptr<dds_depth_sensor_decimation_filter> _decimation_filter;
+    std::unique_ptr<dds_depth_sensor_temporal_filter> _temporal_filter;
 };
 
 }  // namespace librealsense
