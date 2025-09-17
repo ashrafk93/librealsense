@@ -514,7 +514,7 @@ json dds_device::impl::query_option_value( const std::shared_ptr< dds_option > &
     return reply.at( topics::reply::query_option::key::value );
 }
 
-void dds_device::impl::set_embedded_filter_value(const std::shared_ptr< dds_embedded_filter >& filter, json new_value)
+void dds_device::impl::set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, json new_value)
 {
     if (!filter)
         DDS_THROW(runtime_error, "must provide an embedded filter to set");
@@ -532,7 +532,7 @@ void dds_device::impl::set_embedded_filter_value(const std::shared_ptr< dds_embe
     // the reply will contain the new value (which may be different) and will update the cached one
 }
 
-json dds_device::impl::query_embedded_filter_value(const std::shared_ptr< dds_embedded_filter >& filter)
+json dds_device::impl::query_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter)
 {
     if (!filter)
         DDS_THROW(runtime_error, "must provide an embedded filter to query");
@@ -861,6 +861,18 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
 
         stream->set_recommended_filters( std::move( filter_names ) );
     }
+
+    /*if (auto embedded_filters_j = j.nested(topics::notification::stream_options::key::embedded_filters))
+    {
+        dds_embedded_filters embedded_filters;
+        for (auto& embedded_filter_j : embedded_filters_j)
+        {
+            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
+            embedded_filters.push_back(embedded_filter);
+        }
+
+        stream->init_embedded_filters(std::move(embedded_filters));
+    }*/
 
     if( _streams.size() >= _n_streams_expected )
         set_state( state_t::READY );

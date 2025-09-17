@@ -16,7 +16,7 @@ namespace librealsense {
     class dds_depth_sensor_temporal_filter
     {
     public:
-        dds_depth_sensor_temporal_filter();
+        dds_depth_sensor_temporal_filter(std::shared_ptr< realdds::dds_device > const& dev);
         virtual ~dds_depth_sensor_temporal_filter() = default;
 
         // Override interface methods

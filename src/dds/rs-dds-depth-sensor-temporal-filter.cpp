@@ -10,8 +10,8 @@
 
 namespace librealsense {
 
-    dds_depth_sensor_temporal_filter::dds_depth_sensor_temporal_filter()
-		: _dds_temporal_filter(std::make_shared<realdds::dds_temporal_filter>())
+    dds_depth_sensor_temporal_filter::dds_depth_sensor_temporal_filter(std::shared_ptr< realdds::dds_device > const& dev)
+		: _dds_temporal_filter(std::make_shared<realdds::dds_temporal_filter>(dev))
     {
     }
 

@@ -10,8 +10,8 @@
 
 namespace librealsense {
 
-    dds_depth_sensor_decimation_filter::dds_depth_sensor_decimation_filter() 
-        : _dds_decimation_filter(std::make_shared<realdds::dds_decimation_filter>())
+    dds_depth_sensor_decimation_filter::dds_depth_sensor_decimation_filter(std::shared_ptr< realdds::dds_device > const& dev)
+        : _dds_decimation_filter(std::make_shared<realdds::dds_decimation_filter>(dev))
     {
     }
 

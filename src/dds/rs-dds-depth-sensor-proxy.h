@@ -19,14 +19,9 @@ class dds_depth_sensor_proxy
     using super = dds_sensor_proxy;
 
 public:
-    dds_depth_sensor_proxy( std::string const & sensor_name,
-                            software_device * owner,
-                            std::shared_ptr< realdds::dds_device > const & dev )
-        : super( sensor_name, owner, dev )
-        , _decimation_filter(std::make_unique<dds_depth_sensor_decimation_filter>())
-        , _temporal_filter(std::make_unique<dds_depth_sensor_temporal_filter>())
-    {
-    }
+    dds_depth_sensor_proxy(std::string const& sensor_name,
+        software_device* owner,
+        std::shared_ptr< realdds::dds_device > const& dev);
 
     // Needed by abstract interfaces
     float get_depth_scale() const override;

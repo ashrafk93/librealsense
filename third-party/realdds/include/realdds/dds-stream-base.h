@@ -16,13 +16,10 @@
 
 namespace realdds {
 
-
 class dds_topic;
-
 
 // Base class for both client/subscriber and server/publisher stream implementations: contains
 // information needed to identify a stream, its properties, and its profiles.
-//
 class dds_stream_base : public std::enable_shared_from_this< dds_stream_base >
 {
 protected:
@@ -44,8 +41,8 @@ public:
     // Init functions can only be called once!
     void enable_metadata(); // Must call before init_profiles
     void init_profiles( dds_stream_profiles const & profiles, size_t default_profile_index = 0 );
-    void init_options(dds_options const& options);
-    void init_embedded_filters( dds_embedded_filters const & embedded_filters);
+    void init_options( dds_options const & options );
+    void init_embedded_filters( dds_embedded_filters const & embedded_filters );
     void set_recommended_filters( std::vector< std::string > && recommended_filters );
 
     std::string const & name() const { return _name; }

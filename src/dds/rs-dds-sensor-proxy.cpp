@@ -778,9 +778,9 @@ void dds_sensor_proxy::add_embedded_filter( std::string const & embedded_filter_
     
 	auto embedded_filter_type = realdds::embedded_filter_type_from_string(embedded_filter_name);
     // 1. Create an embedded filter instance based on the name
-	auto embedded_filter = create_embedded_filter(embedded_filter_type);
+	//auto embedded_filter = create_embedded_filter(embedded_filter_type);
     // 2. Store it in a collection for later access
-	_embedded_filters.push_back(embedded_filter);
+	//_embedded_filters.push_back(embedded_filter);
     // 3. Set up communication with the DDS device for filter management
 	// TODO
     // 4. Log success message

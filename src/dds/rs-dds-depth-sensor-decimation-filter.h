@@ -6,7 +6,9 @@
 #include <rsutils/json-fwd.h>
 #include <realdds/dds-embedded-filter.h>
 
-
+namespace realdds {
+    class dds_device; // forward declaration
+}
 
 namespace librealsense {
 
@@ -17,7 +19,7 @@ namespace librealsense {
     class dds_depth_sensor_decimation_filter
     {
     public:
-        dds_depth_sensor_decimation_filter();
+        dds_depth_sensor_decimation_filter(std::shared_ptr< realdds::dds_device > const& dev);
         virtual ~dds_depth_sensor_decimation_filter() = default;
 
         // Override interface methods

@@ -13,6 +13,17 @@
 
 namespace librealsense {
 
+dds_depth_sensor_proxy::dds_depth_sensor_proxy(std::string const& sensor_name,
+    software_device* owner,
+    std::shared_ptr< realdds::dds_device > const& dev)
+    : super(sensor_name, owner, dev)
+    , _decimation_filter(std::make_unique<dds_depth_sensor_decimation_filter>(dev))
+    , _temporal_filter(std::make_unique<dds_depth_sensor_temporal_filter>(dev))
+{
+    // Register embedded filters
+    //add_embedded_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, dev);
+	//add_embedded_filter(_temporal_filter);
+}
 
 float dds_depth_sensor_proxy::get_depth_scale() const
 {
