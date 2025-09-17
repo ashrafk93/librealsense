@@ -99,24 +99,22 @@ with test.closure("Tare calibration test with host assistance"):
         log.e("Tare calibration test with host assistance failed: ", str(e))
         test.fail()
 
-with test.closure("Tare calibration test"):
-    try:
-        host_assistance = False
-        if is_mipi_device():
-            log.i("MIPI device - skip the test w/o host assistance")
-            test.skip()
+if not is_mipi_device():
+# mipi devices do not support OCC calibration without host assistance  
+    with test.closure("Tare calibration test"):
+        try:
+            host_assistance = False
+            if _target_z is None:
+                _target_z = calculate_target_z()
+                test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
 
-        if _target_z is None:
-            _target_z = calculate_target_z()
-            test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
-
-        tare_json = tare_calibration_json(None, host_assistance)
-        health_factor = calibration_main(host_assistance, False, tare_json, _target_z)
-        
-        test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
-    except Exception as e:
-        log.e("Tare calibration test failed: ", str(e))
-        test.fail()
+            tare_json = tare_calibration_json(None, host_assistance)
+            health_factor = calibration_main(host_assistance, False, tare_json, _target_z)
+            
+            test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
+        except Exception as e:
+            log.e("Tare calibration test failed: ", str(e))
+            test.fail()
 
 # for step 2 -  not in use for now
 """
