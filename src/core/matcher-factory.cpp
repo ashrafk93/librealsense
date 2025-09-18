@@ -6,6 +6,7 @@
 #include "stream-interface.h"
 
 #include <src/sync.h>
+#include <stdexcept>
 
 
 namespace librealsense {
