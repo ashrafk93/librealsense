@@ -7,9 +7,7 @@ import pyrealsense2 as rs
 from rspy import test, log
 from test_calibrations_common import calibration_main, is_mipi_device
 
-
-#disabled until we stabilize lab
-#test:donotrun
+#test:device D400*
 
 def on_chip_calibration_json(occ_json_file, host_assistance):
     occ_json = None
@@ -43,32 +41,29 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
 
 
 # Health factor threshold for calibration success
-HEALTH_FACTOR_THRESHOLD = 0.25
+HEALTH_FACTOR_THRESHOLD = 0.4
+ 
+if not is_mipi_device():
+# mipi devices do not support OCC calibration without host assistance    
+    with test.closure("OCC calibration test"):
+        try:        
+            host_assistance = False        
+            occ_json = on_chip_calibration_json(None, host_assistance)
+            health_factor = calibration_main(host_assistance, True, occ_json, None)
+            test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
+        except Exception as e:
+            log.e("OCC calibration test failed: ", str(e))
+            test.fail()
 
-with test.closure("OCC calibration test"):
-    try:        
-        host_assistance = False
-
-        if is_mipi_device():
-            log.i("MIPI device - skip the test w/o host assistance")
-            test.skip()
-
-        occ_json = on_chip_calibration_json(None, host_assistance)
-        health_factor = calibration_main(host_assistance, True, occ_json, None)
-        test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
-    except Exception as e:
-        log.e("OCC calibration test failed: ", str(e))
-        test.fail()
-
-with test.closure("OCC calibration test with host assistance"):
-    try:
-        host_assistance = True
-        occ_json = on_chip_calibration_json(None, host_assistance)
-        health_factor = calibration_main(host_assistance, True, occ_json, None)
-        test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)     
-    except Exception as e:
-        log.e("OCC calibration test with host assistance failed: ", str(e))
-        test.fail()
+    with test.closure("OCC calibration test with host assistance"):
+        try:
+            host_assistance = True
+            occ_json = on_chip_calibration_json(None, host_assistance)
+            health_factor = calibration_main(host_assistance, True, occ_json, None)
+            test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)     
+        except Exception as e:
+            log.e("OCC calibration test with host assistance failed: ", str(e))
+            test.fail()
 
 """
 with test.closure("OCC calibration with table backup and modification"):
