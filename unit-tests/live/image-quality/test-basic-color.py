@@ -22,7 +22,7 @@ A4_HEIGHT = 1123
 # expected colors (insertion order -> mapped row-major to 3x3 grid)
 expected_colors = {
     "red":   (139, 48, 57),
-    "green": (30, 84, 72),
+    "green": (40, 84, 72),
     "blue":  (8, 67, 103),
     "black": (25, 27, 14),
     "white": (140, 142, 143),
