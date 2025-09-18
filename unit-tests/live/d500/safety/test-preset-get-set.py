@@ -3,6 +3,7 @@
 
 #test:device D585S
 #test:priority 10
+# test:donotrun:!nightly
 
 # Add retries as occasionally HKR FW fails during this initialization
 #test:retries 3

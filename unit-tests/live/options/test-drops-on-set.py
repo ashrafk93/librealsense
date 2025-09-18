@@ -3,6 +3,7 @@
 
 # test:device D400* !D457
 # test:device D555
+# test:donotrun:!nightly
 
 import platform
 import pyrealsense2 as rs

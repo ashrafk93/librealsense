@@ -2,6 +2,7 @@
 // Copyright(c) 2020 RealSense, Inc. All Rights Reserved.
 
 //#cmake:dependencies rsutils
+//#test:donotrun:!nightly
 
 #include <thread>
 #include <chrono>

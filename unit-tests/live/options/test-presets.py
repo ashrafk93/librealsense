@@ -3,6 +3,7 @@
 
 # test:device each(D400*)
 # test:device each(D500*) !D555
+# test:donotrun:!nightly
 
 # See FW stability issue RSDSO-18908
 # test:retries 2

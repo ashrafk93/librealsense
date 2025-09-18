@@ -3,6 +3,7 @@
 
 #test:device each(D400*) !D421 !D405
 #test:device each(D500*)
+#test:donotrun:!nightly
 
 import pyrealsense2 as rs
 from rspy import test, log

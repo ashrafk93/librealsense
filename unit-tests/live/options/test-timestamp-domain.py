@@ -3,6 +3,7 @@
 
 # test:device each(D400*)
 # test:device each(D500*) !D555
+# test:donotrun:!nightly
 
 import time
 import pyrealsense2 as rs
