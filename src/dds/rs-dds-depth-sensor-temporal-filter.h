@@ -16,7 +16,7 @@ namespace librealsense {
     class dds_depth_sensor_temporal_filter
     {
     public:
-        dds_depth_sensor_temporal_filter(std::shared_ptr< realdds::dds_device > const& dev);
+        dds_depth_sensor_temporal_filter();
         virtual ~dds_depth_sensor_temporal_filter() = default;
 
         // Override interface methods
@@ -41,7 +41,7 @@ namespace librealsense {
         // - Bytes 1-4: alpha as float little-endian, range [0.0, 1.0], default 0.4, increment 0.01
         // - Bytes 5-8: delta as int32_t little-endian, range [0, 100], default 20, increment 1
         // - Bytes 9-12: persistency index as int32_t little-endian, range [0, 8], default 3, increment 1
-        void validate_depth_temporal_filter_params(const std::vector<uint8_t>& params);
+        void validate_depth_temporal_filter_options(const std::vector<uint8_t>& params);
         rsutils::json convert_to_json(const std::vector<uint8_t>& params);
         std::vector<uint8_t> convert_from_json(const rsutils::json& json_params);
 

@@ -22,7 +22,7 @@ namespace librealsense {
 class rs_dds_embedded_filter : public embedded_filter_sensor_interface
 {
     std::shared_ptr< realdds::dds_embedded_filter > _dds_ef;
-    rs2_embedded_filter_type const _rs_type;
+    rs2_embedded_filter_type const _filter_type;
 
 public:
     typedef std::function< void( rsutils::json value ) > set_embedded_filter_callback;
@@ -41,6 +41,8 @@ public:
     virtual void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
     virtual std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) override;
     virtual bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
+
+    rs2_embedded_filter_type get_type() const { return _filter_type; }
 };
 
 

@@ -19,7 +19,7 @@ namespace librealsense {
     class dds_depth_sensor_decimation_filter
     {
     public:
-        dds_depth_sensor_decimation_filter(std::shared_ptr< realdds::dds_device > const& dev);
+        dds_depth_sensor_decimation_filter();
         virtual ~dds_depth_sensor_decimation_filter() = default;
 
         // Override interface methods
@@ -37,7 +37,7 @@ namespace librealsense {
         // Expected parameter format (2 bytes minimum):
         // - Byte 0: enabled flag (0=disabled, 1=enabled)
         // - Byte 1: decimation magnitude as uint8_t (must be 2)
-        void validate_depth_decimation_filter_params(const std::vector<uint8_t>& params);
+        void validate_depth_decimation_filter_options(const std::vector<uint8_t>& params);
         
         rsutils::json convert_to_json(const std::vector<uint8_t>& params);
         std::vector<uint8_t> convert_from_json(const rsutils::json& json_params);

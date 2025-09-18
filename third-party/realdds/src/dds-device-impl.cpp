@@ -252,7 +252,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     if (!filter_name_j.exists())
         DDS_THROW(runtime_error, "missing name");
 
-    auto filter_params_j = j.nested(topics::reply::set_filter::key::filter_params);
+    auto filter_params_j = j.nested(topics::reply::set_filter::key::options);
     if (!filter_params_j.exists())
         DDS_THROW(runtime_error, "missing filter_params");
 
@@ -264,7 +264,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
 		auto filter_type = embedded_filter_type_from_string(filter_name);
         if (filter->get_filter_type() == filter_type)
         {
-            filter->set_filter_params(filter_params_j);  // throws!
+            filter->set_options(filter_params_j);  // throws!
             return;
         }
     }
@@ -522,7 +522,7 @@ void dds_device::impl::set_embedded_filter(const std::shared_ptr< dds_embedded_f
     json j = json::object({
         { topics::control::key::id, topics::control::set_filter::id },
         { topics::control::set_filter::key::name, filter->get_name() },
-        { topics::control::set_filter::key::filter_params, new_value }
+        { topics::control::set_filter::key::options, new_value }
         });
     if (auto stream = filter->get_stream())
         j[topics::control::set_filter::key::stream_name] = stream->name();
@@ -547,7 +547,7 @@ json dds_device::impl::query_embedded_filter(const std::shared_ptr< dds_embedded
     json reply;
     write_control_message(j, &reply);
 
-    return reply.at(topics::reply::query_filter::key::filter_params);
+    return reply.at(topics::reply::query_filter::key::options);
 }
 
 void dds_device::impl::write_control_message( json const & j, json * reply )
@@ -862,17 +862,17 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         stream->set_recommended_filters( std::move( filter_names ) );
     }
 
-    /*if (auto embedded_filters_j = j.nested(topics::notification::stream_options::key::embedded_filters))
+    if (auto embedded_filters_j = j.nested(topics::notification::stream_options::key::filters))
     {
         dds_embedded_filters embedded_filters;
         for (auto& embedded_filter_j : embedded_filters_j)
         {
-            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
+            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j, stream_name);
             embedded_filters.push_back(embedded_filter);
         }
 
         stream->init_embedded_filters(std::move(embedded_filters));
-    }*/
+    }
 
     if( _streams.size() >= _n_streams_expected )
         set_state( state_t::READY );

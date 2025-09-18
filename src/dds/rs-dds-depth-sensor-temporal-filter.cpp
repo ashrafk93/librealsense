@@ -10,23 +10,23 @@
 
 namespace librealsense {
 
-    dds_depth_sensor_temporal_filter::dds_depth_sensor_temporal_filter(std::shared_ptr< realdds::dds_device > const& dev)
-		: _dds_temporal_filter(std::make_shared<realdds::dds_temporal_filter>(dev))
+    dds_depth_sensor_temporal_filter::dds_depth_sensor_temporal_filter()
+		: _dds_temporal_filter(std::make_shared<realdds::dds_temporal_filter>())
     {
     }
 
     void dds_depth_sensor_temporal_filter::set(std::vector<uint8_t> params)
     {
         // Parse and validate depth sensor-specific parameters
-        validate_depth_temporal_filter_params(params);
+        validate_depth_temporal_filter_options(params);
 
         // Delegate to DDS filter
-        _dds_temporal_filter->set_filter_params(convert_to_json(params));
+        _dds_temporal_filter->set_options(convert_to_json(params));
     }
 
     std::vector<uint8_t> dds_depth_sensor_temporal_filter::get()
     {
-        auto json_params = _dds_temporal_filter->get_filter_params();
+        auto json_params = _dds_temporal_filter->get_options();
         return convert_from_json(json_params);
     }
 
@@ -65,7 +65,7 @@ namespace librealsense {
         return _dds_temporal_filter->get_persistency();
     }
 
-    void dds_depth_sensor_temporal_filter::validate_depth_temporal_filter_params(const std::vector<uint8_t>& params)
+    void dds_depth_sensor_temporal_filter::validate_depth_temporal_filter_options(const std::vector<uint8_t>& params)
     {
         //TODO enable partial setting of parameters
         // Check minimum parameter size - need at least 13 bytes:
@@ -121,7 +121,7 @@ namespace librealsense {
     rsutils::json dds_depth_sensor_temporal_filter::convert_to_json(const std::vector<uint8_t>& params)
     {
         // Validate parameters first
-        validate_depth_temporal_filter_params(params);
+        validate_depth_temporal_filter_options(params);
 
         // Extract enabled flag (first byte)
         bool enabled = (params[0] != 0);

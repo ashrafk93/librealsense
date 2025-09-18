@@ -17,12 +17,11 @@ namespace realdds {
 
 
 // Base class implementation
-dds_embedded_filter::dds_embedded_filter(std::shared_ptr< realdds::dds_device > const& dev)
+dds_embedded_filter::dds_embedded_filter()
     : _name("")
-    , _filter_params(json{})
+    , _options(json{})
     , _filter_type(RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
     , _initialized(false)
-    , _dev(dev)
 {
 }
 
@@ -33,10 +32,10 @@ void dds_embedded_filter::init(const std::string& name, rs2_embedded_filter_type
     _filter_type = type;
 }
 
-void dds_embedded_filter::init_filter_params(const rsutils::json& filter_params)
+void dds_embedded_filter::init_options(const rsutils::json& options)
 {
     verify_uninitialized();
-    _filter_params = filter_params;
+    _options = options;
 }
 
 void dds_embedded_filter::init_stream(std::shared_ptr< dds_stream_base > const& stream)
@@ -69,8 +68,8 @@ rsutils::json dds_embedded_filter::props_to_json() const
     json props;
     props["name"] = _name;
     props["type"] = embedded_filter_type_to_string(_filter_type);
-    if (!_filter_params.is_null()) {
-        props["filter_params"] = _filter_params;
+    if (!_options.is_null()) {
+        props["options"] = _options;
     }
 	auto stream = _stream.lock();
     if (stream) {
@@ -85,26 +84,26 @@ rsutils::json dds_embedded_filter::to_json() const
     return props_to_json();
 }
 
-std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutils::json& j)
+std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutils::json& j, const std::string& stream_name)
 {
-    if (!j.contains("type")) {
-        throw std::invalid_argument("Missing 'type' field in embedded filter JSON");
+    std::string name_str;
+    if (j.contains("name")) 
+    {
+        name_str = j["name"].get<std::string>();
     }
-    
-    auto type_str = j["type"].get<std::string>();
-    auto type = embedded_filter_type_from_string(type_str);
-    
-    // TODO -  implement the reset of this method
-    /*auto filter = create_embedded_filter(type);
-    
-    if (j.contains("name")) {
-        filter->init(j["name"].get<std::string>(), type);
+    else
+    {
+		DDS_THROW(runtime_error, "missing name");
     }
+    auto type = embedded_filter_type_from_string(name_str);
+	// create the appropriate filter type
+    auto filter = create_embedded_filter(type);
+    filter->init(j["name"].get<std::string>(), type);
     
-    if (j.contains("filter_params")) {
-        filter->init_filter_params(j["filter_params"]);
+    if (j.contains("options")) {
+        filter->init_options(j["options"]);
     }
-    
+
     // TODO - below lines to be checked
     json defaults;
     if (j.contains("current_values")) {
@@ -112,17 +111,16 @@ std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutil
     }
     filter->init_default_values(defaults);
     
-    return filter;*/
-	return nullptr; // Placeholder until implementation is complete
+    return filter;
 }
 
-void dds_embedded_filter::check_filter_params(const json& filter_params) const
+void dds_embedded_filter::check_options(const json& options) const
 {
-    if (!filter_params.exists())
-        DDS_THROW(runtime_error, "invalid filter params");
+    if (!options.exists())
+        DDS_THROW(runtime_error, "invalid options");
 
-    if (filter_params.is_null())
-        DDS_THROW(runtime_error, "filter params null");
+    if (options.is_null())
+        DDS_THROW(runtime_error, "options null");
 }
 
 void dds_embedded_filter::set_current_value(const std::string& key, const rsutils::json& value)
@@ -140,35 +138,32 @@ rsutils::json dds_embedded_filter::get_current_value(const std::string& key) con
 }
 
 // Decimation filter implementation
-dds_decimation_filter::dds_decimation_filter(std::shared_ptr< realdds::dds_device > const& dev)
-    : dds_embedded_filter(dev)
+dds_decimation_filter::dds_decimation_filter()
+    : dds_embedded_filter()
     , _enabled(false)
     , _decimation_factor(2)
 {
-	init("Decimation Filter", RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
-	init_filter_params(json{});
-	init_default_values(json{});
 }
 
-void dds_decimation_filter::set_filter_params(const rsutils::json& filter_params)
+void dds_decimation_filter::set_options(const rsutils::json& options)
 {
-    check_filter_params(filter_params);
-    _filter_params = std::move(filter_params);
-    auto dev = _dev.lock();
+    check_options(options);
+    _options = std::move(options);
+    /*auto dev = _dev.lock();
     if (!dev)
         DDS_THROW(runtime_error, "device no longer available");
-    dev->set_embedded_filter(shared_from_this(), _filter_params);
+    dev->set_embedded_filter(shared_from_this(), _options);*/
 }
 
-rsutils::json dds_decimation_filter::get_filter_params()
+rsutils::json dds_decimation_filter::get_options()
 {
-    auto dev = _dev.lock();
+    /*auto dev = _dev.lock();
     if (!dev)
         DDS_THROW(runtime_error, "device no longer available");
-    auto filter_params = dev->query_embedded_filter(shared_from_this());
-    check_filter_params(filter_params);
-    _filter_params = std::move(filter_params);
-    return filter_params;
+    auto options = dev->query_embedded_filter(shared_from_this())
+    check_options(options);
+    _options = std::move(options);;*/
+    return _options;
 }
 
 void dds_decimation_filter::set_enabled(bool enabled)
@@ -195,8 +190,8 @@ rsutils::json dds_decimation_filter::to_json() const
 }
 
 // Temporal filter implementation
-dds_temporal_filter::dds_temporal_filter(std::shared_ptr< realdds::dds_device > const& dev)
-    : dds_embedded_filter(dev)
+dds_temporal_filter::dds_temporal_filter()
+    : dds_embedded_filter()
     , _enabled(false)
     , _alpha(0.4f)
     , _delta(20)           // Changed from 20.0f to 20 (int32_t)
@@ -206,25 +201,15 @@ dds_temporal_filter::dds_temporal_filter(std::shared_ptr< realdds::dds_device > 
     _filter_type = RS2_EMBEDDED_FILTER_TYPE_TEMPORAL;
 }
 
-void dds_temporal_filter::set_filter_params(const rsutils::json& filter_params)
+void dds_temporal_filter::set_options(const rsutils::json& options)
 {
-    check_filter_params(filter_params);
-    _filter_params = std::move(filter_params);
-    auto dev = _dev.lock();
-    if (!dev)
-        DDS_THROW(runtime_error, "device no longer available");
-    dev->set_embedded_filter(shared_from_this(), _filter_params);
+    check_options(options);
+    _options = std::move(options);
 }
 
-rsutils::json dds_temporal_filter::get_filter_params()
+rsutils::json dds_temporal_filter::get_options()
 {
-    auto dev = _dev.lock();
-    if (!dev)
-        DDS_THROW(runtime_error, "device no longer available");
-    auto filter_params = dev->query_embedded_filter(shared_from_this());
-    check_filter_params(filter_params);
-    _filter_params = std::move(filter_params);
-    return filter_params;
+    return _options;
 }
 
 void dds_temporal_filter::set_enabled(bool enabled)
@@ -271,14 +256,13 @@ rsutils::json dds_temporal_filter::to_json() const
 }
 
 // Factory and utility functions
-std::shared_ptr<dds_embedded_filter> create_embedded_filter(rs2_embedded_filter_type type,
-    std::shared_ptr< dds_device > const& dev)
+std::shared_ptr<dds_embedded_filter> create_embedded_filter(rs2_embedded_filter_type type)
 {
     switch (type) {
         case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
-            return std::make_shared<dds_decimation_filter>(dev);
+            return std::make_shared<dds_decimation_filter>();
         case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
-            return std::make_shared<dds_temporal_filter>(dev);
+            return std::make_shared<dds_temporal_filter>();
         default:
             throw std::invalid_argument("Unknown embedded filter type");
     }
@@ -288,9 +272,9 @@ std::string embedded_filter_type_to_string(rs2_embedded_filter_type type)
 {
     switch (type) {
         case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
-            return "decimation";
+            return "Decimation Filter";
         case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
-            return "temporal";
+            return "Temporal Filter";
         default:
             return "unknown";
     }
@@ -298,9 +282,9 @@ std::string embedded_filter_type_to_string(rs2_embedded_filter_type type)
 
 rs2_embedded_filter_type embedded_filter_type_from_string(const std::string& type_str)
 {
-    if (type_str == "decimation") {
+    if (type_str == "Decimation Filter") {
         return RS2_EMBEDDED_FILTER_TYPE_DECIMATION;
-    } else if (type_str == "temporal") {
+    } else if (type_str == "Temporal Filter") {
         return RS2_EMBEDDED_FILTER_TYPE_TEMPORAL;
     } else {
         throw std::invalid_argument("Unknown embedded filter type: " + type_str);

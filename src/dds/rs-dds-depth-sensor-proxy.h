@@ -10,6 +10,8 @@
 
 namespace librealsense {
 
+class rs_dds_embedded_filter;
+
 // For cases when checking if this is< depth_sensor > or is< depth_stereo_sensor > (like realsense-viewer::subdevice_model and on-chip-calib)
 class dds_depth_sensor_proxy
     : public dds_sensor_proxy
@@ -33,10 +35,12 @@ public:
     bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
 
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
+    void add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter);
 
 protected:
     void add_no_metadata( frame *, streaming_impl & ) override;
     void add_frame_metadata( frame *, rsutils::json const & md, streaming_impl & ) override;
+    std::vector< std::shared_ptr< rs_dds_embedded_filter > > _embedded_filters;
 
 private:
     std::unique_ptr<dds_depth_sensor_decimation_filter> _decimation_filter;

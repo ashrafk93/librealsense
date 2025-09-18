@@ -5,6 +5,7 @@
 #include "rs-dds-option.h"
 
 #include <realdds/topics/dds-topic-names.h>
+#include <src/dds/rs-dds-embedded-filter.h>
 
 #include <src/stream.h>
 #include <src/librealsense-exception.h>
@@ -17,12 +18,7 @@ dds_depth_sensor_proxy::dds_depth_sensor_proxy(std::string const& sensor_name,
     software_device* owner,
     std::shared_ptr< realdds::dds_device > const& dev)
     : super(sensor_name, owner, dev)
-    , _decimation_filter(std::make_unique<dds_depth_sensor_decimation_filter>(dev))
-    , _temporal_filter(std::make_unique<dds_depth_sensor_temporal_filter>(dev))
 {
-    // Register embedded filters
-    //add_embedded_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, dev);
-	//add_embedded_filter(_temporal_filter);
 }
 
 float dds_depth_sensor_proxy::get_depth_scale() const
@@ -71,65 +67,43 @@ float dds_depth_sensor_proxy::get_stereo_baseline_mm() const
 
 void dds_depth_sensor_proxy::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
 {
-    switch (embedded_filter_type)
+    for (auto& embedded_filter : _embedded_filters)
     {
-    case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
-        if (!_decimation_filter)
-            throw std::runtime_error("Decimation filter not available");
-        _decimation_filter->set(params);
-        break;
-    case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
-        if (!_temporal_filter)
-            throw std::runtime_error("Temporal filter not available");
-        throw not_implemented_exception("Temporal Embedded filter is not supported by the device");
-        // above line to be removed after temporal filter is enabled in FW
-        _temporal_filter->set(params);
-        break;
-    default:
-        throw not_implemented_exception("Embedded filter is not supported by the device");
+        if (embedded_filter->get_type() == embedded_filter_type)
+        {
+            embedded_filter->set(embedded_filter_type, params);
+            return;
+        }
     }
+    throw not_implemented_exception("Embedded filter is not supported by the device");
 }
 
 std::vector<uint8_t> dds_depth_sensor_proxy::get(rs2_embedded_filter_type embedded_filter_type)
 {
 	std::vector<uint8_t> ans;
-    switch (embedded_filter_type)
+    for (auto& embedded_filter : _embedded_filters)
     {
-    case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
-        if (!_decimation_filter)
-            throw std::runtime_error("Decimation filter not available");
-        ans = _decimation_filter->get();
-        break;
-    case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
-        throw not_implemented_exception("Temporal Embedded filter is not supported by the device");
-        // above line to be removed after temporal filter is enabled in FW
-        if (!_temporal_filter)
-            throw std::runtime_error("Temporal filter not available");
-        ans = _temporal_filter->get();
-        break;
-    default:
-        throw not_implemented_exception("Embedded filter is not supported by the device");
+        if (embedded_filter->get_type() == embedded_filter_type)
+        {
+            ans = embedded_filter->get(embedded_filter_type);
+            return ans;
+        }
     }
-    return ans;
+    throw not_implemented_exception("Embedded filter is not supported by the device");
 }
 
 bool dds_depth_sensor_proxy::supports(rs2_embedded_filter_type embedded_filter_type) const
 {
 	bool is_supported = false;
-    switch (embedded_filter_type)
+    std::vector<uint8_t> ans;
+    for (auto& embedded_filter : _embedded_filters)
     {
-    case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
-        is_supported = (_decimation_filter != nullptr);
-        break;
-    case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
-        throw not_implemented_exception("Temporal Embedded filter is not supported by the device");
-        // above line to be removed after temporal filter is enabled in FW
-        is_supported = (_temporal_filter != nullptr);
-        break;
-    default:
-        throw not_implemented_exception("Embedded filter is not supported by the device");
+        if (embedded_filter->get_type() == embedded_filter_type)
+        {
+            return true;
+        }
     }
-    return is_supported;
+    return false;
 }
 
 void dds_depth_sensor_proxy::add_no_metadata( frame * const f, streaming_impl & streaming )
@@ -187,6 +161,11 @@ bool dds_depth_sensor_proxy::extend_to( rs2_extension extension_type, void ** pt
         }
     }
     return super::extend_to( extension_type, ptr );
+}
+
+void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter)
+{
+	_embedded_filters.push_back(embedded_filter);
 }
 
 }  // namespace librealsense

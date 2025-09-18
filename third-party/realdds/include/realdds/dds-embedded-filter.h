@@ -24,7 +24,7 @@ class dds_embedded_filter : public std::enable_shared_from_this< dds_embedded_fi
 {
 protected:
     std::string _name;
-    rsutils::json _filter_params;
+    rsutils::json _options;
     rs2_embedded_filter_type _filter_type;
     std::map< std::string, rsutils::json > _current_values;
     bool _initialized;
@@ -36,16 +36,16 @@ private:
     void init_stream( std::shared_ptr< dds_stream_base > const & );
 
 public:
-    dds_embedded_filter( std::shared_ptr< dds_device > const & dev );
+    dds_embedded_filter();
 
     // Initialization functions - must be called before first set_value()
     virtual void init( const std::string & name, rs2_embedded_filter_type type );
-    virtual void init_filter_params( rsutils::json const & filter_params );
+    virtual void init_options( rsutils::json const & options );
     virtual void init_default_values( rsutils::json const & defaults );
 
     // Core functionality
-    virtual void set_filter_params(rsutils::json const& filter_params) = 0;
-    virtual rsutils::json get_filter_params() = 0;
+    virtual void set_options(rsutils::json const& options) = 0;
+    virtual rsutils::json get_options() = 0;
     virtual bool supports_filter() const = 0;
     virtual bool is_enabled() const = 0;
 
@@ -57,7 +57,7 @@ public:
 
     // JSON serialization
     virtual rsutils::json to_json() const;
-    static std::shared_ptr< dds_embedded_filter > from_json( rsutils::json const & j );
+    static std::shared_ptr< dds_embedded_filter > from_json( rsutils::json const & j, const std::string& stream_name);
 
 protected:
     void verify_uninitialized() const;  // throws if already has a value (use by init_ functions)
@@ -66,7 +66,7 @@ protected:
     // Helper methods for derived classes
     void set_current_value( std::string const & key, rsutils::json const & value );
     rsutils::json get_current_value( std::string const & key ) const;
-    void check_filter_params( rsutils::json const & filter_params ) const;
+    void check_options( rsutils::json const & options ) const;
 };
 
 // Decimation filter implementation
@@ -77,12 +77,12 @@ private:
     int _decimation_factor;
 
 public:
-    dds_decimation_filter( std::shared_ptr< dds_device > const & dev );
+    dds_decimation_filter();
     virtual ~dds_decimation_filter() = default;
 
     // Override base class methods
-    void set_filter_params(rsutils::json const& filter_params) override;
-    rsutils::json get_filter_params() override;
+    void set_options(rsutils::json const& options) override;
+    rsutils::json get_options() override;
     bool supports_filter() const override { return true; }
 
     // Decimation-specific methods
@@ -105,12 +105,12 @@ private:
     int32_t _persistency;
 
 public:
-    dds_temporal_filter( std::shared_ptr< dds_device > const & dev );
+    dds_temporal_filter();
     virtual ~dds_temporal_filter() = default;
 
     // Override base class methods
-    void set_filter_params(rsutils::json const& filter_params) override;
-    rsutils::json get_filter_params() override;
+    void set_options(rsutils::json const& options) override;
+    rsutils::json get_options() override;
     bool supports_filter() const override { return true; }
 
     // Temporal-specific methods
@@ -132,8 +132,7 @@ public:
 typedef std::vector< std::shared_ptr< dds_embedded_filter > > dds_embedded_filters;
 
 // Factory function to create appropriate filter based on type
-std::shared_ptr< dds_embedded_filter > create_embedded_filter( rs2_embedded_filter_type type,
-                                                               std::shared_ptr< dds_device > const & dev );
+std::shared_ptr< dds_embedded_filter > create_embedded_filter( rs2_embedded_filter_type type );
 
 // Utility functions
 std::string embedded_filter_type_to_string( rs2_embedded_filter_type type );

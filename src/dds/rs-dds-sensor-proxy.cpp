@@ -29,6 +29,8 @@
 
 #include <rsutils/string/nocase.h>
 #include <rsutils/json.h>
+#include "rs-dds-embedded-filter.h"
+#include "rs-dds-depth-sensor-proxy.h"
 using namespace realdds;
 using rsutils::json;
 
@@ -771,20 +773,28 @@ rs2_frame_callback_sptr dds_sensor_proxy::get_frames_callback() const
 }
 
 
-void dds_sensor_proxy::add_embedded_filter( std::string const & embedded_filter_name )
+void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedded_filter > embedded_filter )
 {
-    // Log the embedded filter name for debugging
-    LOG_DEBUG( "Adding embedded filter: " << embedded_filter_name << " to sensor " << _name );
-    
-	auto embedded_filter_type = realdds::embedded_filter_type_from_string(embedded_filter_name);
-    // 1. Create an embedded filter instance based on the name
-	//auto embedded_filter = create_embedded_filter(embedded_filter_type);
-    // 2. Store it in a collection for later access
-	//_embedded_filters.push_back(embedded_filter);
-    // 3. Set up communication with the DDS device for filter management
-	// TODO
-    // 4. Log success message
-	// LOG_DEBUG("Successfully added embedded filter: " << embedded_filter_name << " to sensor " << _name);
+    auto rs_embedded_filter = std::make_shared< rs_dds_embedded_filter >(
+        embedded_filter,
+        [=](json value)
+        {
+            // Send the new value to the remote device; the local value gets cached automatically as part of the reply
+            _dev->set_embedded_filter(embedded_filter, std::move(value));
+        },
+        [=]() -> json
+        {
+            return _dev->query_embedded_filter(embedded_filter);
+        });
+
+    if (auto depth_sensor_proxy = dynamic_cast<dds_depth_sensor_proxy*>(this))
+    {
+		depth_sensor_proxy->add_embedded_filter(rs_embedded_filter);
+    }
+    else
+    {
+        _embedded_filters.push_back(rs_embedded_filter);
+    }
 }
 
 
