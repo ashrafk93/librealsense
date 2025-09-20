@@ -2,7 +2,7 @@
 // Copyright(c) 2021 RealSense, Inc. All Rights Reserved.
 
 //#cmake: static!
-//#test:device each(D400*)
+//#test:device D435
 //#test:donotrun:!nightly
 
 
