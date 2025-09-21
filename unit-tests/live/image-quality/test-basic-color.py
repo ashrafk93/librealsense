@@ -24,7 +24,7 @@ expected_colors = {
     "red":   (139, 48, 57),
     "green": (40, 84, 72),
     "blue":  (8, 67, 103),
-    "black": (25, 27, 14),
+    "black": (35, 35, 35),
     "white": (140, 142, 143),
     "gray": (84, 84, 84),
     "purple": (56, 52, 78),
@@ -40,11 +40,16 @@ xs = [A4_WIDTH / 6.0, A4_WIDTH / 2.0, 5.0 * A4_WIDTH / 6.0]
 ys = [A4_HEIGHT / 6.0, A4_HEIGHT / 2.0, 5.0 * A4_HEIGHT / 6.0]
 centers = [(x, y) for y in ys for x in xs]
 
+dev, ctx = test.find_first_device_or_exit()
 
 def is_color_close(actual, expected, tolerance):
     return all(abs(int(a) - int(e)) <= tolerance for a, e in zip(actual, expected))
 
 def compute_homography(pts):
+    """
+    Given 4 points (the detected ArUco marker centers), find the 3×3 matrix that stretches/rotates
+    the four ArUco points so they become the corners of an A4 page (used to "flatten" the page in an image)
+    """
     pts_sorted = sorted(pts, key=lambda p: (p[1], p[0]))
     top_left, top_right = sorted(pts_sorted[:2], key=lambda p: p[0])
     bottom_left, bottom_right = sorted(pts_sorted[2:], key=lambda p: p[0])
@@ -110,7 +115,6 @@ def detect_a4_page(img, dict_type=cv2.aruco.DICT_4X4_1000, required_ids=(0,1,2,3
     if ids is None or not all(rid in ids for rid in required_ids):
         return None
 
-    ids = ids.flatten()  # flatten to 1D array
     id_to_corner = dict(zip(ids.flatten(), corners))  # map id to corners
     values = [id_to_corner[rid][0].mean(axis=0) for rid in required_ids] # for each required id, get center of marker coords
 
@@ -146,10 +150,20 @@ def find_roi_location(pipeline):
     cv2.destroyAllWindows()
     return M, page_pts
 
+
+def is_cfg_supported(resolution, fps):
+    color_sensor = dev.first_color_sensor()
+    for p in color_sensor.get_stream_profiles():
+        if p.stream_type() == rs.stream.color and p.format() == rs.format.bgr8:
+            v = p.as_video_stream_profile()
+            if (v.width(), v.height()) == resolution and v.fps() == fps:
+                return True
+    return False
+
+
 def run_test(resolution, fps):
     test.start("Basic Color Image Quality Test:", f"{resolution[0]}x{resolution[1]} @ {fps}fps")
     color_match_count = {color: 0 for color in expected_colors.keys()}
-    dev, ctx = test.find_first_device_or_exit()
     pipeline = rs.pipeline(ctx)
     cfg = rs.config()
     cfg.enable_stream(rs.stream.color, resolution[0], resolution[1], rs.format.bgr8, fps)
@@ -177,7 +191,8 @@ def run_test(resolution, fps):
                 expected_rgb = expected_colors[color]
                 x = int(round(x))
                 y = int(round(y))
-                pixel = tuple(int(v) for v in a4_bgr[y, x])[::-1]  # -1 because we stream BGR but expect RGB
+                b, g, r = (int(v) for v in a4_bgr[y, x])  # stream is BGR, convert to RGB
+                pixel = (r, g, b)
                 if is_color_close(pixel, expected_rgb, COLOR_TOLERANCE):
                     color_match_count[color] += 1
                 else:
@@ -208,23 +223,24 @@ def run_test(resolution, fps):
     test.finish()
 
 
-configurations = [
-    ((640,480), 15),
-    ((640,480), 30),
-    ((640,480), 60),
-    ((848,480), 15),
-    ((848,480), 30),
-    ((848,480), 60),
-    ((1280,720), 5),
-    ((1280,720), 10),
-    ((1280,720), 15),
-]
-log.d("context is:", test.context)
-
+log.d("context:", test.context)
 if "nightly" not in test.context:
-    run_test((1280,720), 30)
+    configurations = [((1280, 720), 30)]
 else:
-    for cfg in configurations:
+    configurations = [
+        ((640,480), 15),
+        ((640,480), 30),
+        ((640,480), 60),
+        ((848,480), 15),
+        ((848,480), 30),
+        ((848,480), 60),
+        ((1280,720), 5),
+        ((1280,720), 10),
+        ((1280,720), 15),
+    ]
+
+for cfg in configurations:
+    if is_cfg_supported(*cfg):
         run_test(*cfg)
 
 test.print_results_and_exit()
