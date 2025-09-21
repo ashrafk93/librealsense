@@ -632,4 +632,18 @@ void dds_rect_option::check_type( json & value ) const
 }
 
 
+rsutils::json dds_options_to_json(dds_options const& options)
+{
+    if (!options.empty())
+    {
+        rsutils::json options_json = rsutils::json::array();
+        for (auto& opt : options)
+        {
+            options_json.emplace_back(opt->to_json());
+        }
+        return options_json;
+	}
+    return rsutils::json();
+}
+
 }  // namespace realdds

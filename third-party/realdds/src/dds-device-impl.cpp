@@ -120,7 +120,6 @@ void dds_device::impl::reset()
     if( _metadata_reader )
         _metadata_reader->stop();
     _metadata_reader.reset();
-    _embedded_filters.clear();
 }
 
 
@@ -236,17 +235,16 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     if (!control.is_object())
         DDS_THROW(runtime_error, "missing control object");
 
-    // Find the relevant filter to update
-	dds_embedded_filters const* filters = &_embedded_filters;
-
     std::string const& stream_name = control.nested(topics::control::set_filter::key::stream_name).
         string_ref_or_empty();
+
+    dds_embedded_filters filters;
     if (!stream_name.empty())
     {
         auto stream_it = _streams.find(stream_name);
         if (stream_it == _streams.end())
             DDS_THROW(runtime_error, "stream '" + stream_name + "' not found");
-        filters = &stream_it->second->embedded_filters();
+		filters = stream_it->second->embedded_filters();
     }
     auto filter_name_j = j.nested(topics::reply::set_filter::key::name);
     if (!filter_name_j.exists())
@@ -259,7 +257,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
 
     // TODO - below code to be corrected and enabled
     auto& filter_name = filter_name_j.string_ref();
-    for (auto& filter : *filters)
+    for (auto& filter : filters)
     {
 		auto filter_type = embedded_filter_type_from_string(filter_name);
         if (filter->get_filter_type() == filter_type)
@@ -271,9 +269,56 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     throw std::runtime_error("filter '" + filter_name + "' not found");
 }
 
-void dds_device::impl::on_query_filter(rsutils::json const&, dds_sample const&)
+void dds_device::impl::on_query_filter(json const& j, dds_sample const&)
 {
-	// TODO - to be implemented
+    if (!is_ready())
+        return;
+
+    // This is the notification for "query-filter", which can get sent as a reply to a control or independently by the
+    // device. It takes the same form & handling either way.
+    // 
+    // E.g.:
+    // {
+    //  "id": "query-filter",
+    //  "name" : "Decimation Filter",
+    //  "sample" : ["010faf31ac07879500000000.0203", 13] ,
+    //  "stream-name" : "Depth"
+    //  "control" : {
+    //      "id": "query-filter",
+    //      "name" : "Decimation Filter",
+    //      "options" : {
+    //      "Toggle": 1,
+    //      "Magnitude" : 2
+    //      }
+    //      "stream-name" : "Depth"
+    //      }
+    //  }
+
+    auto update_filter = [this](std::string const& stream_name, std::string const& filter_name, json const& filter_options)
+        {
+            for (auto& stream : _streams)
+            {
+                // Finding the relevant stream
+                if (stream.first == stream_name)
+                {
+                    // Finding the filter and set its options
+                    for (auto& filter : stream.second->embedded_filters())
+                    {
+                        if (filter->get_name() == filter_name)
+                        {
+                            filter->set_options(filter_options);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            throw std::runtime_error("Embedded filter '" + filter_name + "' not found");
+        };
+    auto stream_name = j.nested(topics::reply::query_filter::key::stream_name);
+    auto filter_name = j.nested(topics::reply::query_filter::key::name);
+    auto filter_options = j.nested(topics::reply::query_filter::key::options);
+    update_filter(stream_name.string_ref(), filter_name.string_ref(), filter_options);
 }
 
 
@@ -547,7 +592,7 @@ json dds_device::impl::query_embedded_filter(const std::shared_ptr< dds_embedded
     json reply;
     write_control_message(j, &reply);
 
-    return reply.at(topics::reply::query_filter::key::options);
+    return reply;
 }
 
 void dds_device::impl::write_control_message( json const & j, json * reply )

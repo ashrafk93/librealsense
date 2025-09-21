@@ -5,7 +5,7 @@
 #include <rsutils/json.h>
 #include <rsutils/type/ip-address.h>
 #include <include/librealsense2/h/rs_types.h>
-
+#include "dds-option.h"
 #include <memory>
 #include <map>
 #include <vector>
@@ -24,7 +24,8 @@ class dds_embedded_filter : public std::enable_shared_from_this< dds_embedded_fi
 {
 protected:
     std::string _name;
-    rsutils::json _options;
+
+    dds_options _options;
     rs2_embedded_filter_type _filter_type;
     std::map< std::string, rsutils::json > _current_values;
     bool _initialized;

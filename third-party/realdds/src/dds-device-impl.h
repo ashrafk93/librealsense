@@ -63,7 +63,6 @@ public:
     std::shared_ptr< dds_topic_writer > _control_writer;
 
     dds_options _options;
-	dds_embedded_filters _embedded_filters;
 
     extrinsics_map _extrinsics_map; // <from stream, to stream> to extrinsics
 

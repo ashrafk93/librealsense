@@ -163,7 +163,7 @@ namespace control {
         namespace key {
             std::string const name("name", 4);
             std::string const options("options", 7);
-            std::string const stream_name("stream_name", 11);
+            std::string const stream_name("stream-name", 11);
         }
     }
 

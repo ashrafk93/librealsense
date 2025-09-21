@@ -19,8 +19,8 @@ namespace realdds {
 // Base class implementation
 dds_embedded_filter::dds_embedded_filter()
     : _name("")
-    , _options(json{})
-    , _filter_type(RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
+    , _options()
+    , _filter_type(RS2_EMBEDDED_FILTER_TYPE_FIRST)
     , _initialized(false)
 {
 }
@@ -35,7 +35,19 @@ void dds_embedded_filter::init(const std::string& name, rs2_embedded_filter_type
 void dds_embedded_filter::init_options(const rsutils::json& options)
 {
     verify_uninitialized();
-    _options = options;
+
+    //auto options_from_json = options.
+    if (options.is_array())
+    {
+        for (auto& opt : options)
+        {
+            _options.push_back(dds_option::from_json(opt));
+        }
+    }
+    else
+    {
+        DDS_THROW(runtime_error, "Embedded Filter options should be initialized as an array");
+    }
 }
 
 void dds_embedded_filter::init_stream(std::shared_ptr< dds_stream_base > const& stream)
@@ -68,8 +80,13 @@ rsutils::json dds_embedded_filter::props_to_json() const
     json props;
     props["name"] = _name;
     props["type"] = embedded_filter_type_to_string(_filter_type);
-    if (!_options.is_null()) {
-        props["options"] = _options;
+    if (!_options.empty()) {
+        rsutils::json options_json;
+        for (auto& opt : _options)
+        {
+            options_json.emplace_back(opt->to_json());
+        }
+        props["options"] = options_json;
     }
 	auto stream = _stream.lock();
     if (stream) {
@@ -148,22 +165,30 @@ dds_decimation_filter::dds_decimation_filter()
 void dds_decimation_filter::set_options(const rsutils::json& options)
 {
     check_options(options);
-    _options = std::move(options);
-    /*auto dev = _dev.lock();
-    if (!dev)
-        DDS_THROW(runtime_error, "device no longer available");
-    dev->set_embedded_filter(shared_from_this(), _options);*/
+    for (auto& dds_opt : _options)
+    {
+        try
+        {
+            auto dds_opt_name = dds_opt->get_name();
+            if (options.contains(dds_opt_name))
+            {
+                dds_opt->set_value(options.at(dds_opt_name));
+            }
+            else
+            {
+                DDS_THROW(runtime_error, "option could not be assigned");
+            }
+        }
+        catch (...)
+        {
+			DDS_THROW(runtime_error, "dds_decimation_filter::set_options failed");
+        }
+    }
 }
 
 rsutils::json dds_decimation_filter::get_options()
 {
-    /*auto dev = _dev.lock();
-    if (!dev)
-        DDS_THROW(runtime_error, "device no longer available");
-    auto options = dev->query_embedded_filter(shared_from_this())
-    check_options(options);
-    _options = std::move(options);;*/
-    return _options;
+    return dds_options_to_json(_options);
 }
 
 void dds_decimation_filter::set_enabled(bool enabled)
@@ -204,12 +229,32 @@ dds_temporal_filter::dds_temporal_filter()
 void dds_temporal_filter::set_options(const rsutils::json& options)
 {
     check_options(options);
-    _options = std::move(options);
+    for (auto& dds_opt : _options)
+    {
+        auto dds_opt_name = dds_opt->get_name();
+        bool is_value_assigned = false;
+        for (auto& opt : options)
+        {
+            if (opt.contains("name"))
+            {
+                auto name_str = opt["name"].get<std::string>();
+                if (dds_opt_name == name_str)
+                {
+                    dds_opt->set_value(opt["value"]);
+                    is_value_assigned = true;
+                }
+            }
+        }
+        if (!is_value_assigned)
+        {
+            DDS_THROW(runtime_error, "option could not be assigned");
+        }
+    }
 }
 
 rsutils::json dds_temporal_filter::get_options()
 {
-    return _options;
+    return dds_options_to_json(_options);
 }
 
 void dds_temporal_filter::set_enabled(bool enabled)

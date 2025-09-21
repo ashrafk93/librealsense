@@ -103,6 +103,7 @@ protected:
 
 typedef std::vector< std::shared_ptr< dds_option > > dds_options;
 
+rsutils::json dds_options_to_json(dds_options const& options);
 
 class dds_float_option : public dds_option
 {
