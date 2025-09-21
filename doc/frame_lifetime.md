@@ -4,7 +4,7 @@ librealsense2 provides flexible model for frame management and synchronization. 
 
 ## API Overview
 
-The core C++ abstraction when dealing is the `rs2::frame` class and the `rs2::device::start` method. All other management and synchronization primitives can be derived from those two APIs. 
+The core C++ abstraction when dealing is the `rs2::frame` class and the `rs2::sensor::start` method. All other management and synchronization primitives can be derived from those two APIs. 
 ```cpp
 /**
  * Start passing frames into user provided callback
@@ -13,14 +13,14 @@ The core C++ abstraction when dealing is the `rs2::frame` class and the `rs2::de
 template<class T>
 void start(T callback) const;
 ```
-Once you call start, the library will start dispatching new frames from selected device into the callback you provided. 
+Once you call start, the library will start dispatching new frames from selected sensor into the callback you provided. 
 The callback will be invoked from the same thread handling the low-level IO ensuring minimal latency. Any object implementing `void operator()(rs2::frame)` can be used as a callback. In particular, you can pass an anonymous function (lambda with capture) as the frame callback:
 ```cpp
-dev.start([](rs::frame f){
+sensor.start([](rs::frame f){
     std::cout << "This line be printed every frame!" << std::endl; 
 }); 
 ```
-As a side-note, `rs2::device::stop` will block until all pending callbacks return. This way within callback scope you can be sure the device object is available. 
+As a side-note, `rs2::sensor::stop` will block until all pending callbacks return. This way within callback scope you can be sure the device object is available. 
 
 ## Frame Memory Management
 
@@ -33,7 +33,7 @@ As a side-note, `rs2::device::stop` will block until all pending callbacks retur
 
 ## Frame Copies
 
-The following diagram specify the frame flow in the system and indicates where and when the frame is being copied/reconstructed.
+The following diagram specifies the frame flow in the system and indicates where and when the frame is being copied/reconstructed.
 
 
 
@@ -51,7 +51,7 @@ Callbacks are invoked from an internal thread to minimize latency. If you have a
 ```cpp
 rs2::frame_queue q;
 
-dev.start([](rs2::frame f){
+sensor.start([](rs2::frame f){
     q.enqueue(std::move(f)); // enqueue any new frames into q
 });
 
@@ -64,16 +64,8 @@ while(true)
 Since `rs2::frame_queue` implements `operator()` you can also pass the queue directly to `start`:
 ```cpp
 rs2::frame_queue q;
-dev.start(q);
+sensor.start(q);
 ```
-You could also have a separate queue for each stream type:
-```cpp
-rs2::frame_queue depth_q;
-dev.start(RS2_STREAM_DEPTH, depth_q);
-rs2::frame_queue ir_q;
-dev.start(RS2_STREAM_INFRARED, ir_q);
-```
-This is particularly handy if you want to set-up different processing pipeline for each stream type. 
 
 ## Frame-Drops vs. Latency
 
