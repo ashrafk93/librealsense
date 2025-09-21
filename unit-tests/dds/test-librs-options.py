@@ -123,33 +123,7 @@ with test.remote.fork( nested_indent=None ) as remote:
             s.set_option_value( ro, 'Blah' ),
             RuntimeError, 'option is read-only: R/O Option' )
 
-    with test.closure( 'Check serialization through serialized_device' ):
-        sdev = rs.serializable_device( dev )
-        test.check( sdev, on_fail=test.RAISE )
-        import json
-        j = json.loads( sdev.serialize_json() )
-        test.info( "serialize_json()", j )
-        params = j.get( 'parameters', [] )
-        test.check_equal( len( params ), 5 )  # Without FRAMES_QUEUE_SIZE
-        test.check_equal( params.get( 'sensor/Boolean Option' ), True )
-
-        # Confirm previous value was set
-        bv = s.get_option_value( bo )
-        test.check_equal( bv.type, rs.option_type.boolean )
-        test.check_equal( bv.value, True )
-        test.check_equal( s.get_option( bo ), 1. )
-
-        # Change using load_json() and verify
-        params.update({ 'sensor/Boolean Option': False })
-        log.d( f'updated json: {j}' )
-        remote.capture_stdout()
-        sdev.load_json( json.dumps( j ) )
-        rv = remote.get_stdout()
-        test.check_equal( s.get_option( bo ), 0. )
-        test.info( "option change order", rv )
-        test.check_equal( len(rv), 5 )              # all options should have been changed
-        test.check_equal( rv[0], 'Visual Preset' )  # but Visual Preset should always update first
-        del sdev
+    # Serialization of DDS devices now implemented using advanced_mode interface, tested under live-options-presets UT
 
     with test.closure( 'All done' ):
         del dev
