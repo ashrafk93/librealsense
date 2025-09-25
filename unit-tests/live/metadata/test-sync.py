@@ -52,7 +52,7 @@ def detect_frame_drops(frames_dict, prev_frame_counters):
 
 # Tolerance for gaps between frames
 TS_TOLERANCE_MS = 1.5  # in ms
-TS_TOLERANCE_MICROSEC = TS_TOLERANCE_MS * 1000  # in microseconds - 1 ms
+TS_TOLERANCE_MICROSEC = TS_TOLERANCE_MS * 1000  # in microseconds
 
 # Frame drop detection using frame counter
 SKIP_FRAMES_AFTER_DROP = 10  # Number of frames to skip after detecting a drop
@@ -62,7 +62,7 @@ with test.closure("Test Timestamps Consistency"):
     cfg.enable_stream(rs.stream.depth)
     cfg.enable_stream(rs.stream.infrared, 1)
     cfg.enable_stream(rs.stream.infrared, 2)
-    cfg.enable_stream(rs.stream.color, 640, 480, rs.format.yuyv, 30)  # setting VGA since it fail with HD resolution
+    cfg.enable_stream(rs.stream.color, 640, 480, rs.format.yuyv, 30)  # setting VGA since it fails with HD resolution
 
     depth_sensor = device.first_depth_sensor()
     color_sensor = device.first_color_sensor()
