@@ -17,9 +17,9 @@ namespace librealsense {
         virtual ~embedded_filter_sensor_interface() = default;
 
         // Pure virtual interface methods
-        virtual void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) = 0;
-        virtual std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) = 0;
-        virtual bool supports(rs2_embedded_filter_type embedded_filter_type) const = 0;
+        virtual void set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) = 0;
+        virtual std::vector<uint8_t> get_filter(rs2_embedded_filter_type embedded_filter_type) = 0;
+        virtual bool supports_filter(rs2_embedded_filter_type embedded_filter_type) const = 0;
     };
     MAP_EXTENSION(RS2_EXTENSION_EMBEDDED_FILTER_SENSOR, librealsense::embedded_filter_sensor_interface);
 

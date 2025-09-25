@@ -3,12 +3,6 @@
 
 #include <third-party/realdds/include/realdds/dds-embedded-filter.h>
 #include "rs-dds-embedded-filter.h"
-#include <src/core/enum-helpers.h>
-
-#include <rsutils/json.h>
-
-using rsutils::json;
-
 
 namespace librealsense {
 
@@ -60,32 +54,6 @@ rs_dds_embedded_filter::rs_dds_embedded_filter(const std::shared_ptr< realdds::d
     , _set_ef_cb( set_ef_cb )
     , _query_ef_cb( query_ef_cb )
 {
-}
-
-
-void rs_dds_embedded_filter::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
-{
-    if( !_set_ef_cb)
-        throw std::runtime_error( "Set embedded filter callback is not set for filter " + _dds_ef->get_name() );
-
-    json j_value;
-
-    _set_ef_cb( j_value );
-}
-
-std::vector<uint8_t> rs_dds_embedded_filter::get(rs2_embedded_filter_type embedded_filter_type)
-{
-    if (!_query_ef_cb)
-        throw std::runtime_error("Query option callback is not set for option " + _dds_ef->get_name());
-
-    auto const params = _query_ef_cb();
-
-    return params;
-}
-
-bool rs_dds_embedded_filter::supports(rs2_embedded_filter_type embedded_filter_type) const
-{
-    return false;
 }
 
 

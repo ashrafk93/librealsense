@@ -65,34 +65,34 @@ float dds_depth_sensor_proxy::get_stereo_baseline_mm() const
     throw not_implemented_exception( "Not a stereo depth sensor. Cannot get basline information." );
 }
 
-void dds_depth_sensor_proxy::set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
+void dds_depth_sensor_proxy::set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
 {
     for (auto& embedded_filter : _embedded_filters)
     {
         if (embedded_filter->get_type() == embedded_filter_type)
         {
-            embedded_filter->set(embedded_filter_type, params);
+            embedded_filter->set_filter(embedded_filter_type, params);
             return;
         }
     }
     throw not_implemented_exception("Embedded filter is not supported by the device");
 }
 
-std::vector<uint8_t> dds_depth_sensor_proxy::get(rs2_embedded_filter_type embedded_filter_type)
+std::vector<uint8_t> dds_depth_sensor_proxy::get_filter(rs2_embedded_filter_type embedded_filter_type)
 {
 	std::vector<uint8_t> ans;
     for (auto& embedded_filter : _embedded_filters)
     {
         if (embedded_filter->get_type() == embedded_filter_type)
         {
-            ans = embedded_filter->get(embedded_filter_type);
+            ans = embedded_filter->get_filter(embedded_filter_type);
             return ans;
         }
     }
     throw not_implemented_exception("Embedded filter is not supported by the device");
 }
 
-bool dds_depth_sensor_proxy::supports(rs2_embedded_filter_type embedded_filter_type) const
+bool dds_depth_sensor_proxy::supports_filter(rs2_embedded_filter_type embedded_filter_type) const
 {
 	bool is_supported = false;
     std::vector<uint8_t> ans;

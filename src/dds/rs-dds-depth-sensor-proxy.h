@@ -4,8 +4,6 @@
 
 #include "rs-dds-sensor-proxy.h"
 #include <src/depth-sensor.h>
-#include <src/dds/rs-dds-depth-sensor-decimation-filter.h>
-#include <src/dds/rs-dds-depth-sensor-temporal-filter.h>
 
 
 namespace librealsense {
@@ -30,9 +28,9 @@ public:
     float get_stereo_baseline_mm() const override;
 
     // Override interface methods
-    void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
-    std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) override;
-    bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
+    void set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
+    std::vector<uint8_t> get_filter(rs2_embedded_filter_type embedded_filter_type) override;
+    bool supports_filter(rs2_embedded_filter_type embedded_filter_type) const override;
 
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
     void add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter);

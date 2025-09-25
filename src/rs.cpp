@@ -448,7 +448,7 @@ void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type 
     auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
     auto raw_data_buffer = static_cast<uint8_t*>(raw_data_to_send);
     std::vector<uint8_t> filter_params(raw_data_buffer, raw_data_buffer + size_of_raw_data_to_send);
-    return embedded_filter->set(embedded_filter_type, filter_params);
+    return embedded_filter->set_filter(embedded_filter_type, filter_params);
 }
 HANDLE_EXCEPTIONS_AND_RETURN( , sensor, raw_data_to_send)
 
@@ -457,7 +457,7 @@ const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);
     auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
-    auto filter_params = embedded_filter->get(embedded_filter_type);
+    auto filter_params = embedded_filter->get_filter(embedded_filter_type);
     return new rs2_raw_data_buffer{ std::move(filter_params) };
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor)
@@ -468,7 +468,7 @@ int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_t
     VALIDATE_ENUM(embedded_filter_type);
     auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
 
-    return embedded_filter->supports(embedded_filter_type);
+    return embedded_filter->supports_filter(embedded_filter_type);
 }
 HANDLE_EXCEPTIONS_AND_RETURN(false, sensor)
 

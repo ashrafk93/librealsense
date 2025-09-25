@@ -18,17 +18,15 @@ namespace librealsense {
 
 
 // A facade for a realdds::dds_embedded_filter exposing librealsense interface
-// TODO - check if needed
 class rs_dds_embedded_filter : public embedded_filter_sensor_interface
 {
-    std::shared_ptr< realdds::dds_embedded_filter > _dds_ef;
-    rs2_embedded_filter_type const _filter_type;
-
 public:
     typedef std::function< void( rsutils::json value ) > set_embedded_filter_callback;
     typedef std::function< rsutils::json() > query_embedded_filter_callback;
 
-private:
+protected:
+    std::shared_ptr< realdds::dds_embedded_filter > _dds_ef;
+    rs2_embedded_filter_type const _filter_type;
     set_embedded_filter_callback _set_ef_cb;
     query_embedded_filter_callback _query_ef_cb;
 
@@ -37,10 +35,7 @@ public:
                    set_embedded_filter_callback set_embedded_filter_cb,
                    query_embedded_filter_callback query_embedded_filter_cb );
 
-    // Override interface methods
-    virtual void set(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
-    virtual std::vector<uint8_t> get(rs2_embedded_filter_type embedded_filter_type) override;
-    virtual bool supports(rs2_embedded_filter_type embedded_filter_type) const override;
+    // Not Overriding interface methods - should be done in inheriting classes
 
     rs2_embedded_filter_type get_type() const { return _filter_type; }
 };
