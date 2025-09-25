@@ -4364,6 +4364,13 @@ void rs2_project_color_pixel_to_depth_pixel(float to_pixel[2],
             to_pixel[0] = p[0];
             to_pixel[1] = p[1];
         }
+
+        // this is needed to avoid floating point precision issues when p is equal to end_pixel
+        // in this case the next_pixel_in_line can jump back and forth and cause an infinite loop
+        // example: start=(0,0), end=(30,2)
+        if (p[0] == end_pixel[0] && p[1] == end_pixel[1]) {
+            break;
+        }
     }
 }
 NOEXCEPT_RETURN(, to_pixel)
