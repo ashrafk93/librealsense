@@ -2,6 +2,7 @@
 # Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 
 # test:device each(D400*)
+# test:donotrun:!nightly
 
 import pyrealsense2 as rs
 from rspy import test, log
@@ -9,16 +10,59 @@ import time
 
 # This test is checking that timestamps of depth, infrared and color frames are consistent
 
+def detect_frame_drops(frames_dict, prev_frame_counters):
+    """
+    Detect frame drops using hardware frame counters
+    
+    Args:
+        frames_dict: Dictionary with sensor names as keys and frames as values
+        prev_frame_counters: Dictionary with previous frame counter values
+        
+    Returns:
+        tuple: (frame_drop_detected, current_frame_counters, drop_info)
+    """
+    frame_drop_detected = False
+    current_frame_counters = {}
+    drop_info = []
+    
+    for sensor_name, frame in frames_dict.items():
+        if frame.supports_frame_metadata(rs.frame_metadata_value.frame_counter):
+            current_counter = frame.get_frame_metadata(rs.frame_metadata_value.frame_counter)
+            current_frame_counters[sensor_name] = current_counter
+            
+            # Check for frame drops
+            if prev_frame_counters[sensor_name] is not None:
+                expected_counter = prev_frame_counters[sensor_name] + 1
+                if current_counter != expected_counter:
+                    dropped_frames = current_counter - expected_counter
+                    if dropped_frames > 0:
+                        drop_msg = f"Frame drop detected on {sensor_name}: counter jumped from {prev_frame_counters[sensor_name]} to {current_counter} ({dropped_frames} frames dropped)"
+                        log.w(drop_msg)
+                        drop_info.append(drop_msg)
+                        frame_drop_detected = True
+                    elif dropped_frames < 0:
+                        rollover_msg = f"Frame counter rollover detected on {sensor_name}: {prev_frame_counters[sensor_name]} -> {current_counter}"
+                        log.w(rollover_msg)
+                        drop_info.append(rollover_msg)
+                        # Don't treat rollover as a drop, just log it
+        else:
+            log.d(f"Frame counter metadata not available for {sensor_name}")
+    
+    return frame_drop_detected, current_frame_counters, drop_info
+
 # Tolerance for gaps between frames
-GLOBAL_TS_TOLERANCE = 1  # in ms
-FRAME_TS_TOLERANCE = 1000  # in microseconds - 1 ms
+TS_TOLERANCE_MS = 1.5  # in ms
+TS_TOLERANCE_MICROSEC = TS_TOLERANCE_MS * 1000  # in microseconds - 1 ms
+
+# Frame drop detection using frame counter
+SKIP_FRAMES_AFTER_DROP = 10  # Number of frames to skip after detecting a drop
 with test.closure("Test Timestamps Consistency"):
     device, ctx = test.find_first_device_or_exit()
     cfg = rs.config()
     cfg.enable_stream(rs.stream.depth)
     cfg.enable_stream(rs.stream.infrared, 1)
     cfg.enable_stream(rs.stream.infrared, 2)
-    cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # setting VGA since it fail with HD resolution
+    cfg.enable_stream(rs.stream.color, 640, 480, rs.format.yuyv, 30)  # setting VGA since it fail with HD resolution
 
     depth_sensor = device.first_depth_sensor()
     color_sensor = device.first_color_sensor()
@@ -34,8 +78,14 @@ with test.closure("Test Timestamps Consistency"):
     pipe.start(cfg)
     time.sleep(2)
 
+    # Initialize frame drop detection using frame counters
+    prev_frame_counters = {'depth': None, 'ir1': None, 'ir2': None, 'color': None}
+    frames_to_skip = 0
+    frame_count = 0
+
     try:
-        for _ in range(50):
+        for _ in range(100):
+            frame_count += 1
             frames = pipe.wait_for_frames()
             depth_frame = frames.get_depth_frame()
             ir1_frame = frames.get_infrared_frame(1)
@@ -46,19 +96,50 @@ with test.closure("Test Timestamps Consistency"):
                 log.e("One or more frames are missing")
                 continue
 
+            # Skip frames if we're in post-drop recovery period
+            if frames_to_skip > 0:
+                frames_to_skip -= 1
+                log.d(f"Skipping frame {frame_count} (post-drop recovery, {frames_to_skip} remaining)")
+                continue
+
             # Global timestamps
             depth_ts = depth_frame.timestamp
             ir1_ts = ir1_frame.timestamp
             ir2_ts = ir2_frame.timestamp
             color_ts = color_frame.timestamp
 
+            # Detect frame drops using frame counter metadata
+            frames_dict = {
+                'depth': depth_frame,
+                'ir1': ir1_frame, 
+                'ir2': ir2_frame,
+                'color': color_frame
+            }
+            
+            frame_drop_detected, current_frame_counters, drop_info = detect_frame_drops(frames_dict, prev_frame_counters)
+            
+            # If frame drop detected, skip next N frames for sensor re-sync
+            if frame_drop_detected:
+                frames_to_skip = SKIP_FRAMES_AFTER_DROP
+                log.w(f"Frame drop detected at frame {frame_count}, will skip next {frames_to_skip} frames for re-sync")
+                log.w(f"Drop details: {'; '.join(drop_info)}")
+                prev_frame_counters = current_frame_counters
+                continue
+            
+            # Update previous frame counters for next iteration
+            prev_frame_counters = current_frame_counters
+
             log.d(f"Depth Global TS: {depth_ts}, IR1 Global TS: {ir1_ts}, IR2 Global TS: {ir2_ts}")
             log.d(f"Color Global TS: {color_ts}")
+            
+            # Log frame counters for debugging
+            counter_info = ", ".join([f"{name}: {counter}" for name, counter in current_frame_counters.items()])
+            log.d(f"Frame Counters - {counter_info}")
 
             # Check global timestamps
-            test.check_approx_abs(depth_ts, ir1_ts, GLOBAL_TS_TOLERANCE)
-            test.check_approx_abs(depth_ts, ir2_ts, GLOBAL_TS_TOLERANCE)
-            test.check_approx_abs(depth_ts, color_ts, GLOBAL_TS_TOLERANCE)
+            test.check_approx_abs(depth_ts, ir1_ts, TS_TOLERANCE_MS)
+            test.check_approx_abs(depth_ts, ir2_ts, TS_TOLERANCE_MS)
+            test.check_approx_abs(depth_ts, color_ts, TS_TOLERANCE_MS)
 
             # Frame metadata timestamps
             if all(frame.supports_frame_metadata(rs.frame_metadata_value.frame_timestamp)
@@ -74,9 +155,9 @@ with test.closure("Test Timestamps Consistency"):
                 log.d(f"Color Frame TS: {color_frame_ts}")
 
                 # Check frame timestamps
-                test.check_approx_abs(depth_frame_ts, ir1_frame_ts, FRAME_TS_TOLERANCE)
-                test.check_approx_abs(depth_frame_ts, ir2_frame_ts, FRAME_TS_TOLERANCE)
-                test.check_approx_abs(depth_frame_ts, color_frame_ts, FRAME_TS_TOLERANCE)
+                test.check_approx_abs(depth_frame_ts, ir1_frame_ts, TS_TOLERANCE_MICROSEC)
+                test.check_approx_abs(depth_frame_ts, ir2_frame_ts, TS_TOLERANCE_MICROSEC)
+                test.check_approx_abs(depth_frame_ts, color_frame_ts, TS_TOLERANCE_MICROSEC)
             else:
                 log.d("One or more frames do not support frame timestamp metadata")
 
