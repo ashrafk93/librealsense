@@ -32,13 +32,25 @@ def detect_frame_drops(frames_dict, prev_frame_counters):
             # Check for frame drops
             if prev_frame_counters[stream_name] is not None:
                 expected_counter = prev_frame_counters[stream_name] + 1
-                dropped_frames = current_counter - expected_counter
-                if dropped_frames > 0:
+                
+                if current_counter == expected_counter:
+                    # Normal progression - no drop
+                    pass
+                elif current_counter > expected_counter:
+                    # Frame drop detected
+                    dropped_frames = current_counter - expected_counter
                     log.w(f"Frame drop detected on {stream_name}: counter jumped from {prev_frame_counters[stream_name]} to {current_counter} ({dropped_frames} frames dropped)")
                     frame_drop_detected = True
-                elif dropped_frames < 0:
-                    log.w(f"Frame counter rollover detected on {stream_name}: {prev_frame_counters[stream_name]} -> {current_counter}")
-                    # Don't treat rollover as a drop, just log it
+                elif current_counter == prev_frame_counters[stream_name]:
+                    # Same counter as previous - likely duplicate frame, not a rollover
+                    log.d(f"Duplicate frame counter on {stream_name}: {current_counter} (same as previous)")
+                else:
+                    # current_counter < expected_counter - could be rollover or error
+                    gap = prev_frame_counters[stream_name] - current_counter
+                    if gap > 1000:  # Large gap suggests counter rollover
+                        log.d(f"Frame counter rollover detected on {stream_name}: {prev_frame_counters[stream_name]} -> {current_counter}")
+                    else:
+                        log.w(f"Unexpected counter sequence on {stream_name}: {prev_frame_counters[stream_name]} -> {current_counter}")
         else:
             log.d(f"Frame counter metadata not available for {stream_name}")
     
@@ -50,7 +62,7 @@ TS_TOLERANCE_MICROSEC = TS_TOLERANCE_MS * 1000  # in microseconds
 
 # Frame drop detection using frame counter
 SKIP_FRAMES_AFTER_DROP = 10  # Number of frames to skip after detecting a drop
-with test.closure("Test Timestamps Consistency"):
+with test.closure("Verify syncronized frames"):
     device, ctx = test.find_first_device_or_exit()
     cfg = rs.config()
     cfg.enable_stream(rs.stream.depth)
@@ -70,12 +82,13 @@ with test.closure("Test Timestamps Consistency"):
 
     pipe = rs.pipeline(ctx)
     pipe.start(cfg)
-    time.sleep(2)
+    time.sleep(5)  # Longer stabilization to prevent initial frame drop issues
 
     # Initialize frame drop detection using frame counters
     prev_frame_counters = {'depth': None, 'ir1': None, 'ir2': None, 'color': None}
     frames_to_skip = 0
     frame_count = 0
+    consecutive_drops = 0
 
     try:
         for _ in range(100):
@@ -90,19 +103,7 @@ with test.closure("Test Timestamps Consistency"):
                 log.e("One or more frames are missing")
                 continue
 
-            # Skip frames if we're in post-drop recovery period
-            if frames_to_skip > 0:
-                frames_to_skip -= 1
-                log.d(f"Skipping frame {frame_count} (post-drop recovery, {frames_to_skip} remaining)")
-                continue
-
-            # Global timestamps
-            depth_ts = depth_frame.timestamp
-            ir1_ts = ir1_frame.timestamp
-            ir2_ts = ir2_frame.timestamp
-            color_ts = color_frame.timestamp
-
-            # Detect frame drops using frame counter metadata
+            # Detect frame drops FIRST using frame counter metadata (before any processing)
             frames_dict = {
                 'depth': depth_frame,
                 'ir1': ir1_frame, 
@@ -112,15 +113,38 @@ with test.closure("Test Timestamps Consistency"):
             
             frame_drop_detected, current_frame_counters = detect_frame_drops(frames_dict, prev_frame_counters)
             
-            # If frame drop detected, skip next N frames for sensor re-sync
+            # If frame drop detected, skip this frame entirely (including timestamp checks)
             if frame_drop_detected:
+                consecutive_drops += 1
+                if consecutive_drops > 20:  # Too many consecutive drops
+                    log.f(f"Continuous frame drops detected ({consecutive_drops} consecutive). Hardware issue - unable to achieve stable synchronization.")
+                
                 frames_to_skip = SKIP_FRAMES_AFTER_DROP
                 log.w(f"Frame drop detected at frame {frame_count}, will skip next {frames_to_skip} frames for re-sync")
                 prev_frame_counters = current_frame_counters
+                continue  # Skip ALL processing for this frame
+            
+            # Skip frames if we're in post-drop recovery period
+            if frames_to_skip > 0:
+                frames_to_skip -= 1
+                log.d(f"Skipping frame {frame_count} (post-drop recovery, {frames_to_skip} remaining)")
+                
+                # Reset frame counter tracking after skip period ends
+                if frames_to_skip == 0:
+                    log.d("Re-sync period complete, resetting frame counter tracking")
+                    prev_frame_counters = {'depth': None, 'ir1': None, 'ir2': None, 'color': None}
+                
                 continue
             
             # Update previous frame counters for next iteration
             prev_frame_counters = current_frame_counters
+            consecutive_drops = 0  # Reset counter for successful frames
+
+            # Global timestamps (only process if no frame drops detected)
+            depth_ts = depth_frame.timestamp
+            ir1_ts = ir1_frame.timestamp
+            ir2_ts = ir2_frame.timestamp
+            color_ts = color_frame.timestamp
 
             log.d(f"Depth Global TS: {depth_ts}, IR1 Global TS: {ir1_ts}, IR2 Global TS: {ir2_ts}")
             log.d(f"Color Global TS: {color_ts}")
@@ -128,6 +152,12 @@ with test.closure("Test Timestamps Consistency"):
             # Log frame counters for debugging
             counter_info = ", ".join([f"{name}: {counter}" for name, counter in current_frame_counters.items()])
             log.d(f"Frame Counters - {counter_info}")
+            
+            # Log timing differences for analysis
+            depth_ir1_diff = abs(depth_ts - ir1_ts)
+            depth_ir2_diff = abs(depth_ts - ir2_ts)
+            depth_color_diff = abs(depth_ts - color_ts)
+            log.d(f"Frame {frame_count} - Global TS differences: IR1={depth_ir1_diff:.2f}ms, IR2={depth_ir2_diff:.2f}ms, Color={depth_color_diff:.2f}ms")
 
             # Check global timestamps
             test.check_approx_abs(depth_ts, ir1_ts, TS_TOLERANCE_MS)
