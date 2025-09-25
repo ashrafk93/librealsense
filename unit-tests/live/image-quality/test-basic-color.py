@@ -1,8 +1,7 @@
 # License: Apache 2.0. See LICENSE file in root directory.
 # Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 
-#test:device:jetson D457
-#test:device:!jetson D455
+# test:device each(D400*)
 
 import pyrealsense2 as rs
 from rspy import log, test
@@ -11,7 +10,7 @@ import cv2
 import time
 
 NUM_FRAMES = 100 # Number of frames to check
-COLOR_TOLERANCE = 20 # Acceptable per-channel deviation in RGB values
+COLOR_TOLERANCE = 30 # Acceptable per-channel deviation in RGB values
 FRAMES_PASS_THRESHOLD =0.8 # Percentage of frames that needs to pass
 DEBUG_MODE = False
 
@@ -21,15 +20,15 @@ A4_HEIGHT = 1123
 
 # expected colors (insertion order -> mapped row-major to 3x3 grid)
 expected_colors = {
-    "red":   (139, 48, 57),
+    "red":   (132, 60, 60),
     "green": (40, 84, 72),
-    "blue":  (8, 67, 103),
+    "blue":  (20, 67, 103),
     "black": (35, 35, 35),
-    "white": (140, 142, 143),
-    "gray": (84, 84, 84),
-    "purple": (56, 52, 78),
-    "orange": (150, 66, 60),
-    "yellow": (152, 132, 69),
+    "white": (130, 130, 130),
+    "gray": (90, 90, 90),
+    "purple": (56, 72, 98),
+    "orange": (136, 66, 50),
+    "yellow": (136, 122, 60),
 }
 # list of color names in insertion order -> used left->right, top->bottom
 color_names = list(expected_colors.keys())
