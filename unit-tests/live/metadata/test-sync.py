@@ -15,40 +15,34 @@ def detect_frame_drops(frames_dict, prev_frame_counters):
     Detect frame drops using hardware frame counters
     
     Args:
-        frames_dict: Dictionary with sensor names as keys and frames as values
+        frames_dict: Dictionary with stream names as keys and frames as values
         prev_frame_counters: Dictionary with previous frame counter values
         
     Returns:
-        tuple: (frame_drop_detected, current_frame_counters, drop_info)
+        pair: (frame_drop_detected, current_frame_counters)
     """
     frame_drop_detected = False
     current_frame_counters = {}
-    drop_info = []
     
-    for sensor_name, frame in frames_dict.items():
+    for stream_name, frame in frames_dict.items():
         if frame.supports_frame_metadata(rs.frame_metadata_value.frame_counter):
             current_counter = frame.get_frame_metadata(rs.frame_metadata_value.frame_counter)
-            current_frame_counters[sensor_name] = current_counter
+            current_frame_counters[stream_name] = current_counter
             
             # Check for frame drops
-            if prev_frame_counters[sensor_name] is not None:
-                expected_counter = prev_frame_counters[sensor_name] + 1
-                if current_counter != expected_counter:
-                    dropped_frames = current_counter - expected_counter
-                    if dropped_frames > 0:
-                        drop_msg = f"Frame drop detected on {sensor_name}: counter jumped from {prev_frame_counters[sensor_name]} to {current_counter} ({dropped_frames} frames dropped)"
-                        log.w(drop_msg)
-                        drop_info.append(drop_msg)
-                        frame_drop_detected = True
-                    elif dropped_frames < 0:
-                        rollover_msg = f"Frame counter rollover detected on {sensor_name}: {prev_frame_counters[sensor_name]} -> {current_counter}"
-                        log.w(rollover_msg)
-                        drop_info.append(rollover_msg)
-                        # Don't treat rollover as a drop, just log it
+            if prev_frame_counters[stream_name] is not None:
+                expected_counter = prev_frame_counters[stream_name] + 1
+                dropped_frames = current_counter - expected_counter
+                if dropped_frames > 0:
+                    log.w(f"Frame drop detected on {stream_name}: counter jumped from {prev_frame_counters[stream_name]} to {current_counter} ({dropped_frames} frames dropped)")
+                    frame_drop_detected = True
+                elif dropped_frames < 0:
+                    log.w(f"Frame counter rollover detected on {stream_name}: {prev_frame_counters[stream_name]} -> {current_counter}")
+                    # Don't treat rollover as a drop, just log it
         else:
-            log.d(f"Frame counter metadata not available for {sensor_name}")
+            log.d(f"Frame counter metadata not available for {stream_name}")
     
-    return frame_drop_detected, current_frame_counters, drop_info
+    return frame_drop_detected, current_frame_counters
 
 # Tolerance for gaps between frames
 TS_TOLERANCE_MS = 1.5  # in ms
@@ -116,13 +110,12 @@ with test.closure("Test Timestamps Consistency"):
                 'color': color_frame
             }
             
-            frame_drop_detected, current_frame_counters, drop_info = detect_frame_drops(frames_dict, prev_frame_counters)
+            frame_drop_detected, current_frame_counters = detect_frame_drops(frames_dict, prev_frame_counters)
             
             # If frame drop detected, skip next N frames for sensor re-sync
             if frame_drop_detected:
                 frames_to_skip = SKIP_FRAMES_AFTER_DROP
                 log.w(f"Frame drop detected at frame {frame_count}, will skip next {frames_to_skip} frames for re-sync")
-                log.w(f"Drop details: {'; '.join(drop_info)}")
                 prev_frame_counters = current_frame_counters
                 continue
             
