@@ -7,6 +7,7 @@
 #include <vector>
 #include <mutex>
 #include <map>
+#include <stdexcept>
 
 
 namespace librealsense {
