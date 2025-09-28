@@ -28,9 +28,8 @@ public:
     float get_stereo_baseline_mm() const override;
 
     // Override interface methods
-    void set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
-    std::vector<uint8_t> get_filter(rs2_embedded_filter_type embedded_filter_type) override;
-    bool supports_filter(rs2_embedded_filter_type embedded_filter_type) const override;
+    bool is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const override;
+    void enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable) override;
 
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
     void add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter);

@@ -754,9 +754,9 @@ namespace rs2
 
     class embedded_filter_sensor : public sensor
     {
-    public:
-        embedded_filter_sensor(sensor s)
-            : sensor(s.get())
+        public:
+        embedded_filter_sensor(sensor s, rs2_embedded_filter_type filter_type)
+            : sensor(s.get()), _filter_type(filter_type)
         {
             rs2_error* e = nullptr;
             if (rs2_is_sensor_extendable_to(_sensor.get(), RS2_EXTENSION_EMBEDDED_FILTER_SENSOR, &e) == 0 && !e)
@@ -765,45 +765,43 @@ namespace rs2
             }
             error::handle(e);
         }
+		operator bool() const { return _sensor.get() != nullptr; }
 
-        operator bool() const { return _sensor.get() != nullptr; }
-
-        bool supports(rs2_embedded_filter_type embedded_filter)
+        bool is_enabled() const
         {
             rs2_error* e = nullptr;
-            auto is_supported = rs2_supports_embedded_filter(_sensor.get(), embedded_filter, &e);
+            auto res = rs2_is_embedded_filter_enabled(_sensor.get(), _filter_type, &e);
             error::handle(e);
-            return is_supported > 0;
+            return !!res;
         }
 
-        void set_filter(rs2_embedded_filter_type embedded_filter, std::vector<uint8_t> command)
+        void enable() const
         {
             rs2_error* e = nullptr;
-            rs2_set_embedded_filter(_sensor.get(), embedded_filter,
-                (void*)command.data(), (uint32_t)command.size(), &e);
+            rs2_enable_embedded_filter(_sensor.get(), _filter_type, 1, &e);
             error::handle(e);
         }
 
-        std::vector<uint8_t> get_filter(rs2_embedded_filter_type embedded_filter)
+        void disable() const
         {
             rs2_error* e = nullptr;
-
-            std::shared_ptr<const rs2_raw_data_buffer> list(
-                rs2_get_embedded_filter(_sensor.get(), embedded_filter, &e),
-                rs2_delete_raw_data);
+            rs2_enable_embedded_filter(_sensor.get(), _filter_type, 0, &e);
             error::handle(e);
-
-            std::vector<uint8_t> results;
-            auto size = rs2_get_raw_data_size(list.get(), &e);
-            error::handle(e);
-
-            auto start = rs2_get_raw_data(list.get(), &e);
-            error::handle(e);
-
-            results.insert(results.begin(), start, start + size);
-
-            return results;
         }
+
+        private:
+			rs2_embedded_filter_type _filter_type;
+
+    };
+
+    class embedded_decimation_sensor : public embedded_filter_sensor
+    {
+        public:
+        embedded_decimation_sensor(sensor s)
+            : embedded_filter_sensor(s, RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
+        {
+        }
+		operator bool() const { return _sensor.get() != nullptr; }      
     };
 }
 #endif // LIBREALSENSE_RS2_SENSOR_HPP

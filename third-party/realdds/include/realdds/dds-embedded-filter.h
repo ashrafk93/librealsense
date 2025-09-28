@@ -11,7 +11,6 @@
 #include <vector>
 #include <string>
 
-
 namespace realdds {
 
 class dds_device;
@@ -20,7 +19,7 @@ class dds_stream_base;
 // Class dds_embedded_filter - Handles DDS communication, JSON serialization, stream association
 // Abstract base class for all embedded filters.
 // Embedded filter types are Decimation and Temporal filter
-class dds_embedded_filter : public std::enable_shared_from_this< dds_embedded_filter >
+class dds_embedded_filter
 {
 protected:
     std::string _name;
@@ -45,10 +44,9 @@ public:
     virtual void init_default_values( rsutils::json const & defaults );
 
     // Core functionality
+    rsutils::json get_options_json();
+    dds_options get_options() { return _options; }
     virtual void set_options(rsutils::json const& options) = 0;
-    virtual rsutils::json get_options() = 0;
-    virtual bool supports_filter() const = 0;
-    virtual bool is_enabled() const = 0;
 
     // Getters
     std::string const & get_name() const { return _name; }
@@ -73,37 +71,18 @@ protected:
 // Decimation filter implementation
 class dds_decimation_filter : public dds_embedded_filter
 {
-private:
-    bool _enabled;
-    int _decimation_factor;
-
 public:
     dds_decimation_filter();
     virtual ~dds_decimation_filter() = default;
 
     // Override base class methods
     void set_options(rsutils::json const& options) override;
-    rsutils::json get_options() override;
-    bool supports_filter() const override { return true; }
-
-    // Decimation-specific methods
-    void set_enabled( bool enabled );
-    bool is_enabled() const { return _enabled; }
-
-    void set_decimation_factor( int factor );
-    int get_decimation_factor() const { return _decimation_factor; }
-
     rsutils::json to_json() const override;
 };
 
 // Temporal filter implementation
 class dds_temporal_filter : public dds_embedded_filter
 {
-private:
-    bool _enabled;
-    float _alpha;
-    int32_t _delta;
-    int32_t _persistency;
 
 public:
     dds_temporal_filter();
@@ -111,22 +90,6 @@ public:
 
     // Override base class methods
     void set_options(rsutils::json const& options) override;
-    rsutils::json get_options() override;
-    bool supports_filter() const override { return true; }
-
-    // Temporal-specific methods
-    void set_enabled( bool enabled );
-    bool is_enabled() const { return _enabled; }
-
-    void set_alpha( float alpha );
-    float get_alpha() const { return _alpha; }
-
-    void set_delta( int32_t delta );
-    int32_t get_delta() const { return _delta; }
-
-    void set_persistency( int32_t persistency );
-    int32_t get_persistency() const { return _persistency; }
-
     rsutils::json to_json() const override;
 };
 

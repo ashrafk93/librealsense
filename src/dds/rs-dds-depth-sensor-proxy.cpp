@@ -65,46 +65,31 @@ float dds_depth_sensor_proxy::get_stereo_baseline_mm() const
     throw not_implemented_exception( "Not a stereo depth sensor. Cannot get basline information." );
 }
 
-void dds_depth_sensor_proxy::set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
+bool dds_depth_sensor_proxy::is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const
 {
     for (auto& embedded_filter : _embedded_filters)
     {
         if (embedded_filter->get_type() == embedded_filter_type)
         {
-            embedded_filter->set_filter(embedded_filter_type, params);
-            return;
+            // if the filter type is found in this collection, it means it's enabled
+			return true;
         }
-    }
-    throw not_implemented_exception("Embedded filter is not supported by the device");
-}
-
-std::vector<uint8_t> dds_depth_sensor_proxy::get_filter(rs2_embedded_filter_type embedded_filter_type)
-{
-	std::vector<uint8_t> ans;
-    for (auto& embedded_filter : _embedded_filters)
-    {
-        if (embedded_filter->get_type() == embedded_filter_type)
-        {
-            ans = embedded_filter->get_filter(embedded_filter_type);
-            return ans;
-        }
-    }
-    throw not_implemented_exception("Embedded filter is not supported by the device");
-}
-
-bool dds_depth_sensor_proxy::supports_filter(rs2_embedded_filter_type embedded_filter_type) const
-{
-	bool is_supported = false;
-    std::vector<uint8_t> ans;
-    for (auto& embedded_filter : _embedded_filters)
-    {
-        if (embedded_filter->get_type() == embedded_filter_type)
-        {
-            return true;
-        }
-    }
+	}
     return false;
 }
+
+void dds_depth_sensor_proxy::enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable)
+{
+    for (auto& embedded_filter : _embedded_filters)
+    {
+        if (embedded_filter->get_type() == embedded_filter_type)
+        {
+			embedded_filter->enable_filter(embedded_filter_type, enable);
+        }
+    }
+}
+
+
 
 void dds_depth_sensor_proxy::add_no_metadata( frame * const f, streaming_impl & streaming )
 {

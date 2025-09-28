@@ -83,7 +83,7 @@ try
 		return EXIT_FAILURE;
 	}
 
-	// setting VGA resolution profile
+	// setting HD resolution profile
     auto nominal_width = 1280;
 	auto nominal_height = 720;
     auto depth_profile = get_depth_profile(depth_sensor, nominal_width, nominal_height);
@@ -97,26 +97,29 @@ try
     
 	// setting decimation filter OFF
 	std::cout << "Setting decimation filter OFF" << std::endl;
-    rs2::embedded_filter_sensor embed_filter_sensor = depth_sensor.as<rs2::embedded_filter_sensor>();
-    if (!embed_filter_sensor.supports(RS2_EMBEDDED_FILTER_TYPE_DECIMATION))
+    rs2::embedded_decimation_sensor embed_decimation_sensor = depth_sensor.as<rs2::embedded_decimation_sensor>();
+    if (!embed_decimation_sensor)
     {
         throw std::runtime_error("Depth sensor does not support embedded decimation filter!");
     }
-	// getting initial value
-    auto ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
-    if (ans.empty() || ans[0] != 0)
+	auto decimation_options = embed_decimation_sensor.get_supported_options();
+    for (auto& option : decimation_options)
     {
-        throw std::runtime_error("Decimation filter deactivation did not work!");
-    }
-    std::vector<uint8_t> request;
-    uint8_t on_off = 0; // OFF
-    auto decimation_magnitude = 2; // not needed now, but partial set not enabled yet
-    request.push_back(on_off);
-    request.push_back(decimation_magnitude);
-    embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
+        std::cout << "Decimation filter option supported: " << embed_decimation_sensor.get_option_name(option) << std::endl;
+	}
+	// getting initial values
+	auto enabled = embed_decimation_sensor.is_enabled();
+    auto magnitude = embed_decimation_sensor.get_option(RS2_OPTION_FILTER_MAGNITUDE);
+    
+    // setting decimation filter OFF
+    embed_decimation_sensor.disable();
+    auto decimation_magnitude = 2.f;
+	embed_decimation_sensor.set_option(RS2_OPTION_FILTER_MAGNITUDE, decimation_magnitude);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
-    if (ans.empty() || ans[0] != 0)
+	enabled = embed_decimation_sensor.is_enabled();
+	magnitude = embed_decimation_sensor.get_option(RS2_OPTION_FILTER_MAGNITUDE);
+    
+    if (enabled || magnitude != 2)
     {
         throw std::runtime_error("Decimation filter deactivation did not work!");
     }
@@ -144,15 +147,14 @@ try
 
 	// setting decimation filter ON
 	std::cout << "Setting decimation filter ON" << std::endl;
-    request.clear();
-    on_off = 1; // ON
-    decimation_magnitude = 2;
-    request.push_back(on_off);
-	request.push_back(decimation_magnitude);
-    embed_filter_sensor.set_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION, request);
+    embed_decimation_sensor.enable();
+    decimation_magnitude = 2.f;
+    embed_decimation_sensor.set_option(RS2_OPTION_FILTER_MAGNITUDE, decimation_magnitude);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ans = embed_filter_sensor.get_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
-    if (ans.empty() || ans[0] == 0)
+    enabled = embed_decimation_sensor.is_enabled();
+    magnitude = embed_decimation_sensor.get_option(RS2_OPTION_FILTER_MAGNITUDE);
+
+    if (!enabled || magnitude != 2)
     {
         throw std::runtime_error("Decimation filter activation did not work!");
     }

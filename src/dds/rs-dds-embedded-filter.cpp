@@ -2,7 +2,9 @@
 // Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 
 #include <third-party/realdds/include/realdds/dds-embedded-filter.h>
-#include "rs-dds-embedded-filter.h"
+#include "rs-dds-embedded-filter.h" 
+
+using rsutils::json;
 
 namespace librealsense {
 
@@ -45,7 +47,7 @@ static rs2_option_type rs_type_from_dds_option( std::shared_ptr< realdds::dds_op
 }*/
 
 
-rs_dds_embedded_filter::rs_dds_embedded_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
+    rs_dds_embedded_filter::rs_dds_embedded_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
     set_embedded_filter_callback set_ef_cb,
     query_embedded_filter_callback query_ef_cb)
     : embedded_filter_sensor_interface()

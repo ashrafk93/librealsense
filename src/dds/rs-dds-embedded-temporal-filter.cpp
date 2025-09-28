@@ -6,202 +6,146 @@
 #include <string>
 #include <cstring>
 #include <rsutils/json.h>
+#include <src/core/options-registry.h>
+#include <realdds/dds-option.h>
+#include "rs-dds-option.h"
 
 using rsutils::json;
 
 namespace librealsense {
 
+	const float rs_dds_embedded_temporal_filter::ALPHA_DEFAULT = 0.4f;
+	const int32_t rs_dds_embedded_temporal_filter::DELTA_DEFAULT = 20;
+	const int32_t rs_dds_embedded_temporal_filter::PERSISTENCY_DEFAULT = 3;
+
     rs_dds_embedded_temporal_filter::rs_dds_embedded_temporal_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
         set_embedded_filter_callback set_embedded_filter_cb,
         query_embedded_filter_callback query_embedded_filter_cb)
 		: rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
-        , _dds_temporal_filter(std::make_shared<realdds::dds_temporal_filter>())
+		, _enabled(false)
+		, _alpha(ALPHA_DEFAULT)
+		, _delta(DELTA_DEFAULT)
+		, _persistency(PERSISTENCY_DEFAULT)
     {
-    }
-
-    void rs_dds_embedded_temporal_filter::set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
-    {
-        if (!_set_ef_cb)
-            throw std::runtime_error("Set embedded filter callback is not set for filter " + _dds_ef->get_name());
-
-        json j_value;
-
-        _set_ef_cb(j_value);
-
-        // Parse and validate depth sensor-specific parameters
-        validate_filter_options(params);
-
-        // Delegate to DDS filter
-        _dds_temporal_filter->set_options(convert_to_json(params));
-    }
-
-    std::vector<uint8_t> rs_dds_embedded_temporal_filter::get_filter(rs2_embedded_filter_type embedded_filter_type)
-    {
-        if (!_query_ef_cb)
-            throw std::runtime_error("Query Embedded Filter callback is not set for filter " + _dds_ef->get_name());
-
-        auto const params = _query_ef_cb();
-
-        // conversion from json to vector<uint8_t>
-        auto filter_options_j = params.at("options");
-        std::vector<uint8_t> ans;
-        for (auto& opt : filter_options_j)
+        // Initialize options by calling add_option for each DDS option
+        for (auto& dds_option : _dds_ef->get_options())
         {
-            ans.push_back(opt);
+            add_option(dds_option);
         }
-        validate_filter_options(ans);
-
-        return ans;
     }
 
-    bool rs_dds_embedded_temporal_filter::supports_filter(rs2_embedded_filter_type embedded_filter_type) const
+    void rs_dds_embedded_temporal_filter::enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable)
     {
-        return true;
+        // Enable/disable temporal filter via DDS
+        // This is equivalent to setting the "Toggle" option to 1 (ON)
+        auto toggle_opt = get_dds_option_by_name(_dds_temporal_filter->get_options(), "Toggle");
+        int32_t value_to_set = enable ? 1 : 0;
+        auto toggle_opt_j = toggle_opt->to_json();
+        toggle_opt_j["value"] = value_to_set;
+        // below line should call the set option callback defined in add_option method
+        toggle_opt->set_value(toggle_opt_j);
     }
 
-    void rs_dds_embedded_temporal_filter::validate_filter_options(const std::vector<uint8_t>& params)
+    void rs_dds_embedded_temporal_filter::add_option(std::shared_ptr< realdds::dds_option > option)
     {
-        //TODO enable partial setting of parameters
-        // Check minimum parameter size - need at least 13 bytes:
-        // 1 byte for enabled + 4 bytes for alpha (float) + 4 bytes for delta (int32_t) + 4 bytes for persistency (int32_t)
-        if (params.size() < 13) {
-            throw std::invalid_argument("Temporal filter parameters too small. Expected at least 13 bytes (enabled + alpha + delta + persistency)");
+        bool const ok_if_there = true;
+        auto option_id = options_registry::register_option_by_name(option->get_name(), ok_if_there);
+
+        if (!is_valid(option_id))
+        {
+            LOG_ERROR("Option '" << option->get_name() << "' not found");
+            throw librealsense::invalid_value_exception("Option '" + option->get_name() + "' not found");
         }
 
-        // Extract enabled flag (first byte)
-        uint8_t enabled_byte = params[0];
-        
-        // Extract alpha (next 4 bytes as float, using memcpy)
-        float alpha;
-        std::memcpy(&alpha, &params[1], sizeof(float));
-        
-        // Extract delta (next 4 bytes as int32_t, using memcpy)
-        int32_t delta = 0;
-        std::memcpy(&delta, &params[5], sizeof(int32_t));
-        
-        // Extract persistency (next 4 bytes as int32_t, using memcpy)
-        int32_t persistency = 0;
-        std::memcpy(&persistency, &params[9], sizeof(int32_t));
+        if (get_option_handler(option_id))
+            throw std::runtime_error("option '" + option->get_name() + "' already exists in sensor");
 
-        // Validate enabled flag (must be 0 or 1)
-        if (enabled_byte > 1) {
-            throw std::invalid_argument("Temporal filter enabled flag must be 0 or 1. Received: " + std::to_string(enabled_byte));
+        // In below implementation: 
+        // - setting one option leads to 
+        //   * setting the new value for one option, and
+        //   * sending also the other current values for the other filter's values
+        // - getting one option leads to:
+        //   * returning only the relevant option's value
+        //   * the getting of the filter's options communicating with the device by DDS
+        //     is not necessary, since the value is already automatically updated by the set action reply 
+        auto opt = std::make_shared< rs_dds_option >(
+            option,
+            [=](json value) // set_option cb for the filter's options
+            {
+                // prepare json with all options
+                json all_options_json = prepare_all_options_json(value);
+                // validate values
+                validate_filter_options(all_options_json);
+                // set updated options to the remote device
+                _set_ef_cb(all_options_json);
+
+                // Delegate to DDS filter
+                _dds_temporal_filter->set_options(all_options_json);
+            },
+            [=]() -> json // get_option cb for the filter's options
+            {
+                return option->get_value();
+            });
+        register_option(option_id, opt);
+        _options_watcher.register_option(option_id, opt);
+    }
+
+    rsutils::json rs_dds_embedded_temporal_filter::prepare_all_options_json(const rsutils::json& new_value)
+    {
+        rsutils::json json_to_send = _dds_temporal_filter->get_options_json();
+
+        for (auto& opt_j : json_to_send)
+        {
+            if (!opt_j.contains("name") || !new_value.contains("name"))
+            {
+                throw std::runtime_error("option json does not contain name");
+            }
+            if (opt_j["name"] == new_value["name"])
+            {
+                opt_j["value"] = new_value["value"];
+            }
         }
+        return json_to_send;
+    }
 
-        // Validate alpha range using defined constants
-        if (alpha < ALPHA_MIN || alpha > ALPHA_MAX) {
-            throw std::invalid_argument("Temporal filter alpha must be in range [" + 
-                                       std::to_string(ALPHA_MIN) + ", " + std::to_string(ALPHA_MAX) + 
-                                       "]. Received: " + std::to_string(alpha));
+    void rs_dds_embedded_temporal_filter::validate_filter_options(rsutils::json options_j)
+    {
+		// TODO check ranges of each parameter
+        if (options_j.size() != 4) {
+            throw std::invalid_argument("Four parameters are expected for Temporal filter (enabled + alpha + delta + persistency)");
         }
-
-        // Validate delta range using defined constants
-        if (delta < DELTA_MIN || delta > DELTA_MAX) {
-            throw std::invalid_argument("Temporal filter delta must be in range [" + 
-                                       std::to_string(DELTA_MIN) + ", " + std::to_string(DELTA_MAX) + 
-                                       "]. Received: " + std::to_string(delta));
+        for (auto& opt_j : options_j)
+        {
+            if (!opt_j.contains("name"))
+            {
+                throw std::runtime_error("Option json does not contain name!");
+            }
+            if (opt_j["name"] == "Toggle")
+            {
+                int32_t toggle_val = opt_j["value"].get<int32_t>();
+                if (toggle_val != 0 && toggle_val != 1)
+                {
+                    throw std::runtime_error("Toggle shall be 0 for OFF or 1 for ON");
+                }
+            }
+            else if (opt_j["name"] == "Alpha")
+            {
+                float alpha_val = opt_j["value"].get<float>();
+            }
+            else if (opt_j["name"] == "Delta")
+            {
+                int32_t delta_val = opt_j["value"].get<int32_t>();
+            }
+            else if (opt_j["name"] == "Persistency")
+            {
+                int32_t persistency_val = opt_j["value"].get<int32_t>();
+            }
+            else
+            {
+                // we should not get here
+                throw std::runtime_error("The expected paramaters for Temporal filter are toggle, alpha, delta and persistency");
+            }
         }
-
-        // Validate persistency index range using defined constants
-        if (persistency < PERSISTENCY_MIN || persistency > PERSISTENCY_MAX) {
-            throw std::invalid_argument("Temporal filter persistency index must be in range [" + 
-                                       std::to_string(PERSISTENCY_MIN) + ", " + std::to_string(PERSISTENCY_MAX) + 
-                                       "]. Received: " + std::to_string(persistency));
-        }
-
         // Validation passed - parameters are valid
     }
-
-    rsutils::json rs_dds_embedded_temporal_filter::convert_to_json(const std::vector<uint8_t>& params)
-    {
-        // Validate parameters first
-        validate_filter_options(params);
-
-        // Extract enabled flag (first byte)
-        bool enabled = (params[0] != 0);
-        
-        // Extract alpha (next 4 bytes as float, using memcpy)
-        float alpha;
-        std::memcpy(&alpha, &params[1], sizeof(float));
-        
-        // Extract delta (next 4 bytes as int32_t, using memcpy)
-        int32_t delta;
-        std::memcpy(&delta, &params[5], sizeof(int32_t));
-        
-        // Extract persistency (next 4 bytes as int32_t, using memcpy)
-        int32_t persistency;
-        std::memcpy(&persistency, &params[9], sizeof(int32_t));
-
-        // Create JSON object with temporal filter parameters
-        rsutils::json filter_json;
-        filter_json["enabled"] = enabled;
-        filter_json["alpha"] = alpha;
-        filter_json["delta"] = delta;
-        filter_json["persistency"] = persistency;
-        
-        return filter_json;
-    }
-
-    std::vector<uint8_t> rs_dds_embedded_temporal_filter::convert_from_json(const rsutils::json& json_params)
-    {
-        std::vector<uint8_t> params(13); // 13 bytes total: 1 for enabled + 4 for alpha + 4 for delta + 4 for persistency
-        
-        // Extract enabled flag from JSON (default to false if not present)
-        bool enabled = false;
-        if (json_params.contains("enabled") && json_params["enabled"].is_boolean()) {
-            enabled = json_params["enabled"].get<bool>();
-        }
-        
-        // Extract alpha from JSON (default to ALPHA_DEFAULT if not present)
-        float alpha = ALPHA_DEFAULT;
-        if (json_params.contains("alpha") && json_params["alpha"].is_number()) {
-            alpha = json_params["alpha"].get<float>();
-        }
-        
-        // Extract delta from JSON (default to DELTA_DEFAULT if not present)
-        int32_t delta = DELTA_DEFAULT;
-        if (json_params.contains("delta") && json_params["delta"].is_number_integer()) {
-            delta = json_params["delta"].get<int32_t>();
-        }
-        
-        // Extract persistency from JSON (default to PERSISTENCY_DEFAULT if not present)
-        int32_t persistency = PERSISTENCY_DEFAULT;
-        if (json_params.contains("persistency") && json_params["persistency"].is_number_integer()) {
-            persistency = json_params["persistency"].get<int32_t>();
-        }
-
-        // Validate parameters against defined constants
-        if (alpha < ALPHA_MIN || alpha > ALPHA_MAX) {
-            throw std::invalid_argument("Temporal filter alpha must be in range [" + 
-                                       std::to_string(ALPHA_MIN) + ", " + std::to_string(ALPHA_MAX) + 
-                                       "]. Received: " + std::to_string(alpha));
-        }
-
-        if (delta < DELTA_MIN || delta > DELTA_MAX) {
-            throw std::invalid_argument("Temporal filter delta must be in range [" + 
-                                       std::to_string(DELTA_MIN) + ", " + std::to_string(DELTA_MAX) + 
-                                       "]. Received: " + std::to_string(delta));
-        }
-
-        if (persistency < PERSISTENCY_MIN || persistency > PERSISTENCY_MAX) {
-            throw std::invalid_argument("Temporal filter persistency index must be in range [" + 
-                                       std::to_string(PERSISTENCY_MIN) + ", " + std::to_string(PERSISTENCY_MAX) + 
-                                       "]. Received: " + std::to_string(persistency));
-        }
-
-        // Pack enabled flag (first byte)
-        params[0] = enabled ? 1 : 0;
-        
-        // Pack alpha using memcpy (next 4 bytes)
-        std::memcpy(&params[1], &alpha, sizeof(float));
-        
-        // Pack delta using memcpy (next 4 bytes)
-        std::memcpy(&params[5], &delta, sizeof(int32_t));
-        
-        // Pack persistency using memcpy (next 4 bytes)
-        std::memcpy(&params[9], &persistency, sizeof(int32_t));
-        
-        return params;
-    }
-
 }  // namespace librealsense

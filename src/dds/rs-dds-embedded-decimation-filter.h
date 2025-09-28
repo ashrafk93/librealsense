@@ -2,14 +2,10 @@
 // Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 #pragma once
 
-#include <vector>
 #include <rsutils/json-fwd.h>
 #include <realdds/dds-embedded-filter.h>
 #include <dds/rs-dds-embedded-filter.h>
 
-namespace realdds {
-    class dds_device; // forward declaration
-}
 
 namespace librealsense {
 
@@ -26,21 +22,20 @@ namespace librealsense {
         virtual ~rs_dds_embedded_decimation_filter() = default;
 
         // Override interface methods
-        virtual void set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params) override;
-        virtual std::vector<uint8_t> get_filter(rs2_embedded_filter_type embedded_filter_type) override;
-        virtual bool supports_filter(rs2_embedded_filter_type embedded_filter_type) const override;
+        inline bool is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const override { return _enabled; }
+        void enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable) override;
+
+        // Override abstart class methods
+        virtual void add_option(std::shared_ptr< realdds::dds_option > option) override;
 
     private:
-        std::shared_ptr<realdds::dds_decimation_filter> _dds_decimation_filter;
+        rsutils::json prepare_all_options_json(const rsutils::json& new_value);
 
         // Validates decimation filter parameters for depth sensor
-        // Expected parameter format (2 bytes minimum):
-        // - Byte 0: enabled flag (0=disabled, 1=enabled)
-        // - Byte 1: decimation magnitude as uint8_t (must be 2)
-        void validate_filter_options(const std::vector<uint8_t>& params);
-        
-        rsutils::json convert_to_json(const std::vector<uint8_t>& params);
-        std::vector<uint8_t> convert_from_json(const rsutils::json& json_params);
+        void validate_filter_options(rsutils::json options_j);
+
+        bool _enabled;
+        int _magnitude;
 
 		const int32_t DECIMATION_MAGNITUDE = 2; // Decimation magnitude must always be 2
     };

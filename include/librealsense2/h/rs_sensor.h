@@ -352,33 +352,24 @@ rs2_stream_profile_list* rs2_get_stream_profiles(rs2_sensor* sensor, rs2_error**
 */
 rs2_stream_profile_list * rs2_get_debug_stream_profiles( rs2_sensor * sensor, rs2_error ** error );
 
-/**
-* set embedded filter with the input params
-* \param[in] sensor                     RealSense Sensor
-* \param[in] embedded_filter            Embedded Filter
-* \param[in] raw_data_to_send           Data to be set as params for the filter
-* \param[in] size_of_raw_data_to_send   Size of data
-* \param[out] error                     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
-*/
-void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error);
 
 /**
-* get embedded filter current params
-* \param[in] sensor             RealSense Sensor
-* \param[in] embedded_filter    Embedded Filter
-* \param[out] error             if non-null, receives any error that occurs during this call, otherwise, errors are ignored
-* \return                       Embedded filter current params
+* check if embedded filter sensor is enabled
+* \param[in] sensor                RealSense sensor
+* \param[in] embedded_filter_type  type of embedded filter
+* \param[out] error                if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                          true if the decimation is enabled, false otherwise
 */
-const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter, rs2_error** error);
+int rs2_is_embedded_filter_enabled(rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error);
 
 /**
-* check if specific sensor info is supported
-* \param[in] sensor             RealSense Sensor
-* \param[in] embedded_filter    Embedded Filter
-* \param[out] error             if non-null, receives any error that occurs during this call, otherwise, errors are ignored
-* \return                true if the parameter both exist and well-defined for the specific sensor
+* enable embedded filter filter on sensor
+* \param[in] sensor                 RealSense sensor
+* \param[in] embedded_filter_type   type of embedded filter
+* \param[in] enable                 if 1 - enable the filter, 0 - disable the filter
+* \param[out] error                 if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 */
-int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter, rs2_error** error);
+void rs2_enable_embedded_filter(rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, int enable, rs2_error** error);
 
 /**
 * check how subdevice is streaming

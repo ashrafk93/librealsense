@@ -646,4 +646,14 @@ rsutils::json dds_options_to_json(dds_options const& options)
     return rsutils::json();
 }
 
+std::shared_ptr<dds_option> get_dds_option_by_name(dds_options options, const std::string& name)
+{
+    for (auto opt : options)
+    {
+        if (opt->get_name() == name)
+            return opt;
+    }
+    return nullptr;
+}
+
 }  // namespace realdds

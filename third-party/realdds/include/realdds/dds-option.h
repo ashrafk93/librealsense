@@ -105,6 +105,8 @@ typedef std::vector< std::shared_ptr< dds_option > > dds_options;
 
 rsutils::json dds_options_to_json(dds_options const& options);
 
+std::shared_ptr< dds_option > get_dds_option_by_name(dds_options options, const std::string& name);
+
 class dds_float_option : public dds_option
 {
     using super = dds_option;

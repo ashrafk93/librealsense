@@ -6,6 +6,9 @@
 #include <string>
 #include <cstring>
 #include <rsutils/json.h>
+#include <src/core/options-registry.h>
+#include <realdds/dds-option.h>
+#include "rs-dds-option.h"
 
 using rsutils::json;
 
@@ -15,113 +18,125 @@ namespace librealsense {
         set_embedded_filter_callback set_embedded_filter_cb,
         query_embedded_filter_callback query_embedded_filter_cb)
 		: rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
-        , _dds_decimation_filter(std::make_shared<realdds::dds_decimation_filter>())
+		, _enabled(false)
+		, _magnitude(DECIMATION_MAGNITUDE)
     {
+        // Initialize options by calling add_option for each DDS option
+        for (auto& dds_option : _dds_ef->get_options())
+        {
+            add_option(dds_option);
+        }
+	}
+
+    void rs_dds_embedded_decimation_filter::enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable)
+    {
+        // Enable/disable decimation filter via DDS
+        // This is equivalent to setting the "Toggle" option to 1 (ON)
+        auto toggle_opt = get_dds_option_by_name(_dds_ef->get_options(), "Toggle");
+        if (toggle_opt) {
+            int32_t value_to_set = enable ? 1 : 0;
+            auto toggle_opt_j = toggle_opt->to_json();
+            toggle_opt_j["value"] = value_to_set;
+            // below line should call the set option callback defined in add_option method
+            toggle_opt->set_value(toggle_opt_j["value"]);
+        }
     }
 
-    void rs_dds_embedded_decimation_filter::set_filter(rs2_embedded_filter_type embedded_filter_type, std::vector<uint8_t> params)
+    void rs_dds_embedded_decimation_filter::add_option(std::shared_ptr< realdds::dds_option > option)
     {
-        if (!_set_ef_cb)
-            throw std::runtime_error("Set embedded filter callback is not set for filter " + _dds_ef->get_name());
+        bool const ok_if_there = true;
+        auto option_id = options_registry::register_option_by_name(option->get_name(), ok_if_there);
 
-		json j_value = convert_to_json(params);
-
-        validate_filter_options(params);
-
-        _set_ef_cb(j_value);
-
-        // Delegate to DDS filter
-        _dds_decimation_filter->set_options(convert_to_json(params));
-    }
-
-    std::vector<uint8_t> rs_dds_embedded_decimation_filter::get_filter(rs2_embedded_filter_type embedded_filter_type)
-    {
-        if (!_query_ef_cb)
-            throw std::runtime_error("Query Embedded Filter callback is not set for filter " + _dds_ef->get_name());
-
-        auto const params = _query_ef_cb();
-
-        auto filter_options_j = params.at("options");
-		std::vector<uint8_t> ans = convert_from_json(filter_options_j);
-
-        validate_filter_options(ans);
-
-        return ans;
-    }
-
-    bool rs_dds_embedded_decimation_filter::supports_filter(rs2_embedded_filter_type embedded_filter_type) const
-    {
-        return true;
-    }
-
-    void rs_dds_embedded_decimation_filter::validate_filter_options(const std::vector<uint8_t>& params)
-    {
-		// TODO enable partial setting of parameters
-        // Check minimum parameter size - need at least 2 bytes (1 for enabled + 1 for magnitude)
-        if (params.size() < 2) {
-            throw std::invalid_argument("Decimation filter parameters too small. Expected at least 2 bytes (enabled + magnitude)");
+        if (!is_valid(option_id))
+        {
+            LOG_ERROR("Option '" << option->get_name() << "' not found");
+            throw librealsense::invalid_value_exception("Option '" + option->get_name() + "' not found");
         }
 
-        // Extract enabled flag (first byte)
-        bool toggle = (params[0] != 0);
+        if (get_option_handler(option_id))
+            throw std::runtime_error("option '" + option->get_name() + "' already exists in sensor");
+
+        // In below implementation: 
+        // - setting one option leads to 
+        //   * setting the new value for one option, and
+        //   * sending also the other current values for the other filter's values
+        // - getting one option leads to:
+        //   * returning only the relevant option's value
+        //   * the getting of the filter's options communicating with the device by DDS
+        //     is not necessary, since the value is already automatically updated by the set action reply 
+        auto opt = std::make_shared< rs_dds_option >(
+            option,
+            [=](json value) // set_option cb for the filter's options
+            {
+                // prepare json with all options
+                json all_options_json = prepare_all_options_json(value);
+                // validate values
+                validate_filter_options(all_options_json);
+                // set updated options to the remote device
+                _set_ef_cb(all_options_json);
+
+                // Delegate to DDS filter
+                _dds_ef->set_options(all_options_json);
+            },
+            [=]() -> json // get_option cb for the filter's options
+            {
+                return option->get_value();
+            });
+        register_option(option_id, opt);
+        _options_watcher.register_option(option_id, opt);
+    }
+
+    rsutils::json rs_dds_embedded_decimation_filter::prepare_all_options_json(const rsutils::json& new_value)
+    {
+        rsutils::json json_to_send = _dds_ef->get_options_json();
         
-        // Extract decimation magnitude (next 4 bytes as int32_t, using memcpy)
-		int32_t magnitude = static_cast<int32_t>(params[1]);
-
-        // Validate that decimation magnitude is always 2 (as per requirements)
-        if (magnitude != DECIMATION_MAGNITUDE) {
-            throw std::invalid_argument("Decimation filter magnitude must be " + std::to_string(DECIMATION_MAGNITUDE) + ". Received: " + std::to_string(magnitude));
+        for (auto& opt_j : json_to_send)
+        {
+            if (!opt_j.contains("name") || !new_value.contains("name"))
+            {
+                throw std::runtime_error("option json does not contain name");
+            }
+            if (opt_j["name"] == new_value["name"])
+            {
+                opt_j["value"] = new_value["value"];
+            }
         }
+        return json_to_send;
+    }
 
+    void rs_dds_embedded_decimation_filter::validate_filter_options(rsutils::json options_j)
+    {
+        // TODO check ranges of each parameter
+        if (options_j.size() != 2) {
+            throw std::invalid_argument("Two parameters are expected for Decimation filter (enabled + magnitude)");
+        }
+        for (auto& opt_j : options_j)
+        {
+            if (!opt_j.contains("name"))
+            {
+                throw std::runtime_error("Option json does not contain name!");
+            }
+            if (opt_j["name"] == "Toggle")
+            {
+                int32_t toggle_val = opt_j["value"].get<int32_t>();
+                if (toggle_val != 0 && toggle_val != 1)
+                {
+                    throw std::runtime_error("Toggle shall be 0 for OFF or 1 for ON");
+                }
+            }
+            else if (opt_j["name"] == "Magnitude")
+            {
+                int32_t mag_val = opt_j["value"].get<int32_t>();
+                if (mag_val != DECIMATION_MAGNITUDE) {
+                    throw std::invalid_argument("Decimation filter magnitude must be " + std::to_string(DECIMATION_MAGNITUDE) + ". Received: " + std::to_string(mag_val));
+                }
+            }
+            else
+            {
+                // we should not get here
+                throw std::runtime_error("The expected paramaters for Decimation filter are toggle and magnitude");
+            }
+        }
         // Validation passed - parameters are valid
-    }
-
-    rsutils::json rs_dds_embedded_decimation_filter::convert_to_json(const std::vector<uint8_t>& params)
-    {
-        // Validate parameters first
-        validate_filter_options(params);
-
-        // Extract enabled flag (first byte)
-        bool toggle = (params[0] != 0);
-        
-        // Extract decimation magnitude (next 4 bytes as int32_t, using memcpy)
-        int32_t magnitude = static_cast<int32_t>(params[1]);
-
-        // Create JSON object with decimation parameters
-        rsutils::json filter_json;
-        filter_json["Toggle"] = static_cast<int32_t>(toggle);
-        filter_json["Magnitude"] = magnitude;
-        
-        return filter_json;
-    }
-
-    std::vector<uint8_t> rs_dds_embedded_decimation_filter::convert_from_json(const rsutils::json& json_params)
-    {
-        std::vector<uint8_t> params(2); // 2 bytes total: 1 for enabled + 1 for magnitude
-        
-        // Extract enabled flag from JSON (default to false if not present)
-        bool toggle = false;
-        if (json_params.contains("Toggle")) {
-            toggle = json_params["Toggle"].get<int32_t>();
-        }
-        
-        // Extract magnitude from JSON (default to DECIMATION_MAGNITUDE if not present)
-        int32_t magnitude = DECIMATION_MAGNITUDE;
-        if (json_params.contains("Magnitude")) {
-            magnitude = json_params["Magnitude"].get<int32_t>();
-        }
-        
-        // Validate magnitude (must be exactly DECIMATION_MAGNITUDE)
-        if (magnitude != DECIMATION_MAGNITUDE) {
-            throw std::invalid_argument("Decimation filter magnitude must be " + std::to_string(DECIMATION_MAGNITUDE) + ". Received: " + std::to_string(magnitude));
-        }
-
-        // Pack enabled flag (first byte)
-        params[0] = toggle ? 1 : 0;
-        
-        // Pack magnitude using memcpy (next byte)
-        params[1] = static_cast<uint8_t>(magnitude);
-        
-        return params;
     }
 }  // namespace librealsense

@@ -441,36 +441,25 @@ rs2_stream_profile_list * rs2_get_debug_stream_profiles( rs2_sensor * sensor,
 }
 HANDLE_EXCEPTIONS_AND_RETURN( nullptr, sensor )
 
-void rs2_set_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, void* raw_data_to_send, unsigned size_of_raw_data_to_send, rs2_error** error) BEGIN_API_CALL
-{
-    VALIDATE_NOT_NULL(sensor);
-    VALIDATE_ENUM(embedded_filter_type);
-    auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
-    auto raw_data_buffer = static_cast<uint8_t*>(raw_data_to_send);
-    std::vector<uint8_t> filter_params(raw_data_buffer, raw_data_buffer + size_of_raw_data_to_send);
-    return embedded_filter->set_filter(embedded_filter_type, filter_params);
-}
-HANDLE_EXCEPTIONS_AND_RETURN( , sensor, raw_data_to_send)
-
-const rs2_raw_data_buffer* rs2_get_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error) BEGIN_API_CALL
-{
-    VALIDATE_NOT_NULL(sensor);
-    VALIDATE_ENUM(embedded_filter_type);
-    auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
-    auto filter_params = embedded_filter->get_filter(embedded_filter_type);
-    return new rs2_raw_data_buffer{ std::move(filter_params) };
-}
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor)
-
-int rs2_supports_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error) BEGIN_API_CALL
+int rs2_is_embedded_filter_enabled(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);
     auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
 
-    return embedded_filter->supports_filter(embedded_filter_type);
+    return embedded_filter->is_filter_enabled(embedded_filter_type);
 }
 HANDLE_EXCEPTIONS_AND_RETURN(false, sensor)
+
+void rs2_enable_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, int enable, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(sensor);
+    VALIDATE_ENUM(embedded_filter_type);
+    auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
+	bool enable_bool = enable != 0;
+    embedded_filter->enable_filter(embedded_filter_type, enable_bool);
+}
+HANDLE_EXCEPTIONS_AND_RETURN(, sensor)
 
 rs2_stream_profile_list* rs2_get_active_streams(rs2_sensor* sensor, rs2_error** error) BEGIN_API_CALL
 {
