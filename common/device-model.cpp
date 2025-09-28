@@ -2072,6 +2072,7 @@ namespace rs2
                     if (sub->draw_option(RS2_OPTION_VISUAL_PRESET, dev.is<playback>() || update_read_only_options, error_message, *viewer.not_model))
                     {
                         get_curr_advanced_controls = true;
+                        std::this_thread::sleep_for( std::chrono::milliseconds( 20 ) ); // Give FW time to update advanced mode controls before reading them
                         selected_file_preset.clear();
                     }
                 }
