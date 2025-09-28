@@ -106,27 +106,66 @@ namespace librealsense {
 
     void rs_dds_embedded_decimation_filter::validate_filter_options(rsutils::json options_j)
     {
-        // TODO check ranges of each parameter
+        // Check expected number of parameters
         if (options_j.size() != 2) {
             throw std::invalid_argument("Two parameters are expected for Decimation filter (enabled + magnitude)");
         }
+        
         for (auto& opt_j : options_j)
         {
             if (!opt_j.contains("name"))
             {
                 throw std::runtime_error("Option json does not contain name!");
             }
-            if (opt_j["name"] == "Toggle")
+            
+            std::string option_name = opt_j["name"].get<std::string>();
+            
+            // Find the corresponding DDS option to get its range
+            auto dds_option = get_dds_option_by_name(_dds_ef->get_options(), option_name);
+            if (!dds_option)
+            {
+                throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");
+            }
+            
+            if (option_name == "Toggle")
             {
                 int32_t toggle_val = opt_j["value"].get<int32_t>();
+                
+                // Check range using DDS option
+                if (!dds_option->get_minimum_value().is_null() && toggle_val < dds_option->get_minimum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) + 
+                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+                }
+                if (!dds_option->get_maximum_value().is_null() && toggle_val > dds_option->get_maximum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) + 
+                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+                }
+                
+                // Additional validation: Toggle should be 0 or 1
                 if (toggle_val != 0 && toggle_val != 1)
                 {
                     throw std::runtime_error("Toggle shall be 0 for OFF or 1 for ON");
                 }
             }
-            else if (opt_j["name"] == "Magnitude")
+            else if (option_name == "Magnitude")
             {
                 int32_t mag_val = opt_j["value"].get<int32_t>();
+                
+                // Check range using DDS option
+                if (!dds_option->get_minimum_value().is_null() && mag_val < dds_option->get_minimum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Magnitude value " + std::to_string(mag_val) + 
+                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+                }
+                if (!dds_option->get_maximum_value().is_null() && mag_val > dds_option->get_maximum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Magnitude value " + std::to_string(mag_val) + 
+                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+                }
+                
+                // Additional validation: Decimation magnitude must be exactly 2 for depth sensor
                 if (mag_val != DECIMATION_MAGNITUDE) {
                     throw std::invalid_argument("Decimation filter magnitude must be " + std::to_string(DECIMATION_MAGNITUDE) + ". Received: " + std::to_string(mag_val));
                 }
@@ -134,7 +173,7 @@ namespace librealsense {
             else
             {
                 // we should not get here
-                throw std::runtime_error("The expected paramaters for Decimation filter are toggle and magnitude");
+                throw std::runtime_error("The expected parameters for Decimation filter are toggle and magnitude");
             }
         }
         // Validation passed - parameters are valid

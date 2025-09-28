@@ -110,40 +110,101 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_filter_options(rsutils::json options_j)
     {
-		// TODO check ranges of each parameter
+        // Check expected number of parameters
         if (options_j.size() != 4) {
             throw std::invalid_argument("Four parameters are expected for Temporal filter (enabled + alpha + delta + persistency)");
         }
+        
         for (auto& opt_j : options_j)
         {
             if (!opt_j.contains("name"))
             {
                 throw std::runtime_error("Option json does not contain name!");
             }
-            if (opt_j["name"] == "Toggle")
+            
+            std::string option_name = opt_j["name"].get<std::string>();
+            
+            // Find the corresponding DDS option to get its range
+            auto dds_option = get_dds_option_by_name(_dds_ef->get_options(), option_name);
+            if (!dds_option)
+            {
+                throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");
+            }
+            
+            if (option_name == "Toggle")
             {
                 int32_t toggle_val = opt_j["value"].get<int32_t>();
+                
+                // Check range using DDS option
+                if (!dds_option->get_minimum_value().is_null() && toggle_val < dds_option->get_minimum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) + 
+                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+                }
+                if (!dds_option->get_maximum_value().is_null() && toggle_val > dds_option->get_maximum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) + 
+                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+                }
+                
+                // Additional validation: Toggle should be 0 or 1
                 if (toggle_val != 0 && toggle_val != 1)
                 {
                     throw std::runtime_error("Toggle shall be 0 for OFF or 1 for ON");
                 }
             }
-            else if (opt_j["name"] == "Alpha")
+            else if (option_name == "Alpha")
             {
                 float alpha_val = opt_j["value"].get<float>();
+                
+                // Check range using DDS option
+                if (!dds_option->get_minimum_value().is_null() && alpha_val < dds_option->get_minimum_value().get<float>())
+                {
+                    throw std::invalid_argument("Alpha value " + std::to_string(alpha_val) + 
+                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<float>()));
+                }
+                if (!dds_option->get_maximum_value().is_null() && alpha_val > dds_option->get_maximum_value().get<float>())
+                {
+                    throw std::invalid_argument("Alpha value " + std::to_string(alpha_val) + 
+                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<float>()));
+                }
             }
-            else if (opt_j["name"] == "Delta")
+            else if (option_name == "Delta")
             {
                 int32_t delta_val = opt_j["value"].get<int32_t>();
+                
+                // Check range using DDS option
+                if (!dds_option->get_minimum_value().is_null() && delta_val < dds_option->get_minimum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Delta value " + std::to_string(delta_val) + 
+                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+                }
+                if (!dds_option->get_maximum_value().is_null() && delta_val > dds_option->get_maximum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Delta value " + std::to_string(delta_val) + 
+                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+                }
             }
-            else if (opt_j["name"] == "Persistency")
+            else if (option_name == "Persistency")
             {
                 int32_t persistency_val = opt_j["value"].get<int32_t>();
+                
+                // Check range using DDS option
+                if (!dds_option->get_minimum_value().is_null() && persistency_val < dds_option->get_minimum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Persistency value " + std::to_string(persistency_val) + 
+                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+                }
+                if (!dds_option->get_maximum_value().is_null() && persistency_val > dds_option->get_maximum_value().get<int32_t>())
+                {
+                    throw std::invalid_argument("Persistency value " + std::to_string(persistency_val) + 
+                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+                }
             }
             else
             {
                 // we should not get here
-                throw std::runtime_error("The expected paramaters for Temporal filter are toggle, alpha, delta and persistency");
+                throw std::runtime_error("The expected parameters for Temporal filter are toggle, alpha, delta and persistency");
             }
         }
         // Validation passed - parameters are valid
