@@ -183,10 +183,17 @@ namespace rs_data_collect
 
         void parse_and_configure(rs2::cli::value<string>& config_file);
         void save_data_to_file(const string& out_filename);
-        void collect_frame_attributes(rs2::frame f, std::chrono::time_point<std::chrono::high_resolution_clock> start_time);
-        bool collecting(std::chrono::time_point<std::chrono::high_resolution_clock> start_time);
+        void collect_frame_attributes(rs2::frame f);
+        bool collecting();
+        auto time_passed() const
+        {
+            return std::chrono::duration_cast< std::chrono::seconds >(
+                       std::chrono::high_resolution_clock::now() - _start_time )
+                .count();
+        }
 
-        const std::vector<rs2::sensor>& selected_sensors() const { return active_sensors; };
+
+        std::vector<rs2::sensor> active_sensors;
 
         struct frame_record
         {
@@ -238,11 +245,11 @@ namespace rs_data_collect
         std::shared_ptr<rs2::device>        _dev;
         std::map<std::pair<rs2_stream, int>, std::vector<frame_record>> data_collection;
         std::vector<stream_request>         requests_to_go, user_requests;
-        std::vector<rs2::sensor>            active_sensors;
         std::vector<rs2::stream_profile>    selected_stream_profiles;
         uint64_t                            _max_frames;
         int64_t                             _time_out_sec;
         application_stop                    _stop_cond;
+        std::chrono::high_resolution_clock::time_point _start_time;
 
         bool parse_configuration(const std::string& line, const std::vector<std::string>& tokens,
             rs2_stream& type, int& width, int& height, rs2_format& format, int& fps, int& index);
