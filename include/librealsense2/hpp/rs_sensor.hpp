@@ -775,14 +775,14 @@ namespace rs2
             return !!res;
         }
 
-        void enable() const
+        void enable()
         {
             rs2_error* e = nullptr;
             rs2_enable_embedded_filter(_sensor.get(), _filter_type, 1, &e);
             error::handle(e);
         }
 
-        void disable() const
+        void disable()
         {
             rs2_error* e = nullptr;
             rs2_enable_embedded_filter(_sensor.get(), _filter_type, 0, &e);

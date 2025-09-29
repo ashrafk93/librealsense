@@ -451,7 +451,7 @@ int rs2_is_embedded_filter_enabled(const rs2_sensor* sensor, rs2_embedded_filter
 }
 HANDLE_EXCEPTIONS_AND_RETURN(false, sensor)
 
-void rs2_enable_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, int enable, rs2_error** error) BEGIN_API_CALL
+void rs2_enable_embedded_filter(rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, int enable, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
     VALIDATE_ENUM(embedded_filter_type);

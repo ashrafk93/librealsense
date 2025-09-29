@@ -360,7 +360,7 @@ rs2_stream_profile_list * rs2_get_debug_stream_profiles( rs2_sensor * sensor, rs
 * \param[out] error                if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return                          true if the decimation is enabled, false otherwise
 */
-int rs2_is_embedded_filter_enabled(rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error);
+int rs2_is_embedded_filter_enabled(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error);
 
 /**
 * enable embedded filter filter on sensor
