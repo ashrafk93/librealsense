@@ -789,6 +789,54 @@ namespace rs2
             error::handle(e);
         }
 
+        /**
+        * Retrieve the list of supported options for this embedded filter
+        * \return list of supported option ids  
+        */
+        std::vector<rs2_option> get_supported_options()
+        {
+            /*// Get the supported options from the underlying sensor - this will include
+            // the options that were registered by the embedded filters
+            return options::get_supported_options();*/
+			std::vector<rs2_option> results;
+			rs2_error* e = nullptr;
+			std::shared_ptr<rs2_options_list> list(
+				rs2_get_embedded_filter_supported_options(_sensor.get(), _filter_type, &e),
+				rs2_delete_options_list);
+			error::handle(e);
+            for (auto opt = 0; opt < rs2_get_options_list_size(list.get(), &e); opt++)
+            {
+                results.push_back(rs2_get_option_from_list(list.get(), opt, &e));
+            }
+            return results;
+        }
+
+        /**
+        * Get option name for embedded filter
+        */
+        const char* get_option_name(rs2_option option) const
+        {
+            return options::get_option_name(option);
+        }
+
+        /**
+        * Get option value for embedded filter
+        */
+        float get_option(rs2_option option) const
+        {
+            return options::get_option(option);
+        }
+
+        /**
+        * Set option value for embedded filter
+        */
+        void set_option(rs2_option option, float value) const
+        {
+            // Note: This is logically const from the perspective of the embedded filter sensor,
+            // but the underlying option setting is not const
+            const_cast<embedded_filter_sensor*>(this)->options::set_option(option, value);
+        }
+
         private:
 			rs2_embedded_filter_type _filter_type;
 

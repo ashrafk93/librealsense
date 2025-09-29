@@ -372,6 +372,14 @@ int rs2_is_embedded_filter_enabled(const rs2_sensor* sensor, rs2_embedded_filter
 void rs2_enable_embedded_filter(rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, int enable, rs2_error** error);
 
 /**
+* get the list of embedded filter supported options of options container
+* \param[in] sensor                 RealSense sensor
+* \param[in] embedded_filter_type   type of embedded filter
+* \param[out] error                 if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+*/
+rs2_options_list* rs2_get_embedded_filter_supported_options(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error);
+
+/**
 * check how subdevice is streaming
 * \param[in] sensor  input RealSense subdevice
 * \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored

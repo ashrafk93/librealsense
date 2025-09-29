@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <cstring>
+#include <algorithm>
 #include <rsutils/json.h>
 #include <src/core/options-registry.h>
 #include <realdds/dds-option.h>
@@ -38,18 +39,51 @@ namespace librealsense {
     {
         // Enable/disable temporal filter via DDS
         // This is equivalent to setting the "Toggle" option to 1 (ON)
-        auto toggle_opt = get_dds_option_by_name(_dds_temporal_filter->get_options(), "Toggle");
-        int32_t value_to_set = enable ? 1 : 0;
-        auto toggle_opt_j = toggle_opt->to_json();
-        toggle_opt_j["value"] = value_to_set;
-        // below line should call the set option callback defined in add_option method
-        toggle_opt->set_value(toggle_opt_j);
+        auto toggle_opt = get_dds_option_by_name(_dds_ef->get_options(), "Toggle");
+        if (toggle_opt) {
+            int32_t value_to_set = enable ? 1 : 0;
+            auto toggle_opt_j = toggle_opt->to_json();
+            toggle_opt_j["value"] = value_to_set;
+            // below line should call the set option callback defined in add_option method
+            toggle_opt->set_value(toggle_opt_j["value"]);
+        }
+    }
+
+    // Helper function to find an option by name in a list of DDS options
+    std::shared_ptr<realdds::dds_option> rs_dds_embedded_temporal_filter::get_dds_option_by_name(
+        const std::vector<std::shared_ptr<realdds::dds_option>>& options, 
+        const std::string& name)
+    {
+        auto it = std::find_if(options.begin(), options.end(),
+            [&name](const std::shared_ptr<realdds::dds_option>& option) {
+                return option->get_name() == name;
+            });
+        return (it != options.end()) ? *it : nullptr;
     }
 
     void rs_dds_embedded_temporal_filter::add_option(std::shared_ptr< realdds::dds_option > option)
     {
         bool const ok_if_there = true;
-        auto option_id = options_registry::register_option_by_name(option->get_name(), ok_if_there);
+        rs2_option option_id;
+        
+        // Map DDS option names to standard RealSense option IDs
+        if (option->get_name() == "Alpha")
+        {
+            option_id = RS2_OPTION_FILTER_SMOOTH_ALPHA;
+        }
+        else if (option->get_name() == "Delta")
+        {
+            option_id = RS2_OPTION_FILTER_SMOOTH_DELTA;
+        }
+        else if (option->get_name() == "Persistency")
+        {
+            option_id = RS2_OPTION_HOLES_FILL;
+        }
+        else
+        {
+            // For other options (like "Toggle", "Persistency"), use the registry to create a dynamic option ID
+            option_id = options_registry::register_option_by_name(option->get_name(), ok_if_there);
+        }
 
         if (!is_valid(option_id))
         {
@@ -80,7 +114,7 @@ namespace librealsense {
                 _set_ef_cb(all_options_json);
 
                 // Delegate to DDS filter
-                _dds_temporal_filter->set_options(all_options_json);
+                _dds_ef->set_options(all_options_json);
             },
             [=]() -> json // get_option cb for the filter's options
             {
@@ -92,7 +126,7 @@ namespace librealsense {
 
     rsutils::json rs_dds_embedded_temporal_filter::prepare_all_options_json(const rsutils::json& new_value)
     {
-        rsutils::json json_to_send = _dds_temporal_filter->get_options_json();
+        rsutils::json json_to_send = _dds_ef->get_options_json();
 
         for (auto& opt_j : json_to_send)
         {

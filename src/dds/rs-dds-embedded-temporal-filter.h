@@ -32,7 +32,11 @@ namespace librealsense {
         rsutils::json prepare_all_options_json(const rsutils::json& new_value);
         void validate_filter_options(rsutils::json options_j);
 
-    private:
+        // Helper function to find an option by name in a list of DDS options
+        std::shared_ptr<realdds::dds_option> get_dds_option_by_name(
+            const std::vector<std::shared_ptr<realdds::dds_option>>& options, 
+            const std::string& name);
+
         std::shared_ptr<realdds::dds_temporal_filter> _dds_temporal_filter;
         bool _enabled;
         float _alpha;

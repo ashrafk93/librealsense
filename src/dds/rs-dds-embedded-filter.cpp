@@ -58,5 +58,14 @@ static rs2_option_type rs_type_from_dds_option( std::shared_ptr< realdds::dds_op
 {
 }
 
+    std::vector<rs2_option> rs_dds_embedded_filter::get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const
+    {
+        return get_supported_options();
+    }
+
+    option& rs_dds_embedded_filter::get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const
+    {
+        return const_cast<option&>(get_option(option_id)); // will throw if option not found
+    }
 
 }  // namespace librealsense

@@ -484,3 +484,4 @@ EXPORTS
 
     rs2_is_embedded_filter_enabled
     rs2_enable_embedded_filter
+    rs2_get_embedded_filter_supported_options

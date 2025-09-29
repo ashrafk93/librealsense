@@ -89,7 +89,28 @@ void dds_depth_sensor_proxy::enable_filter(rs2_embedded_filter_type embedded_fil
     }
 }
 
+std::vector<rs2_option> dds_depth_sensor_proxy::get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const
+{
+    for (auto& embedded_filter : _embedded_filters)
+    {
+        if (embedded_filter->get_type() == embedded_filter_type)
+        {
+            return embedded_filter->get_filter_supported_options(embedded_filter_type);
+        }
+    }
+    return std::vector<rs2_option>();
+}
 
+option& dds_depth_sensor_proxy::get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const
+{
+    for (auto& embedded_filter : _embedded_filters)
+    {
+        if (embedded_filter->get_type() == embedded_filter_type)
+        {
+            return embedded_filter->get_filter_option(option_id, embedded_filter_type);
+        }
+    }
+}
 
 void dds_depth_sensor_proxy::add_no_metadata( frame * const f, streaming_impl & streaming )
 {

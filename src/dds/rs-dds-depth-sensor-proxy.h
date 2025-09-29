@@ -30,7 +30,9 @@ public:
     // Override interface methods
     bool is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const override;
     void enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable) override;
-
+    std::vector<rs2_option> get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const override;
+    option& get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const override;
+    
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
     void add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter);
 

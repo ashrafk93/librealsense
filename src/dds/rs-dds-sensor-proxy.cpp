@@ -815,6 +815,22 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
         throw librealsense::invalid_value_exception("Filter '" + std::string(rs2_embedded_filter_to_string(filter_type)) + "' not supported");
     }
 
+    // Register the embedded filter options with this sensor proxy so they can be accessed
+    // through the sensor's options interface
+    for (auto option_id : rs_embedded_filter->get_supported_options())
+    {
+        if (!get_option_handler(option_id))  // Don't duplicate options
+        {
+            auto opt_handler = rs_embedded_filter->get_option_handler(option_id);
+            if (opt_handler)
+            {
+                rs_embedded_filter->register_option(option_id, opt_handler);
+				auto& filter_options_watcher = rs_embedded_filter->get_options_watcher();
+                filter_options_watcher.register_option(option_id, opt_handler);
+            }
+        }
+    }
+
     if (auto depth_sensor_proxy = dynamic_cast<dds_depth_sensor_proxy*>(this))
     {
 		depth_sensor_proxy->add_embedded_filter(rs_embedded_filter);

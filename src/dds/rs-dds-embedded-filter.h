@@ -29,6 +29,9 @@ public:
     typedef std::function< rsutils::json() > query_embedded_filter_callback;
     virtual void add_option(std::shared_ptr< realdds::dds_option > option) = 0;
 
+    std::vector<rs2_option> get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const override;
+    option& get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const override;
+
 
 protected:
     std::shared_ptr< realdds::dds_embedded_filter > _dds_ef;
@@ -46,6 +49,7 @@ public:
     // Not Overriding interface methods - should be done in inheriting classes
 
     rs2_embedded_filter_type get_type() const { return _filter_type; }
+	options_watcher& get_options_watcher() { return _options_watcher; }
 };
 
 }  // namespace librealsense

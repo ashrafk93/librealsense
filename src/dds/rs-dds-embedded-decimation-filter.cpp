@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <cstring>
+#include <algorithm>
 #include <rsutils/json.h>
 #include <src/core/options-registry.h>
 #include <realdds/dds-option.h>
@@ -42,10 +43,33 @@ namespace librealsense {
         }
     }
 
+    // Helper function to find an option by name in a list of DDS options
+    std::shared_ptr<realdds::dds_option> rs_dds_embedded_decimation_filter::get_dds_option_by_name(
+        const std::vector<std::shared_ptr<realdds::dds_option>>& options,
+        const std::string& name)
+    {
+        auto it = std::find_if(options.begin(), options.end(),
+            [&name](const std::shared_ptr<realdds::dds_option>& option) {
+                return option->get_name() == name;
+            });
+        return (it != options.end()) ? *it : nullptr;
+    }
+
     void rs_dds_embedded_decimation_filter::add_option(std::shared_ptr< realdds::dds_option > option)
     {
         bool const ok_if_there = true;
-        auto option_id = options_registry::register_option_by_name(option->get_name(), ok_if_there);
+        rs2_option option_id;
+        
+        // Map DDS option names to standard RealSense option IDs
+        if (option->get_name() == "Magnitude")
+        {
+            option_id = RS2_OPTION_FILTER_MAGNITUDE;
+        }
+        else
+        {
+            // For other options (like "Toggle"), use the registry to create a dynamic option ID
+            option_id = options_registry::register_option_by_name(option->get_name(), ok_if_there);
+        }
 
         if (!is_valid(option_id))
         {

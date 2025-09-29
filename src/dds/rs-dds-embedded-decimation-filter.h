@@ -34,6 +34,11 @@ namespace librealsense {
         // Validates decimation filter parameters for depth sensor
         void validate_filter_options(rsutils::json options_j);
 
+        // Helper function to find an option by name in a list of DDS options
+        std::shared_ptr<realdds::dds_option> get_dds_option_by_name(
+            const std::vector<std::shared_ptr<realdds::dds_option>>& options, 
+            const std::string& name);
+
         bool _enabled;
         int _magnitude;
 

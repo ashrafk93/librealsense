@@ -461,6 +461,32 @@ void rs2_enable_embedded_filter(rs2_sensor* sensor, rs2_embedded_filter_type emb
 }
 HANDLE_EXCEPTIONS_AND_RETURN(, sensor)
 
+rs2_options_list* rs2_get_embedded_filter_supported_options(const rs2_sensor* sensor, rs2_embedded_filter_type embedded_filter_type, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(sensor);
+    VALIDATE_ENUM(embedded_filter_type);
+    //rsutils::deferred bulk_op;
+    //if (auto sensor = dynamic_cast<sensor_base*>(options->options))
+    //    bulk_op = sensor->bulk_operation();
+    //auto option_ids = options->options->get_supported_options();
+	auto embedded_filter = VALIDATE_INTERFACE(sensor->sensor, librealsense::embedded_filter_sensor_interface);
+    auto option_ids = embedded_filter->get_filter_supported_options(embedded_filter_type);
+    auto rs2_list = new rs2_options_list;
+    rs2_list->list.reserve(option_ids.size());
+    for (auto option_id : option_ids)
+    {
+        auto& option = embedded_filter->get_filter_option(option_id, embedded_filter_type);
+        std::shared_ptr< const json > value;
+        if (option.is_enabled())
+            value = std::make_shared< const json >(option.get_value());
+        auto wrapper = new rs2_option_value_wrapper(option_id, option.get_value_type(), value);
+        rs2_list->list.push_back(wrapper);
+    }
+    return rs2_list;
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor)
+
+
 rs2_stream_profile_list* rs2_get_active_streams(rs2_sensor* sensor, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(sensor);
