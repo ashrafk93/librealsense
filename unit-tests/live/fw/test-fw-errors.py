@@ -1,0 +1,159 @@
+# License: Apache 2.0. See LICENSE file in root directory.
+# Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
+
+# test:device each(D400*)
+# test:device each(D500*)
+# test:donotrun:!nightly
+
+import pyrealsense2 as rs
+from rspy import test, log
+from rspy.stopwatch import Stopwatch
+import threading
+
+# This test monitors firmware error notifications during streaming to ensure hardware stability
+
+STREAMING_DURATION_SECONDS = 10  # Duration to stream and monitor for FW errors
+ERROR_TOLERANCE = 0  # No firmware errors should be tolerated
+
+class FirmwareErrorMonitor:
+    def __init__(self):
+        self.firmware_errors = []
+        self.hardware_errors = []
+        self.lock = threading.Lock()
+    
+    def notification_callback(self, notification):
+        """Callback to handle firmware notifications"""
+        category = notification.get_category()
+        severity = notification.get_severity()
+        description = notification.get_description()
+        timestamp = notification.get_timestamp()
+        
+        with self.lock:
+            log.d(f"Notification received - Category: {category}, Severity: {severity}, Description: {description}")
+            
+            # Check for hardware errors (firmware errors typically fall under this category)
+            if category == rs.notification_category.hardware_error:
+                error_info = {
+                    'category': category,
+                    'severity': severity, 
+                    'description': description,
+                    'timestamp': timestamp
+                }
+                self.hardware_errors.append(error_info)
+                log.w(f"Hardware error detected: {description}")
+            
+            # Check for unknown errors which might include firmware issues
+            elif category == rs.notification_category.unknown_error:
+                error_info = {
+                    'category': category,
+                    'severity': severity,
+                    'description': description, 
+                    'timestamp': timestamp
+                }
+                self.firmware_errors.append(error_info)
+                log.w(f"Unknown error detected: {description}")
+    
+    def get_error_count(self):
+        """Get total number of firmware-related errors"""
+        with self.lock:
+            return len(self.firmware_errors) + len(self.hardware_errors)
+    
+    def get_error_summary(self):
+        """Get summary of all detected errors"""
+        with self.lock:
+            return {
+                'firmware_errors': self.firmware_errors.copy(),
+                'hardware_errors': self.hardware_errors.copy(),
+                'total_errors': len(self.firmware_errors) + len(self.hardware_errors)
+            }
+
+with test.closure("Monitor firmware errors during streaming"):
+    device, ctx = test.find_first_device_or_exit()
+    
+    # Get device info for logging
+    device_name = device.get_info(rs.camera_info.name)
+    device_serial = device.get_info(rs.camera_info.serial_number)
+    firmware_version = device.get_info(rs.camera_info.firmware_version)
+    
+    log.i(f"Testing device: {device_name} (S/N: {device_serial}, FW: {firmware_version})")
+    
+    # Set up error monitor
+    error_monitor = FirmwareErrorMonitor()
+    
+    # Configure streaming - use basic configuration to avoid unnecessary stress
+    cfg = rs.config()
+    cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+    cfg.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
+    
+    # Get sensors and register notification callbacks
+    depth_sensor = device.first_depth_sensor()
+    color_sensor = device.first_color_sensor()
+    
+    # Register notification callbacks on all sensors
+    for sensor in [depth_sensor, color_sensor]:
+        try:
+            sensor.set_notifications_callback(error_monitor.notification_callback)
+            log.d(f"Registered notification callback for {sensor.get_info(rs.camera_info.name)}")
+        except Exception as e:
+            log.w(f"Could not register notification callback for sensor: {e}")
+    
+    # Start streaming
+    pipe = rs.pipeline(ctx)
+    profile = pipe.start(cfg)
+    
+    log.i(f"Started streaming, monitoring for firmware errors for {STREAMING_DURATION_SECONDS} seconds...")
+    
+    try:
+        stopwatch = Stopwatch()
+        frame_count = 0
+        
+        # Stream for specified duration while monitoring for errors
+        while stopwatch.get_elapsed() < STREAMING_DURATION_SECONDS:
+            try:
+                frames = pipe.wait_for_frames(timeout_ms=1000)
+                
+                # Verify we're getting frames
+                if frames:
+                    frame_count += 1
+                    if frame_count % 30 == 0:  # Log every second (30 fps)
+                        elapsed = stopwatch.get_elapsed()
+                        error_count = error_monitor.get_error_count()
+                        log.d(f"Streaming progress: {elapsed:.1f}s, {frame_count} frames, {error_count} errors detected")
+                
+            except RuntimeError as e:
+                log.w(f"Frame timeout or error during streaming: {e}")
+                # Continue monitoring even if individual frames fail
+        
+        elapsed_time = stopwatch.get_elapsed()
+        log.i(f"Streaming completed - Duration: {elapsed_time:.1f}s, Total frames: {frame_count}")
+        
+    finally:
+        pipe.stop()
+        log.d("Pipeline stopped")
+    
+    # Analyze results
+    error_summary = error_monitor.get_error_summary()
+    total_errors = error_summary['total_errors']
+    
+    log.i(f"Firmware error monitoring results:")
+    log.i(f"  - Total errors detected: {total_errors}")
+    log.i(f"  - Hardware errors: {len(error_summary['hardware_errors'])}")
+    log.i(f"  - Unknown/Firmware errors: {len(error_summary['firmware_errors'])}")
+    
+    # Log detailed error information if any errors were found
+    if total_errors > 0:
+        log.w("Detailed error information:")
+        
+        for i, error in enumerate(error_summary['hardware_errors']):
+            log.w(f"  Hardware Error {i+1}: {error['description']} (Severity: {error['severity']})")
+        
+        for i, error in enumerate(error_summary['firmware_errors']):
+            log.w(f"  Firmware Error {i+1}: {error['description']} (Severity: {error['severity']})")
+    
+    # Test assertion - no firmware errors should be detected
+    test.check_equal(total_errors, ERROR_TOLERANCE, 
+                    f"Expected {ERROR_TOLERANCE} firmware errors, but detected {total_errors}")
+    
+    log.i("Firmware error monitoring test completed successfully")
+
+test.print_results_and_exit()
