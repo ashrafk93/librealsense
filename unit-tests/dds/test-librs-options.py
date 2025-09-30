@@ -32,8 +32,11 @@ with test.remote.fork( nested_indent=None ) as remote:
                 dds.option.from_json( ['R/O Option', 'Value', 'Read-only string option'] ),
                 dds.option.from_json( ['Visual Preset', 'Default', ['Default','Preset-1','Preset-2'], 'Default', 'Should enable serialization'] )
                 ] )
+            s2 = dds.depth_stream_server( 's2', 'depth' ) # Depth sensor is expected
+            s2.init_profiles( [dds.video_stream_profile( 1, dds.video_encoding.z16, 10, 10 )], 0 )
+            s2.init_options( [] )
             server = dds.device_server( participant, device_info.topic_root )
-            server.init( [s1], [], {} )
+            server.init( [s1, s2], [], {} )
 
         with test.closure( 'Set up a handler to keep track of the change order' ):
             def _on_set_option( server, option, value ):
