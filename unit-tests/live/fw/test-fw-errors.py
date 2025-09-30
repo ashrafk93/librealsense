@@ -17,7 +17,7 @@ ERROR_TOLERANCE = 0  # No firmware errors should be tolerated
 
 # Known errors that might be expected in certain environments
 KNOWN_ERRORS = [
-    "Motion Module failure",
+    "Motion Module failure", # RSDSO-20645
     # Add other known/expected errors here as needed
 ]
 
