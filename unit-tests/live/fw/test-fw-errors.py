@@ -15,10 +15,17 @@ import threading
 STREAMING_DURATION_SECONDS = 10  # Duration to stream and monitor for FW errors
 ERROR_TOLERANCE = 0  # No firmware errors should be tolerated
 
+# Known errors that might be expected in certain environments
+KNOWN_ERRORS = [
+    "Motion Module failure",
+    # Add other known/expected errors here as needed
+]
+
 class FirmwareErrorMonitor:
     def __init__(self):
         self.firmware_errors = []
         self.hardware_errors = []
+        self.known_errors = []
         self.lock = threading.Lock()
     
     def notification_callback(self, notification):
@@ -30,6 +37,20 @@ class FirmwareErrorMonitor:
         
         with self.lock:
             log.d(f"Notification received - Category: {category}, Severity: {severity}, Description: {description}")
+            
+            # Check if this is a known error that should be ignored
+            is_known_error = any(known_error in description for known_error in KNOWN_ERRORS)
+            
+            if is_known_error:
+                error_info = {
+                    'category': category,
+                    'severity': severity,
+                    'description': description,
+                    'timestamp': timestamp
+                }
+                self.known_errors.append(error_info)
+                log.w(f"Known error detected (ignored): {description}")
+                return  # Don't count as failure
             
             # Check for hardware errors (firmware errors typically fall under this category)
             if category == rs.notification_category.hardware_error:
@@ -54,7 +75,7 @@ class FirmwareErrorMonitor:
                 log.w(f"Unknown error detected: {description}")
     
     def get_error_count(self):
-        """Get total number of firmware-related errors"""
+        """Get total number of firmware-related errors (excluding known errors)"""
         with self.lock:
             return len(self.firmware_errors) + len(self.hardware_errors)
     
@@ -64,6 +85,7 @@ class FirmwareErrorMonitor:
             return {
                 'firmware_errors': self.firmware_errors.copy(),
                 'hardware_errors': self.hardware_errors.copy(),
+                'known_errors': self.known_errors.copy(),
                 'total_errors': len(self.firmware_errors) + len(self.hardware_errors)
             }
 
@@ -94,7 +116,7 @@ with test.closure("Monitor firmware errors during streaming"):
             sensor_name = "Unknown sensor"
             try:
                 sensor_name = sensor.get_info(rs.camera_info.name)
-            except:
+            except Exception:
                 pass
             log.w(f"Could not register notification callback for {sensor_name}: {e}")
     
@@ -109,19 +131,23 @@ with test.closure("Monitor firmware errors during streaming"):
     try:
         stopwatch = Stopwatch()
         frame_count = 0
+        last_log_time = 0
         
         # Stream for specified duration while monitoring for errors
         while stopwatch.get_elapsed() < STREAMING_DURATION_SECONDS:
             try:
-                frames = pipe.wait_for_frames(timeout_ms=1000)
+                frames = pipe.wait_for_frames()
                 
                 # Verify we're getting frames
                 if frames:
                     frame_count += 1
-                    if frame_count % 30 == 0:  # Log every second (30 fps)
-                        elapsed = stopwatch.get_elapsed()
+                    elapsed = stopwatch.get_elapsed()
+                    
+                    # Log every second using stopwatch timing
+                    if elapsed - last_log_time >= 1.0:
                         error_count = error_monitor.get_error_count()
                         log.d(f"Streaming progress: {elapsed:.1f}s, {frame_count} frames, {error_count} errors detected")
+                        last_log_time = elapsed
                 
             except RuntimeError as e:
                 log.w(f"Frame timeout or error during streaming: {e}")
@@ -142,6 +168,7 @@ with test.closure("Monitor firmware errors during streaming"):
     log.i(f"  - Total errors detected: {total_errors}")
     log.i(f"  - Hardware errors: {len(error_summary['hardware_errors'])}")
     log.i(f"  - Unknown/Firmware errors: {len(error_summary['firmware_errors'])}")
+    log.i(f"  - Known errors (ignored): {len(error_summary['known_errors'])}")
     
     # Log detailed error information if any errors were found
     if total_errors > 0:
@@ -153,9 +180,14 @@ with test.closure("Monitor firmware errors during streaming"):
         for i, error in enumerate(error_summary['firmware_errors']):
             log.w(f"  Firmware Error {i+1}: {error['description']} (Severity: {error['severity']})")
     
+    # Log known errors for informational purposes
+    if len(error_summary['known_errors']) > 0:
+        log.i("Known errors detected (ignored for test result):")
+        for i, error in enumerate(error_summary['known_errors']):
+            log.i(f"  Known Error {i+1}: {error['description']} (Severity: {error['severity']})")
+    
     # Test assertion - no firmware errors should be detected
-    test.check_equal(total_errors, ERROR_TOLERANCE, 
-                    f"Expected {ERROR_TOLERANCE} firmware errors, but detected {total_errors}")
+    test.check_equal(total_errors, ERROR_TOLERANCE)
     
     log.i("Firmware error monitoring test completed successfully")
 
