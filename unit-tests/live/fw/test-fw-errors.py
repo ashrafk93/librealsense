@@ -79,27 +79,30 @@ with test.closure("Monitor firmware errors during streaming"):
     
     # Set up error monitor
     error_monitor = FirmwareErrorMonitor()
+        
+    # Query all available sensors and register notification callbacks
+    sensors = device.query_sensors()
+    registered_sensors = []
     
-    # Configure streaming - use basic configuration to avoid unnecessary stress
-    cfg = rs.config()
-    cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-    cfg.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
-    
-    # Get sensors and register notification callbacks
-    depth_sensor = device.first_depth_sensor()
-    color_sensor = device.first_color_sensor()
-    
-    # Register notification callbacks on all sensors
-    for sensor in [depth_sensor, color_sensor]:
+    for sensor in sensors:
         try:
+            sensor_name = sensor.get_info(rs.camera_info.name)
             sensor.set_notifications_callback(error_monitor.notification_callback)
-            log.d(f"Registered notification callback for {sensor.get_info(rs.camera_info.name)}")
+            registered_sensors.append(sensor_name)
+            log.d(f"Registered notification callback for {sensor_name}")
         except Exception as e:
-            log.w(f"Could not register notification callback for sensor: {e}")
+            sensor_name = "Unknown sensor"
+            try:
+                sensor_name = sensor.get_info(rs.camera_info.name)
+            except:
+                pass
+            log.w(f"Could not register notification callback for {sensor_name}: {e}")
+    
+    log.i(f"Monitoring firmware errors on {len(registered_sensors)} sensors: {', '.join(registered_sensors)}")
     
     # Start streaming
     pipe = rs.pipeline(ctx)
-    profile = pipe.start(cfg)
+    profile = pipe.start()
     
     log.i(f"Started streaming, monitoring for firmware errors for {STREAMING_DURATION_SECONDS} seconds...")
     
