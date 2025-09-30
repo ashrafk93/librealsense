@@ -41,7 +41,7 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
 
 
 # Health factor threshold for calibration success
-HEALTH_FACTOR_THRESHOLD = 0.4
+HEALTH_FACTOR_THRESHOLD = 1.5
  
 if not is_mipi_device():
 # mipi devices do not support OCC calibration without host assistance    
