@@ -354,8 +354,16 @@ void dds_sensor_proxy::handle_video_data( std::vector< uint8_t > && buffer,
     if( ! vid_profile )
         throw invalid_value_exception( "non-video profile provided to on_video_frame" );
 
-    auto stride = static_cast< int >( vid_profile->get_height() > 0 ? data.raw_size / vid_profile->get_height() : data.raw_size );
-    auto bpp = vid_profile->get_width() > 0 ? stride / vid_profile->get_width() : stride;
+    auto height = vid_profile->get_height();
+    auto width = vid_profile->get_width();
+    auto stride = static_cast< int >(height > 0 ? data.raw_size / height : data.raw_size );
+    auto bpp = width > 0 ? stride / width : stride;
+
+    auto expected_size = height * width * bpp;
+    if (data.raw_size != expected_size)
+        throw invalid_value_exception(rsutils::string::from() << "Input frame data size (" << data.raw_size << ") is different from expected size (" << expected_size << ")");
+
+
     auto new_frame_interface = allocate_new_video_frame( vid_profile, stride, bpp, std::move( data ) );
     if( ! new_frame_interface )
         return;
