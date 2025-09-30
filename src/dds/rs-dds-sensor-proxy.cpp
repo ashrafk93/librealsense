@@ -359,9 +359,10 @@ void dds_sensor_proxy::handle_video_data( std::vector< uint8_t > && buffer,
     auto stride = static_cast< int >(height > 0 ? data.raw_size / height : data.raw_size );
     auto bpp = width > 0 ? stride / width : stride;
 
-    auto expected_size = height * width * bpp;
+    size_t expected_bpp = get_image_bpp(vid_profile->get_format()) / 8;
+    auto expected_size = height * width * expected_bpp;
     if (data.raw_size != expected_size)
-        throw invalid_value_exception(rsutils::string::from() << "Input frame data size (" << data.raw_size << ") is different from expected size (" << expected_size << ")");
+        throw invalid_value_exception(rsutils::string::from() << "Received frame with unexpected size " << data.raw_size << ", expected " << expected_size);
 
 
     auto new_frame_interface = allocate_new_video_frame( vid_profile, stride, bpp, std::move( data ) );
