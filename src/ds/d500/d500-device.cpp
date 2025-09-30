@@ -134,7 +134,7 @@ namespace librealsense
     processing_blocks d500_depth_sensor::get_recommended_processing_blocks() const
     {
         return get_ds_depth_recommended_proccesing_blocks();
-    };
+    }
 
     rs2_intrinsics d500_depth_sensor::get_intrinsics( const stream_profile & profile ) const
     {

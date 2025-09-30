@@ -754,7 +754,7 @@ namespace librealsense
 
     preset ds_advanced_mode_base::get_all() const
     {
-        preset p;
+        preset p = {0};
 
         rsutils::deferred depth_bulk = _depth_sensor->bulk_operation();
         get_depth_control_group( &p.depth_controls );

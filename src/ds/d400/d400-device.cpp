@@ -165,7 +165,7 @@ namespace librealsense
     processing_blocks d400_depth_sensor::get_recommended_processing_blocks() const
     {
         return get_ds_depth_recommended_proccesing_blocks();
-    };
+    }
 
     rs2_intrinsics d400_depth_sensor::get_intrinsics( const stream_profile & profile ) const
     {
@@ -319,7 +319,7 @@ namespace librealsense
     float d400_depth_sensor::get_stereo_baseline_mm() const
     {
         return _owner->get_stereo_baseline_mm();
-    };
+    }
 
     float d400_depth_sensor::get_preset_max_value() const
     {
