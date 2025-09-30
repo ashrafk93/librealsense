@@ -218,4 +218,6 @@ test.print_results_and_exit()
 OCC in Host Assistance mode is allowing to run on any resolution selected by the user.
 
 For example see the attached video - running in 848x100 res.
+
+manual exposure
 """

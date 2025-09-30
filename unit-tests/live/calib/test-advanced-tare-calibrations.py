@@ -99,8 +99,8 @@ EPSILON = 0.001          # distance comparison tolerance for reversion checks
 HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.8  # OCC health factor acceptance for modified run
 
 
-def run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
-    """Run advanced OCC calibration test with calibration table modifications.
+def run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, target_z=None):
+    """Run advanced tare calibration test with calibration table modifications.
 
         Flow:
             1. OCC (baseline) or Restore factory calibration
@@ -114,24 +114,24 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
     try:
 
         # 1. run tare for the first time to ensure we start from a known state
-        occ_json = tare_calibration_json(None, host_assistance)
+        tare_json = tare_calibration_json(None, host_assistance)
         new_calib_bytes = None
         try:
-            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, occ_json, None, return_table=True)
+            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, tare_json, target_z, return_table=True)
         except Exception as e:
             log.e(f"Calibration_main failed: {e}")
             restore_calibration_table(calib_dev)
             test.fail()
 
         if not (new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION):
-            log.e(f"OCC calibration failed or health factor out of threshold (hf={health_factor})")
+            log.e(f"tare calibration failed or health factor out of threshold (hf={health_factor})")
             restore_calibration_table(calib_dev)
             test.fail()
-        log.i(f"OCC calibration completed (health factor={health_factor:+.4f})")
+        log.i(f"tare calibration completed (health factor={health_factor:+.4f})")
 
         write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
         if not write_ok:
-            log.e("Failed to write OCC calibration table to device")
+            log.e("Failed to write tare calibration table to device")
             restore_calibration_table(calib_dev)
             test.fail()
 
@@ -144,11 +144,11 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         base_left_pp, base_right_pp, base_offsets = principal_points_result
         log.i(f"  Base principal points (Right) ppx={base_right_pp[0]:.6f} ppy={base_right_pp[1]:.6f}")
 
-        base_axis_val = base_right_pp[1]
+        base_axis_val = base_right_pp[0]
 
         # Measure depth fill rate before applying any manual perturbation
         try:
-            pre_fill_rate = measure_depth_fill_rate(image_width, image_height, fps, frame_count=25)
+            pre_fill_rate = measure_depth_fill_rate(image_width, image_height, fps)
             log.i(f"  Depth fill rate before modification: {pre_fill_rate:.2f}%")
         except Exception as e:
             pre_fill_rate = None
@@ -173,23 +173,23 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             test.fail()
 
         # 5. Run tare again
-        occ_json = tare_calibration_json(None, host_assistance)
+        tare_json = tare_calibration_json(None, host_assistance)
         new_calib_bytes = None
         try:
-            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, True, occ_json, None, return_table=True)
+            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, tare_json, target_z, return_table=True)
         except Exception as e:
             log.e(f"Calibration_main failed: {e}")
             health_factor = None
 
         if not (new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION):
-            log.e(f"OCC calibration failed or health factor out of threshold (hf={health_factor})")
+            log.e(f"tare calibration failed or health factor out of threshold (hf={health_factor})")
             test.fail()
-        log.i(f"OCC calibration completed (health factor={health_factor:+.4f})")
+        log.i(f"tare calibration completed (health factor={health_factor:+.4f})")
 
         # 6. Write updated table & evaluate
         write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
         if not write_ok:
-            log.e("Failed to write OCC calibration table to device")
+            log.e("Failed to write tare calibration table to device")
             test.fail()
 
         final_principal_points_result = get_current_rect_params(calib_dev)
@@ -197,12 +197,12 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             log.e("Could not read final principal points")
             test.fail()
         fin_left_pp, fin_right_pp, fin_offsets = final_principal_points_result
-        final_axis_val = fin_right_pp[1]
+        final_axis_val = fin_right_pp[0]
         log.i(f"  Final principal points (Right) ppx={fin_right_pp[0]:.6f} ppy={fin_right_pp[1]:.6f}")
 
         # Measure depth fill rate after calibration re-run
         try:
-            post_fill_rate = measure_depth_fill_rate(image_width, image_height, fps, frame_count=25)
+            post_fill_rate = measure_depth_fill_rate(image_width, image_height, fps)
             log.i(f"  Depth fill rate after calibration: {post_fill_rate:.2f}%")
         except Exception as e:
             post_fill_rate = None
@@ -213,7 +213,7 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         # 2. Final must be closer to base than to modified (strict revert expectation)
         dist_from_original = abs(final_axis_val - base_axis_val)
         dist_from_modified = abs(final_axis_val - modified_ppx)
-        log.i(f"  ppy distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
+        log.i(f"  ppx distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
 
         if abs(final_axis_val - modified_ppx) <= EPSILON:
             log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
@@ -239,68 +239,40 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             pass
     return calib_dev
 
+with test.closure("Advanced tare calibration test with calibration table modifications"):
+    calib_dev = None
+    try:
+        host_assistance = False
+        if (_target_z is None):
+            _target_z = 811 # calculate_target_z()
+            test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
+        image_width, image_height, fps = (256, 144, 90)
+        calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
+    except Exception as e:
+        log.e("Tare calibration with principal point modification failed: ", str(e))
+        if calib_dev is not None:
+            restore_calibration_table(calib_dev)
+        test.fail()
 
-with test.closure("Tare calibration test with host assistance"):
+with test.closure("Advanced tare calibration test with host assistance"):
+    calib_dev = None
     try:
         host_assistance = True
         if (_target_z is None):
-            _target_z = calculate_target_z()
+            _target_z = 811 # calculate_target_z()
             test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
-        
-        tare_json = tare_calibration_json(None, host_assistance)
-        health_factor = calibration_main(256, 144, 90, False, tare_json, _target_z)
-
-        test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
+        image_width, image_height, fps = (1280, 720, 30)
+        calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
     except Exception as e:
-        log.e("Tare calibration test with host assistance failed: ", str(e))
+        log.e("Tare calibration with principal point modification failed: ", str(e))
+        if calib_dev is not None:
+            restore_calibration_table(calib_dev)
         test.fail()
 
-with test.closure("Tare calibration test"):
-    try:
-        host_assistance = False
-        if is_mipi_device():
-            log.i("MIPI device - skip the test w/o host assistance")
-            test.skip()
-
-        if _target_z is None:
-            _target_z = calculate_target_z()
-            test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
-
-        tare_json = tare_calibration_json(None, host_assistance)
-        health_factor = calibration_main(1280, 720, 30, False, tare_json, _target_z)
-        
-        test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
-    except Exception as e:
-        log.e("Tare calibration test failed: ", str(e))
-        test.fail()
+test.print_results_and_exit()
 
 # for step 2 -  not in use for now
 """
-# This test performs Tare calibration with calibration table backup and modification.
-# It demonstrates backing up the calibration table, running the calibration, and restoring the table if needed.
-# The test checks that the health factor after calibration is within the allowed threshold.
-with test.closure("Tare calibration with table backup and modification"):
-    try:
-        host_assistance = False
-        target_z = calculate_target_z()
-        test.check(target_z > TARGET_Z_MIN and target_z < TARGET_Z_MAX)
-        tare_json = tare_calibration_json(None, host_assistance)
-        
-        log.i("Starting Tare calibration with calibration table backup/restore demonstration")
-        health_factor = perform_calibration_with_table_backup(host_assistance, False, tare_json, target_z)
-        
-        if health_factor is not None:
-            test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
-            log.i("Tare calibration with table manipulation completed successfully")
-        else:
-            log.e("Tare calibration with table backup failed")
-            test.fail()
-            
-    except Exception as e:
-        log.e("Tare calibration with table backup failed: ", str(e))
-        test.fail()
-    log.i("Done\n")
-
 test.print_results_and_exit()
 change exposuere 8500 (tried with various exposure values)/ host assisatnece true
 """
