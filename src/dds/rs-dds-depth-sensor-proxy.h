@@ -14,7 +14,6 @@ class rs_dds_embedded_filter;
 class dds_depth_sensor_proxy
     : public dds_sensor_proxy
     , public depth_stereo_sensor
-    , public embedded_filter_sensor_interface
 {
     using super = dds_sensor_proxy;
 
@@ -27,13 +26,8 @@ public:
     float get_depth_scale() const override;
     float get_stereo_baseline_mm() const override;
 
-    // Override interface methods
-    bool is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const override;
-    void enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable) override;
-    std::vector<rs2_option> get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const override;
-    option& get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const override;
-    
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
+    embedded_filters get_embedded_filters() const override; // get_embedded_filters_interface
     void add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter);
 
 protected:

@@ -29,7 +29,7 @@ namespace librealsense {
         }
 	}
 
-    void rs_dds_embedded_decimation_filter::enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable)
+    void rs_dds_embedded_decimation_filter::enable(bool enable)
     {
         // Enable/disable decimation filter via DDS
         // This is equivalent to setting the "Toggle" option to 1 (ON)

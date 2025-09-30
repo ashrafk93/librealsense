@@ -7,7 +7,7 @@
 #include <librealsense2/hpp/rs_types.hpp>
 #include <librealsense2/h/rs_internal.h>
 #include <rsutils/lazy.h>
-#include <embedded-filter.h>
+#include <embedded-filter-interface.h>
 
 namespace librealsense {
 
@@ -15,7 +15,7 @@ namespace librealsense {
 class software_device;
 class stream_profile_interface;
 class video_stream_profile_interface;
-class embedded_filter_sensor_interface;
+class embedded_filter_interface;
 
 
 class software_sensor
@@ -67,8 +67,9 @@ protected:
     metadata_array _metadata_map;
 
     processing_blocks get_recommended_processing_blocks() const override { return _pbs; }
+    embedded_filters get_embedded_filters() const override {};
     void add_processing_block( std::shared_ptr< processing_block_interface > const & );
-    void add_embedded_filter(std::shared_ptr< embedded_filter_sensor_interface > const& block);
+    void add_embedded_filter(std::shared_ptr< embedded_filter_interface > const& block);
 
     // We build profiles using add_video_stream(), etc., and feed those into init_stream_profiles() which could in
     // theory change them: so these are our "raw" profiles before initialization...

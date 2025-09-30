@@ -189,7 +189,7 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/synthetic-options-watcher.h"
         "${CMAKE_CURRENT_LIST_DIR}/synthetic-options-watcher.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/eth-config-device.h"
-        "${CMAKE_CURRENT_LIST_DIR}/embedded-filter.h"
+        "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-interface.h"
 )
 
 if(BUILD_WITH_DDS)

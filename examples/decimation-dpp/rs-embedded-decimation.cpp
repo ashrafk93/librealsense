@@ -94,7 +94,42 @@ try
         return EXIT_FAILURE;
 	}
 
-    
+
+	auto embedded_filters = depth_sensor.query_embedded_filters();
+    for(auto& filter : embedded_filters)
+    {
+        std::cout << "Embedded filter supported: " << filter.get_name() << std::endl;
+	}
+
+
+    rs2::embedded_decimation_filter dec_filter = depth_sensor.first_embedded_filter< rs2::embedded_decimation_filter>(); //--> better - enum remain for now - for dds needs
+
+    //rs2::embedded_decimation_filter& dec_filter = depth_sensor.get_embedded_filter(RS2_EMBEDDED_FILTER_TYPE_DECIMATION);
+
+	auto dec_filter_options = dec_filter.get_supported_options();
+    for (auto& option : dec_filter_options)
+    {
+        std::cout << "Decimation filter option supported: " << dec_filter.get_option_name(option) << std::endl;
+    }
+
+	// getting initial values
+    auto enabled = dec_filter.is_enabled();
+    auto magnitude = dec_filter.get_option(RS2_OPTION_FILTER_MAGNITUDE);
+    std::cout << "Decimation filter enabled: " << enabled << std::endl;
+    std::cout << "Decimation filter magnitude: " << magnitude << std::endl;
+
+	dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2.f);
+
+    dec_filter.enable();
+
+    dec_filter.disable();
+
+	bool is_enabled = dec_filter.is_enabled();
+
+
+
+
+    /*
 	// setting decimation filter OFF
 	std::cout << "Setting decimation filter OFF" << std::endl;
     rs2::embedded_decimation_sensor embed_decimation_sensor = depth_sensor.as<rs2::embedded_decimation_sensor>();
@@ -184,7 +219,8 @@ try
     depth_sensor.stop();
     depth_sensor.close();
 
-	std::cout << "Decimation filter test passed successfully." << std::endl;    
+	std::cout << "Decimation filter test passed successfully." << std::endl;
+    */
 
     return EXIT_SUCCESS;
 }

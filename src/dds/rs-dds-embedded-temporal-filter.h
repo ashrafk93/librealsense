@@ -5,6 +5,7 @@
 #include <rsutils/json-fwd.h>
 #include <realdds/dds-embedded-filter.h>
 #include <dds/rs-dds-embedded-filter.h>
+#include <src/proc/temporal-embedded-filter.h>
 
 
 namespace librealsense {
@@ -13,7 +14,9 @@ namespace librealsense {
     // handles librealsense embedded temporal filter specific logic and parameter validation
     // Communication to HW is delegated to realdds::dds_temporal_filter
     // Temporal filter implementation
-    class rs_dds_embedded_temporal_filter : public rs_dds_embedded_filter
+    class rs_dds_embedded_temporal_filter
+        : public rs_dds_embedded_filter
+        , public temporal_embedded_filter
     {
     public:
         rs_dds_embedded_temporal_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
@@ -22,8 +25,9 @@ namespace librealsense {
         virtual ~rs_dds_embedded_temporal_filter() = default;
 
         // Override interface methods
-        inline bool is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const override { return _enabled; }
-        void enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable) override;
+        inline bool is_enabled() const override { return _enabled; }
+        void enable(bool enable) override;
+        inline rs2_embedded_filter_type get_type() const override { return RS2_EMBEDDED_FILTER_TYPE_TEMPORAL; }
 
         // Override abstart class methods
         virtual void add_option(std::shared_ptr< realdds::dds_option > option) override;

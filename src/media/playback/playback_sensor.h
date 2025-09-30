@@ -76,6 +76,7 @@ namespace librealsense
             }
             return processing_blocks_api->get_recommended_processing_blocks();
         }
+        embedded_filters get_embedded_filters() const override {};
 
         rsutils::subscription register_options_changed_callback( options_watcher::callback && cb ) override
         {

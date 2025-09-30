@@ -65,53 +65,6 @@ float dds_depth_sensor_proxy::get_stereo_baseline_mm() const
     throw not_implemented_exception( "Not a stereo depth sensor. Cannot get basline information." );
 }
 
-bool dds_depth_sensor_proxy::is_filter_enabled(rs2_embedded_filter_type embedded_filter_type) const
-{
-    for (auto& embedded_filter : _embedded_filters)
-    {
-        if (embedded_filter->get_type() == embedded_filter_type)
-        {
-            // if the filter type is found in this collection, it means it's enabled
-			return true;
-        }
-	}
-    return false;
-}
-
-void dds_depth_sensor_proxy::enable_filter(rs2_embedded_filter_type embedded_filter_type, bool enable)
-{
-    for (auto& embedded_filter : _embedded_filters)
-    {
-        if (embedded_filter->get_type() == embedded_filter_type)
-        {
-			embedded_filter->enable_filter(embedded_filter_type, enable);
-        }
-    }
-}
-
-std::vector<rs2_option> dds_depth_sensor_proxy::get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const
-{
-    for (auto& embedded_filter : _embedded_filters)
-    {
-        if (embedded_filter->get_type() == embedded_filter_type)
-        {
-            return embedded_filter->get_filter_supported_options(embedded_filter_type);
-        }
-    }
-    return std::vector<rs2_option>();
-}
-
-option& dds_depth_sensor_proxy::get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const
-{
-    for (auto& embedded_filter : _embedded_filters)
-    {
-        if (embedded_filter->get_type() == embedded_filter_type)
-        {
-            return embedded_filter->get_filter_option(option_id, embedded_filter_type);
-        }
-    }
-}
-
 void dds_depth_sensor_proxy::add_no_metadata( frame * const f, streaming_impl & streaming )
 {
     f->additional_data.depth_units = get_depth_scale();
@@ -158,15 +111,17 @@ bool dds_depth_sensor_proxy::extend_to( rs2_extension extension_type, void ** pt
             return true;
         }
     }
-    else if (extension_type == RS2_EXTENSION_EMBEDDED_FILTER_SENSOR)
-    {
-        if (auto ext = As< librealsense::embedded_filter_sensor_interface >(this))
-        {
-            *ptr = ext;
-            return true;
-        }
-    }
     return super::extend_to( extension_type, ptr );
+}
+
+embedded_filters dds_depth_sensor_proxy::get_embedded_filters() const
+{
+    embedded_filters filters;
+	for (auto& embedded_filter : _embedded_filters)
+	{
+		filters.push_back(embedded_filter);
+	}
+    return filters;
 }
 
 void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter)

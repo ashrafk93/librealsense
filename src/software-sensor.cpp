@@ -9,7 +9,7 @@
 #include "core/notification.h"
 #include "depth-sensor.h"
 #include <src/metadata-parser.h>
-#include "embedded-filter.h"
+#include "embedded-filter-interface.h"
 
 #include <rsutils/string/from.h>
 #include <rsutils/deferred.h>
@@ -397,7 +397,7 @@ void software_sensor::add_processing_block( std::shared_ptr< processing_block_in
     _pbs.push_back( block );
 }
 
-void software_sensor::add_embedded_filter(std::shared_ptr< embedded_filter_sensor_interface > const& block)
+void software_sensor::add_embedded_filter(std::shared_ptr< embedded_filter_interface > const& block)
 {
     if (!block)
         throw invalid_value_exception("trying to add an empty software processing block");

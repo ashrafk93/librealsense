@@ -2,7 +2,7 @@
 // Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 #pragma once
 
-#include <src/embedded-filter.h>
+#include <src/embedded-filter-interface.h>
 
 #include <functional>
 #include <memory>
@@ -21,7 +21,7 @@ namespace librealsense {
 
 
 // A facade for a realdds::dds_embedded_filter exposing librealsense interface
-class rs_dds_embedded_filter : public embedded_filter_sensor_interface 
+class rs_dds_embedded_filter : public embedded_filter_interface 
     , public librealsense::options_container
 {
 public:
@@ -29,13 +29,8 @@ public:
     typedef std::function< rsutils::json() > query_embedded_filter_callback;
     virtual void add_option(std::shared_ptr< realdds::dds_option > option) = 0;
 
-    std::vector<rs2_option> get_filter_supported_options(rs2_embedded_filter_type embedded_filter_type) const override;
-    option& get_filter_option(rs2_option option_id, rs2_embedded_filter_type embedded_filter_type) const override;
-
-
 protected:
     std::shared_ptr< realdds::dds_embedded_filter > _dds_ef;
-    rs2_embedded_filter_type const _filter_type;
     set_embedded_filter_callback _set_ef_cb;
     query_embedded_filter_callback _query_ef_cb;
 
@@ -47,8 +42,6 @@ public:
                    query_embedded_filter_callback query_embedded_filter_cb );
 
     // Not Overriding interface methods - should be done in inheriting classes
-
-    rs2_embedded_filter_type get_type() const { return _filter_type; }
 	options_watcher& get_options_watcher() { return _options_watcher; }
 };
 

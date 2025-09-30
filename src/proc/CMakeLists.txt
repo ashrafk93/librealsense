@@ -77,4 +77,6 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/auto-exposure-processor.h"
         "${CMAKE_CURRENT_LIST_DIR}/y411-converter.h"
         "${CMAKE_CURRENT_LIST_DIR}/formats-converter.h"
+        "${CMAKE_CURRENT_LIST_DIR}/decimation-embedded-filter.h"
+        "${CMAKE_CURRENT_LIST_DIR}/temporal-embedded-filter.h"
 )
