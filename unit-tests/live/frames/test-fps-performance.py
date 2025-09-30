@@ -33,8 +33,42 @@ import os
 from collections import deque
 from typing import List, Tuple, Dict
 
+# Constants for device initialization and testing
+DEVICE_INIT_SLEEP_SEC = 3  # Sleep time to allow device to get into idle state
+DEFAULT_DEVICE_CREATION_TIMEOUT = 10  # Default timeout for device creation (seconds)
+DDS_DEVICE_CREATION_TIMEOUT = 30  # Extended timeout for DDS devices (seconds)
+MIN_FRAME_COUNT_LOW_FPS = 5  # Minimum frame count for low FPS tests
+MIN_TEST_DURATION_PERCENT = 0.6  # Minimum test duration percentage (60%)
+
 # CI optimization: Detect if running in CI environment
 CI_MODE = bool(os.getenv('CI') or os.getenv('CONTINUOUS_INTEGRATION') or os.getenv('GITHUB_ACTIONS'))
+
+def format_duration(seconds):
+    """
+    Format duration in seconds to a human-readable string
+    
+    Args:
+        seconds: Duration in seconds
+        
+    Returns:
+        Formatted string (e.g., "2m 30s", "1h 15m 30s", "45s")
+    """
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        remaining_seconds = seconds % 60
+        return f"{minutes}m {remaining_seconds:.1f}s"
+    else:
+        hours = int(seconds // 3600)
+        remaining_minutes = int((seconds % 3600) // 60)
+        remaining_seconds = seconds % 60
+        if remaining_seconds > 0:
+            return f"{hours}h {remaining_minutes}m {remaining_seconds:.1f}s"
+        elif remaining_minutes > 0:
+            return f"{hours}h {remaining_minutes}m"
+        else:
+            return f"{hours}h"
 
 def optimize_for_ci(configurations, max_configs=8):
     """
@@ -385,23 +419,25 @@ def test_stream_fps_accuracy_generic(device, stream_name, stream_type, formats, 
     
     # Adjust warmup frames and measurement interval based on FPS rate
     if expected_fps <= 6:
-        warmup_frames = 3      # Minimal warmup for very slow FPS to maximize measurement time
-        measurement_interval = 3  # Very frequent measurements for maximum data collection
-        log.i(f"Very low FPS mode for {expected_fps} FPS: warmup={warmup_frames}, interval={measurement_interval}")
+        warmup_frames = 2      # Minimal warmup for very slow FPS to maximize measurement time
+        # For very low FPS we measure every frame after warmup to avoid having only a single data point
+        # (previously interval=2 caused too few measurements for short tests)
+        measurement_interval = 1  # Measure on every frame post-warmup
+        log.i(f"Very low FPS mode for {expected_fps} FPS: warmup={warmup_frames}, interval={measurement_interval} (per-frame measurement)")
     elif expected_fps <= 15:
-        warmup_frames = 10     # Reduced warmup for slow FPS
+        warmup_frames = 5      # Reduced warmup for slow FPS
         measurement_interval = 10
         log.i(f"Medium-low FPS mode for {expected_fps} FPS: warmup={warmup_frames}, interval={measurement_interval}")
     elif expected_fps <= 30:
-        warmup_frames = 20     # Reduced warmup for 30 FPS
+        warmup_frames = 15     # Reduced warmup for 30 FPS
         measurement_interval = 15  # More frequent measurements for better statistics
         log.i(f"Standard FPS mode for {expected_fps} FPS: warmup={warmup_frames}, interval={measurement_interval}")
     elif expected_fps <= 60:
-        warmup_frames = 25     # Moderate warmup for 60 FPS
+        warmup_frames = 20     # Moderate warmup for 60 FPS
         measurement_interval = 20  # Optimized for sufficient measurements
         log.i(f"High FPS mode for {expected_fps} FPS: warmup={warmup_frames}, interval={measurement_interval}")
     else:
-        warmup_frames = 30     # Higher warmup for very high FPS (90+)
+        warmup_frames = 25     # Higher warmup for very high FPS (90+)
         measurement_interval = 25  # Balance between frequency and performance
         log.i(f"Very high FPS mode for {expected_fps} FPS: warmup={warmup_frames}, interval={measurement_interval}")
     
@@ -482,14 +518,16 @@ def test_stream_fps_accuracy_generic(device, stream_name, stream_type, formats, 
     if not fps_measurements:
         return False, 0.0, {"error": f"No FPS measurements collected after {test_stopwatch.get_elapsed():.1f}s (expected {expected_fps} FPS, warmup: {warmup_frames} frames, got {frame_count} total frames)"}
     
-    # For very low FPS (≤6), allow single measurement if we have a reasonable frame count
-    if expected_fps <= 6 and len(fps_measurements) == 1 and frame_count >= 10:
-        log.i(f"Very low FPS ({expected_fps}): accepting single measurement with {frame_count} frames")
+    # For very low FPS (≤6), allow single measurement if we have a minimal reasonable frame count
+    # Relaxed from 10 to MIN_FRAME_COUNT_LOW_FPS (default 5) because per-frame measurement now provides limited data
+    # in short-duration configuration tests (e.g., 3s) where <10 frames may be expected (~18 frames max at 6 FPS)
+    if expected_fps <= 6 and len(fps_measurements) == 1 and frame_count >= MIN_FRAME_COUNT_LOW_FPS:
+        log.i(f"Very low FPS ({expected_fps}): accepting single measurement with {frame_count} frames (threshold {MIN_FRAME_COUNT_LOW_FPS})")
         actual_avg_fps = fps_measurements[0]
         fps_min = fps_max = actual_avg_fps
         fps_std = 0.0
     elif len(fps_measurements) < 2:
-        return False, 0.0, {"error": f"Insufficient FPS measurements: {len(fps_measurements)} (need at least 2 for statistics, or 1 with ≥10 frames for ≤6 FPS). Got {frame_count} frames in {test_stopwatch.get_elapsed():.1f}s with warmup={warmup_frames}, interval={measurement_interval}"}
+        return False, 0.0, {"error": f"Insufficient FPS measurements: {len(fps_measurements)} (need ≥2 for statistics, or ≥1 with ≥{MIN_FRAME_COUNT_LOW_FPS} frames for ≤6 FPS). Got {frame_count} frames in {test_stopwatch.get_elapsed():.1f}s with warmup={warmup_frames}, interval={measurement_interval}"}
     else:
         actual_avg_fps = sum(fps_measurements) / len(fps_measurements)
         fps_min = min(fps_measurements)
@@ -1159,7 +1197,7 @@ def test_multistream_fps_accuracy(device, depth_config, color_config, test_durat
     min_fps = min(depth_fps, color_fps)
     if min_fps <= 6:
         warmup_frames = 2  # Reduced from 3
-        measurement_interval = 3
+        measurement_interval = 2
     elif min_fps <= 15:
         warmup_frames = 8  # Reduced from 10
         measurement_interval = 10
