@@ -10,7 +10,6 @@
 #include <ds/advanced_mode/presets.h>
 #include <platform/stream-profile.h>
 #include <librealsense2/h/rs_advanced_mode_command.h>
-#include <rsutils/lazy.h>
 
 
 typedef enum
@@ -152,10 +151,10 @@ namespace librealsense
 
         friend class auto_calibrated;
 
-        void set_exposure( sensor_base & sensor, const exposure_control & val );
-        void set_auto_exposure( sensor_base & sensor, const auto_exposure_control & val );
-        void get_exposure( sensor_base & sensor, exposure_control * ptr ) const;
-        void get_auto_exposure( sensor_base & sensor, auto_exposure_control * ptr ) const;
+        void set_exposure( sensor_base * sensor, const exposure_control & val );
+        void set_auto_exposure( sensor_base * sensor, const auto_exposure_control & val );
+        void get_exposure( sensor_base * sensor, exposure_control * ptr ) const;
+        void get_auto_exposure( sensor_base * sensor, auto_exposure_control * ptr ) const;
 
         void get_laser_power(laser_power_control* ptr) const;
         void get_laser_state(laser_state_control* ptr) const;
@@ -198,15 +197,15 @@ namespace librealsense
         void set_color_auto_white_balance(const auto_white_balance_control& val);
         void set_color_power_line_frequency(const power_line_frequency_control& val);
 
-        bool supports_option( const sensor_base & sensor, rs2_option opt ) const;
+        bool supports_option( const sensor_base * sensor, rs2_option opt ) const;
 
         device_interface * _dev;
         debug_interface * _debug_interface;
-        rsutils::lazy< sensor_base * > _depth_sensor;
-        rsutils::lazy< sensor_base * > _color_sensor;
-        rsutils::lazy< bool > _enabled;
+        sensor_base * _depth_sensor = nullptr;
+        sensor_base * _color_sensor = nullptr;
+        bool _enabled = false;
         std::shared_ptr<advanced_mode_preset_option> _preset_opt;
-        rsutils::lazy< bool > _amplitude_factor_support;
+        bool _amplitude_factor_support = false;
         bool _blocked = false;
         std::string _block_message;
 
@@ -219,7 +218,6 @@ namespace librealsense
         void set_hdr_preset(const preset& p);
 
         virtual std::vector<uint8_t> send_receive(const std::vector<uint8_t>& input) const;
-        virtual void send_no_receive( const std::vector< uint8_t > & input ) const;
 
         void register_to_visual_preset_option();
         void unregister_from_visual_preset_option();

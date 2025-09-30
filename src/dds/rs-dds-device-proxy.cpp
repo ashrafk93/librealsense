@@ -173,8 +173,7 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
         register_info( RS2_CAMERA_INFO_PRODUCT_LINE, str );
     register_info( RS2_CAMERA_INFO_CAMERA_LOCKED, j.nested( "locked" ).default_value( true ) ? "YES" : "NO" );
     register_info(RS2_CAMERA_INFO_CONNECTION_TYPE, "DDS" );
-    bool advanced_mode_enabled = j.nested( "advanced-mode" ).default_value( false );
-    ds_advanced_mode_base::_enabled = [&]() { return advanced_mode_enabled; };
+    ds_advanced_mode_base::_enabled = j.nested( "advanced-mode" ).default_value( false );
     
     eth_config_device::init( static_cast< debug_interface * >( this ) ); // Call after registering device info
 
@@ -411,7 +410,6 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
             environment::get_instance().get_extrinsics_graph().register_same_extrinsics( *it.second, *profile );
         }
     }
-    // TODO - need to register extrinsics group in dev?
 
     // Call after seneors have been initialized
     ds_advanced_mode_base::initialize_advanced_mode( this ); // Call even if not enabled, so API calls won't throw
@@ -824,25 +822,6 @@ void dds_device_proxy::update( const void * /*image*/, int /*image_size*/, rs2_u
 }
 
 
-//std::vector< sensor_interface * > dds_device_proxy::get_serializable_sensors()
-//{
-//    std::vector< sensor_interface * > sensors;
-//    auto const n_sensors = get_sensors_count();
-//    for( auto i = 0; i < n_sensors; ++i )
-//        sensors.push_back( &get_sensor( i ) );
-//    return sensors;
-//}
-//
-//
-//std::vector< sensor_interface const * > dds_device_proxy::get_serializable_sensors() const
-//{
-//    std::vector< sensor_interface const * > sensors;
-//    auto const n_sensors = get_sensors_count();
-//    for( auto i = 0; i < n_sensors; ++i )
-//        sensors.push_back( &get_sensor( i ) );
-//    return sensors;
-//}
-
 bool dds_device_proxy::supports_ethernet_configuration()
 {
     std::string dev_name = get_info( RS2_CAMERA_INFO_NAME ); // Info supported, registered at constructor
@@ -852,24 +831,11 @@ bool dds_device_proxy::supports_ethernet_configuration()
     return eth_config_device::supports_ethernet_configuration();
 }
 
+
 void dds_device_proxy::device_specific_initialization()
 {
-    if( *ds_advanced_mode_base::_enabled )
-    {
-        ds_advanced_mode_base::_amplitude_factor_support = []() { return true; };
-    }
+    if( ds_advanced_mode_base::_enabled )
+        ds_advanced_mode_base::_amplitude_factor_support = true;
 }
-
-//std::vector< uint8_t > dds_device_proxy::send_receive( const std::vector< uint8_t > & input ) const
-//{
-//    // dds_device_proxy::send_receive_raw_data can be const but overrides a non const API
-//    return const_cast< dds_device_proxy * >( this )->send_receive_raw_data( input );
-//}
-//
-//void dds_device_proxy::send_no_receive( const std::vector< uint8_t > & input ) const
-//{
-//    // dds_device_proxy::send_receive_raw_data can be const but overrides a non const API
-//    const_cast< dds_device_proxy * >( this )->send_receive_raw_data( input );
-//}
 
 }  // namespace librealsense
