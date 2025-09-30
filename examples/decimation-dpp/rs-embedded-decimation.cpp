@@ -110,6 +110,9 @@ try
     for (auto& option : dec_filter_options)
     {
         std::cout << "Decimation filter option supported: " << dec_filter.get_option_name(option) << std::endl;
+        if (option == RS2_OPTION_FILTER_MAGNITUDE)
+            continue;
+		dec_filter.set_option(option, 0.f); // setting other options to 0
     }
 
 	// getting initial values
@@ -118,7 +121,8 @@ try
     std::cout << "Decimation filter enabled: " << enabled << std::endl;
     std::cout << "Decimation filter magnitude: " << magnitude << std::endl;
 
-	dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2.f);
+	// below line won't run because option is read-only
+    // dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2.f);
 
     dec_filter.enable();
 

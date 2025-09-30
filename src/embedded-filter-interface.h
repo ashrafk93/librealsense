@@ -9,11 +9,12 @@
 #include <memory>
 #include <cstdint>
 #include <librealsense2/h/rs_option.h>
-#include <src/core/option-interface.h>
+#include <src/core/options-interface.h>
 
 namespace librealsense {
     // Interface class for embedded filter sensors
     class embedded_filter_interface
+        : public virtual options_interface
     {
     public:
         virtual ~embedded_filter_interface() = default;

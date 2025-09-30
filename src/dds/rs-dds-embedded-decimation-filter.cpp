@@ -36,10 +36,11 @@ namespace librealsense {
         auto toggle_opt = get_dds_option_by_name(_dds_ef->get_options(), "Toggle");
         if (toggle_opt) {
             int32_t value_to_set = enable ? 1 : 0;
-            auto toggle_opt_j = toggle_opt->to_json();
-            toggle_opt_j["value"] = value_to_set;
+            //auto toggle_opt_j = toggle_opt->to_json();
+            //toggle_opt_j["value"] = value_to_set;
             // below line should call the set option callback defined in add_option method
-            toggle_opt->set_value(toggle_opt_j["value"]);
+            toggle_opt->set_value(value_to_set);
+            //toggle_opt->set_value(toggle_opt_j["value"]);
         }
     }
 
@@ -92,8 +93,10 @@ namespace librealsense {
             option,
             [=](json value) // set_option cb for the filter's options
             {
+                // create a proper option json with name and value
+                json option_with_value = option->to_json();
                 // prepare json with all options
-                json all_options_json = prepare_all_options_json(value);
+                json all_options_json = prepare_all_options_json(option_with_value);
                 // validate values
                 validate_filter_options(all_options_json);
                 // set updated options to the remote device
@@ -110,19 +113,21 @@ namespace librealsense {
         _options_watcher.register_option(option_id, opt);
     }
 
-    rsutils::json rs_dds_embedded_decimation_filter::prepare_all_options_json(const rsutils::json& new_value)
+    rsutils::json rs_dds_embedded_decimation_filter::prepare_all_options_json(const rsutils::json& updated_option)
     {
         rsutils::json json_to_send = _dds_ef->get_options_json();
-        
+
+        auto opt_to_update = realdds::dds_option::from_json(updated_option);
+        std::string option_name = opt_to_update->get_name();
+
         for (auto& opt_j : json_to_send)
         {
-            if (!opt_j.contains("name") || !new_value.contains("name"))
+            auto opt = realdds::dds_option::from_json(opt_j);
+            if (opt->get_name() == option_name)
             {
-                throw std::runtime_error("option json does not contain name");
-            }
-            if (opt_j["name"] == new_value["name"])
-            {
-                opt_j["value"] = new_value["value"];
+                opt->set_value(opt_to_update->get_value());
+                opt_j = opt->to_json();
+                break; // Found and updated the option
             }
         }
         return json_to_send;
