@@ -482,6 +482,14 @@ EXPORTS
     rs2_set_transmission_delay
     rs2_restore_default_eth_config
 
+    rs2_query_embedded_filters
+    rs2_delete_embedded_filter_list
+    rs2_get_embedded_filters_count
+    rs2_create_embedded_filter
+    rs2_delete_embedded_filter
     rs2_is_embedded_filter_enabled
     rs2_enable_embedded_filter
-    rs2_get_embedded_filter_supported_options
+    rs2_get_embedded_filter_type
+    rs2_get_embedded_filter_name
+    rs2_get_embedded_filters_count
+    rs2_is_embedded_filter_extendable_to

@@ -781,7 +781,7 @@ rs2_frame_callback_sptr dds_sensor_proxy::get_frames_callback() const
 void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedded_filter > embedded_filter )
 {
 	auto filter_type = embedded_filter->get_filter_type();
-	std::shared_ptr< rs_dds_embedded_filter > rs_embedded_filter;
+	std::shared_ptr< embedded_filter_interface > rs_embedded_filter = nullptr;
     if (filter_type == RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
     {
         rs_embedded_filter = std::make_shared< rs_dds_embedded_decimation_filter >(
@@ -795,6 +795,26 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
             {
                 return _dev->query_embedded_filter(embedded_filter);
             });
+
+        //TODO
+        // below code is already done in rs_dds_embedded_decimation_filter::add_option
+        // check which one is better
+        //// Register the embedded filter options with this sensor proxy so they can be accessed
+        //// through the sensor's options interface
+		//auto decimation_filter = std::dynamic_pointer_cast<rs_dds_embedded_decimation_filter>(rs_embedded_filter);
+        //for (auto option_id : decimation_filter->get_supported_options())
+        //{
+        //    if (!get_option_handler(option_id))  // Don't duplicate options
+        //    {
+        //        auto opt_handler = decimation_filter->get_option_handler(option_id);
+        //        if (opt_handler)
+        //        {
+        //            decimation_filter->register_option(option_id, opt_handler);
+        //            auto& filter_options_watcher = decimation_filter->get_options_watcher();
+        //            filter_options_watcher.register_option(option_id, opt_handler);
+        //        }
+        //    }
+        //}
     }
     else if (filter_type == RS2_EMBEDDED_FILTER_TYPE_TEMPORAL)
     {
@@ -809,27 +829,32 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
             {
                 return _dev->query_embedded_filter(embedded_filter);
             });
+        //TODO
+        // below code is already done in rs_dds_embedded_temporal_filter::add_option
+		// check which one is better
+        //// Register the embedded filter options with this sensor proxy so they can be accessed
+        //// through the sensor's options interface
+        //auto temporal_filter = std::dynamic_pointer_cast<rs_dds_embedded_temporal_filter>(rs_embedded_filter);
+        //for (auto option_id : temporal_filter->get_supported_options())
+        //{
+        //    if (!get_option_handler(option_id))  // Don't duplicate options
+        //    {
+        //        auto opt_handler = temporal_filter->get_option_handler(option_id);
+        //        if (opt_handler)
+        //        {
+        //            temporal_filter->register_option(option_id, opt_handler);
+        //            auto& filter_options_watcher = temporal_filter->get_options_watcher();
+        //            filter_options_watcher.register_option(option_id, opt_handler);
+        //        }
+        //    }
+        //}
     }
     else
     {
-        throw librealsense::invalid_value_exception("Filter '" + std::string(rs2_embedded_filter_to_string(filter_type)) + "' not supported");
+        throw librealsense::invalid_value_exception("Filter '" + std::string(rs2_embedded_filter_type_to_string(filter_type)) + "' not supported");
     }
 
-    // Register the embedded filter options with this sensor proxy so they can be accessed
-    // through the sensor's options interface
-    for (auto option_id : rs_embedded_filter->get_supported_options())
-    {
-        if (!get_option_handler(option_id))  // Don't duplicate options
-        {
-            auto opt_handler = rs_embedded_filter->get_option_handler(option_id);
-            if (opt_handler)
-            {
-                rs_embedded_filter->register_option(option_id, opt_handler);
-				auto& filter_options_watcher = rs_embedded_filter->get_options_watcher();
-                filter_options_watcher.register_option(option_id, opt_handler);
-            }
-        }
-    }
+    
 
     if (auto depth_sensor_proxy = dynamic_cast<dds_depth_sensor_proxy*>(this))
     {

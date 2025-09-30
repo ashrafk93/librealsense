@@ -331,6 +331,73 @@ int rs2_supports_processing_block_info(const rs2_processing_block* block, rs2_ca
  */
 int rs2_is_processing_block_extendable_to(const rs2_processing_block* block, rs2_extension extension_type, rs2_error** error);
 
+
+/**
+* create embedded filter
+* \param[in] sensor         RealSense sensor
+* \param[in] fitler_type    embedded filter type
+* \param[out] error         if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                   the requested embedded filter, should be released by rs2_delete_embedded_filter
+*/
+//rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type fitler_type, rs2_error** error);
+rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, const rs2_embedded_filter_list* list, int index, rs2_error** error);
+
+/**
+* Delete embedded filter allocated by rs2_create_embedded_filter
+* \param[in] embedded_filter        embedded filter to delete
+*/
+void rs2_delete_embedded_filter(rs2_embedded_filter* embedded_filter);
+
+/**
+* check if embedded filter is enabled
+* \param[in] embedded_filter       RealSense embedded filter
+* \param[out] error                if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                          true if the decimation is enabled, false otherwise
+*/
+int rs2_is_embedded_filter_enabled(const rs2_embedded_filter* embedded_filter, rs2_error** error);
+
+/**
+* enable embedded filter on sensor
+* \param[in] embedded_filter        RealSense embedded filter
+* \param[in] enable                 if 1 - enable the filter, 0 - disable the filter
+* \param[out] error                 if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+*/
+void rs2_enable_embedded_filter(rs2_embedded_filter* embedded_filter, int enable, rs2_error** error);
+
+/**
+* get embedded filter type
+* \param[in] embedded_filter       RealSense embedded filter
+* \param[out] error                if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                          the embedded filter's type
+*/
+rs2_embedded_filter_type rs2_get_embedded_filter_type(const rs2_embedded_filter* embedded_filter, rs2_error** error);
+
+/**
+* get embedded filter name
+* \param[in] embedded_filter       RealSense embedded filter
+* \param[out] error                if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                          the embedded filter's name
+*/
+const char* rs2_get_embedded_filter_name(const rs2_embedded_filter* embedded_filter, rs2_error** error);
+
+/**
+* get the number of supported embedded filters
+* \param[in] list        the list of supported embedded filters returned by rs2_query_embedded_filters
+* \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return number of supported embedded filters
+*/
+int rs2_get_embedded_filters_count(const rs2_embedded_filter_list* list, rs2_error** error);
+
+/**
+ * Test if the given embedded filter can be extended to the requested extension
+ * \param[in] embedded_filter embedded filter
+ * \param[in] extension The extension to which the sensor should be tested if it is extendable
+ * \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+ * \return non-zero value iff the processing block can be extended to the given extension
+ */
+int rs2_is_embedded_filter_extendable_to(const rs2_embedded_filter* embedded_filter, rs2_extension extension_type, rs2_error** error);
+
+
 #ifdef __cplusplus
 }
 #endif

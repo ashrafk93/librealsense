@@ -67,7 +67,7 @@ protected:
     metadata_array _metadata_map;
 
     processing_blocks get_recommended_processing_blocks() const override { return _pbs; }
-    embedded_filters get_embedded_filters() const override {};
+    embedded_filters get_embedded_filters() const override { return embedded_filters(); };
     void add_processing_block( std::shared_ptr< processing_block_interface > const & );
     void add_embedded_filter(std::shared_ptr< embedded_filter_interface > const& block);
 

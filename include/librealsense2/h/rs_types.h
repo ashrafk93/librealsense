@@ -269,7 +269,7 @@ typedef enum rs2_embedded_filter_type
     RS2_EMBEDDED_FILTER_TYPE_TEMPORAL,
     RS2_EMBEDDED_FILTER_TYPE_COUNT
 } rs2_embedded_filter_type;
-const char* rs2_embedded_filter_to_string(rs2_embedded_filter_type embedded_filter);
+const char* rs2_embedded_filter_type_to_string(rs2_embedded_filter_type embedded_filter);
 
 typedef struct rs2_device_info rs2_device_info;
 typedef struct rs2_device rs2_device;

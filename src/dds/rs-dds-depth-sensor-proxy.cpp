@@ -124,7 +124,7 @@ embedded_filters dds_depth_sensor_proxy::get_embedded_filters() const
     return filters;
 }
 
-void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter)
+void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< embedded_filter_interface > embedded_filter)
 {
 	_embedded_filters.push_back(embedded_filter);
 }

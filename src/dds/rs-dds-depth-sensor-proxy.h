@@ -28,12 +28,12 @@ public:
 
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
     embedded_filters get_embedded_filters() const override; // get_embedded_filters_interface
-    void add_embedded_filter(std::shared_ptr< rs_dds_embedded_filter > embedded_filter);
+    void add_embedded_filter(std::shared_ptr< embedded_filter_interface > embedded_filter);
 
 protected:
     void add_no_metadata( frame *, streaming_impl & ) override;
     void add_frame_metadata( frame *, rsutils::json const & md, streaming_impl & ) override;
-    std::vector< std::shared_ptr< rs_dds_embedded_filter > > _embedded_filters;
+    std::vector< std::shared_ptr< embedded_filter_interface > > _embedded_filters;
 };
 
 }  // namespace librealsense

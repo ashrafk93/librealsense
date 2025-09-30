@@ -7,8 +7,6 @@
 #include <functional>
 #include <memory>
 #include <rsutils/json.h>
-#include <src/core/options-container.h>
-#include <src/core/options-watcher.h>
 
 
 namespace realdds
@@ -20,9 +18,8 @@ namespace realdds
 namespace librealsense {
 
 
-// A facade for a realdds::dds_embedded_filter exposing librealsense interface
-class rs_dds_embedded_filter : public embedded_filter_interface 
-    , public librealsense::options_container
+// This class is used to group some commonalities between different embedded filter types
+class rs_dds_embedded_filter 
 {
 public:
     typedef std::function< void( rsutils::json value ) > set_embedded_filter_callback;
@@ -34,15 +31,10 @@ protected:
     set_embedded_filter_callback _set_ef_cb;
     query_embedded_filter_callback _query_ef_cb;
 
-    options_watcher _options_watcher;
-
 public:
     rs_dds_embedded_filter( const std::shared_ptr< realdds::dds_embedded_filter > & dds_embedded_filter,
                    set_embedded_filter_callback set_embedded_filter_cb,
                    query_embedded_filter_callback query_embedded_filter_cb );
-
-    // Not Overriding interface methods - should be done in inheriting classes
-	options_watcher& get_options_watcher() { return _options_watcher; }
 };
 
 }  // namespace librealsense

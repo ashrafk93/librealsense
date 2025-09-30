@@ -11,6 +11,7 @@
 namespace librealsense {
 
     // Class librealsense::rs_dds_embedded_temporal_filter: 
+    // A facade for a realdds::dds_embedded_temporal_filter exposing librealsense interface
     // handles librealsense embedded temporal filter specific logic and parameter validation
     // Communication to HW is delegated to realdds::dds_temporal_filter
     // Temporal filter implementation
@@ -41,7 +42,6 @@ namespace librealsense {
             const std::vector<std::shared_ptr<realdds::dds_option>>& options, 
             const std::string& name);
 
-        std::shared_ptr<realdds::dds_temporal_filter> _dds_temporal_filter;
         bool _enabled;
         float _alpha;
         int32_t _delta;

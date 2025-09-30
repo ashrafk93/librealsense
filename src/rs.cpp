@@ -261,15 +261,11 @@ struct rs2_error
 
 struct rs2_embedded_filter : public rs2_options
 {
-    rs2_embedded_filter(librealsense::sensor_interface* sensor_parent,
-        std::shared_ptr<librealsense::embedded_filter_interface> embedded_filter)
+    rs2_embedded_filter(std::shared_ptr<librealsense::embedded_filter_interface> embedded_filter)
         : rs2_options((librealsense::options_interface*)embedded_filter.get())
-        , _sensor_parent(std::make_shared<librealsense::sensor_interface>(sensor_parent))
         , _embedded_filter(embedded_filter)
-    {
-    }
+    {}
 
-    std::shared_ptr<librealsense::sensor_interface> _sensor_parent;
     std::shared_ptr<librealsense::embedded_filter_interface> _embedded_filter;
 
     rs2_embedded_filter& operator=(const rs2_embedded_filter&) = delete;
@@ -483,12 +479,20 @@ void rs2_delete_embedded_filter_list(rs2_embedded_filter_list* list) BEGIN_API_C
 }
 NOEXCEPT_RETURN(, list)
 
+
+int rs2_get_embedded_filters_count(const rs2_embedded_filter_list* list, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(list);
+    return static_cast<int>(list->list.size());
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, list)
+
 rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, const rs2_embedded_filter_list* list, int index, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(list);
     VALIDATE_RANGE(index, 0, (int)list->list.size() - 1);
 
-    return new rs2_embedded_filter{ sensor->sensor, (list->list[index]) };
+    return new rs2_embedded_filter{ (list->list[index]) };
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, list, index)
 
@@ -521,6 +525,13 @@ rs2_embedded_filter_type rs2_get_embedded_filter_type(const rs2_embedded_filter*
     return embedded_filter->_embedded_filter->get_type();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(RS2_EMBEDDED_FILTER_TYPE_COUNT, embedded_filter)
+
+const char* rs2_get_embedded_filter_name(const rs2_embedded_filter* embedded_filter, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(embedded_filter);
+    return rs2_embedded_filter_type_to_string(embedded_filter->_embedded_filter->get_type());
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, embedded_filter)
 
 rs2_stream_profile_list* rs2_get_active_streams(rs2_sensor* sensor, rs2_error** error) BEGIN_API_CALL
 {
@@ -2064,19 +2075,19 @@ int rs2_is_processing_block_extendable_to(const rs2_processing_block* f, rs2_ext
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, f, extension_type)
 
-int rs2_is_embedded_filter_extendable_to(const rs2_embedded_filter* f, rs2_extension extension_type, rs2_error** error) BEGIN_API_CALL
+int rs2_is_embedded_filter_extendable_to(const rs2_embedded_filter* embedded_filter, rs2_extension extension_type, rs2_error** error) BEGIN_API_CALL
 {
-    VALIDATE_NOT_NULL(f);
+    VALIDATE_NOT_NULL(embedded_filter);
     VALIDATE_ENUM(extension_type);
     switch (extension_type)
     {
-    case RS2_EXTENSION_DECIMATION_EMBEDDED_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(f->_embedded_filter.get()), librealsense::decimation_embedded_filter) != nullptr;
-    case RS2_EXTENSION_TEMPORAL_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(f->_embedded_filter.get()), librealsense::temporal_embedded_filter) != nullptr;
+    case RS2_EXTENSION_DECIMATION_EMBEDDED_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(embedded_filter->_embedded_filter.get()), librealsense::decimation_embedded_filter) != nullptr;
+    case RS2_EXTENSION_TEMPORAL_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(embedded_filter->_embedded_filter.get()), librealsense::temporal_embedded_filter) != nullptr;
     default:
         return false;
     }
 }
-HANDLE_EXCEPTIONS_AND_RETURN(0, f, extension_type)
+HANDLE_EXCEPTIONS_AND_RETURN(0, embedded_filter, extension_type)
 
 
 int rs2_stream_profile_is(const rs2_stream_profile* profile, rs2_extension extension_type, rs2_error** error) BEGIN_API_CALL

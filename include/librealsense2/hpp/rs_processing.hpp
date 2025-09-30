@@ -4,7 +4,6 @@
 #ifndef LIBREALSENSE_RS2_PROCESSING_HPP
 #define LIBREALSENSE_RS2_PROCESSING_HPP
 
-#include "rs_types.hpp"
 #include "rs_frame.hpp"
 #include "rs_options.hpp"
 
@@ -1270,6 +1269,116 @@ namespace rs2
 
             return block;
         }
+    };
+
+
+    class embedded_filter : public options
+    {
+    public:
+        embedded_filter(std::shared_ptr<rs2_embedded_filter> filter)
+            : _embedded_filter(filter)
+            , options((rs2_options*)filter.get())
+        {
+        }
+
+        bool is_enabled() const
+        {
+            rs2_error* e = nullptr;
+            auto res = rs2_is_embedded_filter_enabled(_embedded_filter.get(), &e);
+            error::handle(e);
+            return !!res;
+        }
+
+        void enable()
+        {
+            rs2_error* e = nullptr;
+            rs2_enable_embedded_filter(_embedded_filter.get(), 1, &e);
+            error::handle(e);
+        }
+
+        void disable()
+        {
+            rs2_error* e = nullptr;
+            rs2_enable_embedded_filter(_embedded_filter.get(), 0, &e);
+            error::handle(e);
+        }
+
+        rs2_embedded_filter_type get_type() const
+        {
+            rs2_error* e = nullptr;
+            auto filter_type = rs2_get_embedded_filter_type(_embedded_filter.get(), &e);
+            error::handle(e);
+            return filter_type;
+        }
+
+        std::string get_name() const
+        {
+            rs2_error* e = nullptr;
+            auto filter_name = rs2_get_embedded_filter_name(_embedded_filter.get(), &e);
+            error::handle(e);
+            return filter_name;
+        }
+
+        operator bool() const
+        {
+            return _embedded_filter != nullptr;
+        }
+
+        const std::shared_ptr<rs2_embedded_filter>& get() const
+        {
+            return _embedded_filter;
+        }
+
+        template<class T>
+        bool is() const
+        {
+            T extension(*this);
+            return extension;
+        }
+
+        template<class T>
+        T as() const
+        {
+            T extension(*this);
+            return extension;
+        }
+
+    protected:
+        std::shared_ptr<rs2_embedded_filter> _embedded_filter;
+    };
+
+    class embedded_decimation_filter : public embedded_filter
+    {
+    public:
+        embedded_decimation_filter(embedded_filter filter)
+            : embedded_filter(filter.get())
+        {
+            rs2_error* e = nullptr;
+            if (rs2_is_embedded_filter_extendable_to(_embedded_filter.get(), 
+                RS2_EXTENSION_DECIMATION_EMBEDDED_FILTER, &e) == 0 && !e)
+            {
+                _embedded_filter.reset();
+            }
+            error::handle(e);
+        }
+        operator bool() const { return _embedded_filter.get() != nullptr; }
+    };
+
+    class embedded_temporal_filter : public embedded_filter
+    {
+    public:
+        embedded_temporal_filter(std::shared_ptr<rs2_embedded_filter> filter)
+            : embedded_filter(filter)
+        {
+            rs2_error* e = nullptr;
+            if (rs2_is_embedded_filter_extendable_to(_embedded_filter.get(), 
+                RS2_EXTENSION_TEMPORAL_EMBEDDED_FILTER, &e) == 0 && !e)
+            {
+                _embedded_filter.reset();
+            }
+            error::handle(e);
+        }
+        operator bool() const { return _embedded_filter.get() != nullptr; }
     };
 }
 #endif // LIBREALSENSE_RS2_PROCESSING_HPP
