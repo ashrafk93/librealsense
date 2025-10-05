@@ -194,7 +194,8 @@ with test.remote.fork( nested_indent='  S' ) as remote:
         profile = rs.video_stream_profile( sensor.get_stream_profiles()[0] )  # take the first one
         log.d( f'using profile {profile}')
         encoding = dds.video_encoding.from_rs2( profile.format() )
-        remote.run( f'img = new_image( {profile.width()}, {profile.height()}, {profile.bytes_per_pixel()} )', on_fail='abort' )
+        YUYV_BPP = 2 # the camera is actually sending us in YUYV format, and in LibRS we convert it to profile.format
+        remote.run( f'img = new_image( {profile.width()}, {profile.height()}, {YUYV_BPP} )', on_fail='abort' )
         sensor.open( [profile] )
         queue = rs.frame_queue( 100 )
         sensor.start( queue )
