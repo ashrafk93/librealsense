@@ -14,7 +14,6 @@ namespace librealsense {
     // A facade for a realdds::dds_embedded_temporal_filter exposing librealsense interface
     // handles librealsense embedded temporal filter specific logic and parameter validation
     // Communication to HW is delegated to realdds::dds_temporal_filter
-    // Temporal filter implementation
     class rs_dds_embedded_temporal_filter
         : public rs_dds_embedded_filter
         , public temporal_embedded_filter
@@ -26,16 +25,15 @@ namespace librealsense {
         virtual ~rs_dds_embedded_temporal_filter() = default;
 
         // Override interface methods
-        inline bool is_enabled() const override { return _enabled; }
-        void enable(bool enable) override;
         inline rs2_embedded_filter_type get_type() const override { return RS2_EMBEDDED_FILTER_TYPE_TEMPORAL; }
 
-        // Override abstart class methods
+        // Override abstract class methods
         virtual void add_option(std::shared_ptr< realdds::dds_option > option) override;
 
     private:
         rsutils::json prepare_all_options_json(const rsutils::json& new_value);
         void validate_filter_options(rsutils::json options_j);
+        void validate_one_option(rsutils::json opt_j);
 
         // Helper function to find an option by name in a list of DDS options
         std::shared_ptr<realdds::dds_option> get_dds_option_by_name(

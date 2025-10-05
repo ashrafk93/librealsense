@@ -98,7 +98,7 @@ try
 	auto embedded_filters = depth_sensor.query_embedded_filters();
     for(auto& filter : embedded_filters)
     {
-        std::cout << "Embedded filter supported: " << filter.get_name() << std::endl;
+        std::cout << "Embedded filter supported: " << rs2_embedded_filter_type_to_string(filter.get_type()) << std::endl;
 	}
 
 
@@ -110,25 +110,29 @@ try
     for (auto& option : dec_filter_options)
     {
         std::cout << "Decimation filter option supported: " << dec_filter.get_option_name(option) << std::endl;
-        if (option == RS2_OPTION_FILTER_MAGNITUDE)
-            continue;
-		dec_filter.set_option(option, 0.f); // setting other options to 0
     }
 
 	// getting initial values
-    auto enabled = dec_filter.is_enabled();
+    auto enabled = dec_filter.get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
     auto magnitude = dec_filter.get_option(RS2_OPTION_FILTER_MAGNITUDE);
     std::cout << "Decimation filter enabled: " << enabled << std::endl;
     std::cout << "Decimation filter magnitude: " << magnitude << std::endl;
 
 	// below line won't run because option is read-only
-    // dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2.f);
+    try {
+        dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2.f);
+    }
+    catch (...)
+    {
+		// expected - option is read-only
+    }
 
-    dec_filter.enable();
+    dec_filter.set_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED, 1);
 
-    dec_filter.disable();
 
-	bool is_enabled = dec_filter.is_enabled();
+    enabled = dec_filter.get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
+    dec_filter.set_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED, 0);
+
 
 
 

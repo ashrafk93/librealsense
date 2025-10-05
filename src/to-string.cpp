@@ -565,6 +565,8 @@ std::string const & get_string_( rs2_option value )
         CASE( SAFETY_MODE )
         CASE( RGB_TNR_ENABLED )
         CASE( SAFETY_MCU_TEMPERATURE )
+		CASE( LEFT_IR_TEMPERATURE )
+        CASE( EMBEDDED_FILTER_ENABLED )
 #undef CASE
         return arr;
     }();

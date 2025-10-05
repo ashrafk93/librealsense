@@ -786,10 +786,10 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
     {
         rs_embedded_filter = std::make_shared< rs_dds_embedded_decimation_filter >(
             embedded_filter,
-            [=](json value)
+            [=](json options_value)
             {
                 // Send the new value to the remote device; the local value gets cached automatically as part of the reply
-                _dev->set_embedded_filter(embedded_filter, std::move(value));
+                _dev->set_embedded_filter(embedded_filter, std::move(options_value));
             },
             [=]() -> json
             {
@@ -820,10 +820,10 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
     {
         rs_embedded_filter = std::make_shared< rs_dds_embedded_temporal_filter >(
             embedded_filter,
-            [=](json value)
+            [=](json options_value)
             {
                 // Send the new value to the remote device; the local value gets cached automatically as part of the reply
-                _dev->set_embedded_filter(embedded_filter, std::move(value));
+                _dev->set_embedded_filter(embedded_filter, std::move(options_value));
             },
             [=]() -> json
             {

@@ -428,6 +428,14 @@ json dds_option::to_json() const
     return j;
 }
 
+rsutils::json dds_option::to_name_and_value_json() const
+{
+    json j = json::object();
+    j["name"] = get_name();
+    j["value"] = get_value();
+	return j;
+}
+
 
 json dds_option::props_to_json() const
 {

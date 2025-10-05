@@ -82,7 +82,7 @@ public:
     void set_option_value( const std::shared_ptr< dds_option > & option, rsutils::json new_value );
     rsutils::json query_option_value( const std::shared_ptr< dds_option > & option );
 
-    void set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, const rsutils::json& new_value);
+    void set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, const rsutils::json& options_value);
     rsutils::json query_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter);
 
     void send_control( rsutils::json const &, rsutils::json * reply = nullptr ) const;

@@ -204,10 +204,10 @@ json dds_device::query_option_value( const std::shared_ptr< dds_option > & optio
     return _impl->query_option_value( option );
 }
 
-void dds_device::set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, const json& new_value)
+void dds_device::set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, const json& options_value)
 {
     wait_until_ready(0);  // throw if not
-    _impl->set_embedded_filter(filter, std::move(new_value));
+    _impl->set_embedded_filter(filter, std::move(options_value));
 }
 
 json dds_device::query_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter)

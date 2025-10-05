@@ -20,8 +20,6 @@ namespace librealsense {
         virtual ~embedded_filter_interface() = default;
 
         // Pure virtual interface methods
-		virtual bool is_enabled() const = 0;
-		virtual void enable(bool enable) = 0;
 		virtual rs2_embedded_filter_type get_type() const = 0;
     };
 

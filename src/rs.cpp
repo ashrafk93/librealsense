@@ -503,35 +503,12 @@ void rs2_delete_embedded_filter(rs2_embedded_filter* embedded_filter) BEGIN_API_
 }
 NOEXCEPT_RETURN(, embedded_filter)
 
-int rs2_is_embedded_filter_enabled(const rs2_embedded_filter* embedded_filter, rs2_error** error) BEGIN_API_CALL
-{
-    VALIDATE_NOT_NULL(embedded_filter);
-
-    return embedded_filter->_embedded_filter->is_enabled();
-}
-HANDLE_EXCEPTIONS_AND_RETURN(false, embedded_filter)
-
-void rs2_enable_embedded_filter(rs2_embedded_filter* embedded_filter, int enable, rs2_error** error) BEGIN_API_CALL
-{
-    VALIDATE_NOT_NULL(embedded_filter);
-	bool enable_bool = enable != 0;
-    embedded_filter->_embedded_filter->enable(enable_bool);
-}
-HANDLE_EXCEPTIONS_AND_RETURN(, embedded_filter)
-
 rs2_embedded_filter_type rs2_get_embedded_filter_type(const rs2_embedded_filter* embedded_filter, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(embedded_filter);
     return embedded_filter->_embedded_filter->get_type();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(RS2_EMBEDDED_FILTER_TYPE_COUNT, embedded_filter)
-
-const char* rs2_get_embedded_filter_name(const rs2_embedded_filter* embedded_filter, rs2_error** error) BEGIN_API_CALL
-{
-    VALIDATE_NOT_NULL(embedded_filter);
-    return rs2_embedded_filter_type_to_string(embedded_filter->_embedded_filter->get_type());
-}
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, embedded_filter)
 
 rs2_stream_profile_list* rs2_get_active_streams(rs2_sensor* sensor, rs2_error** error) BEGIN_API_CALL
 {

@@ -487,9 +487,7 @@ EXPORTS
     rs2_get_embedded_filters_count
     rs2_create_embedded_filter
     rs2_delete_embedded_filter
-    rs2_is_embedded_filter_enabled
-    rs2_enable_embedded_filter
     rs2_get_embedded_filter_type
-    rs2_get_embedded_filter_name
     rs2_get_embedded_filters_count
     rs2_is_embedded_filter_extendable_to
+    rs2_embedded_filter_type_to_string

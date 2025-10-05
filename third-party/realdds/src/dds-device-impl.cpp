@@ -559,7 +559,7 @@ json dds_device::impl::query_option_value( const std::shared_ptr< dds_option > &
     return reply.at( topics::reply::query_option::key::value );
 }
 
-void dds_device::impl::set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, json new_value)
+void dds_device::impl::set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, json options_value)
 {
     if (!filter)
         DDS_THROW(runtime_error, "must provide an embedded filter to set");
@@ -567,7 +567,7 @@ void dds_device::impl::set_embedded_filter(const std::shared_ptr< dds_embedded_f
     json j = json::object({
         { topics::control::key::id, topics::control::set_filter::id },
         { topics::control::set_filter::key::name, filter->get_name() },
-        { topics::control::set_filter::key::options, new_value }
+        { topics::control::set_filter::key::options, options_value }
         });
     if (auto stream = filter->get_stream())
         j[topics::control::set_filter::key::stream_name] = stream->name();

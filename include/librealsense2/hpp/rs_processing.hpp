@@ -1281,42 +1281,12 @@ namespace rs2
         {
         }
 
-        bool is_enabled() const
-        {
-            rs2_error* e = nullptr;
-            auto res = rs2_is_embedded_filter_enabled(_embedded_filter.get(), &e);
-            error::handle(e);
-            return !!res;
-        }
-
-        void enable()
-        {
-            rs2_error* e = nullptr;
-            rs2_enable_embedded_filter(_embedded_filter.get(), 1, &e);
-            error::handle(e);
-        }
-
-        void disable()
-        {
-            rs2_error* e = nullptr;
-            rs2_enable_embedded_filter(_embedded_filter.get(), 0, &e);
-            error::handle(e);
-        }
-
         rs2_embedded_filter_type get_type() const
         {
             rs2_error* e = nullptr;
             auto filter_type = rs2_get_embedded_filter_type(_embedded_filter.get(), &e);
             error::handle(e);
             return filter_type;
-        }
-
-        std::string get_name() const
-        {
-            rs2_error* e = nullptr;
-            auto filter_name = rs2_get_embedded_filter_name(_embedded_filter.get(), &e);
-            error::handle(e);
-            return filter_name;
         }
 
         operator bool() const

@@ -25,8 +25,6 @@ namespace librealsense {
         virtual ~rs_dds_embedded_decimation_filter() = default;
 
         // Override interface methods
-        inline bool is_enabled() const override { return _enabled; }
-        void enable(bool enable) override;
         inline rs2_embedded_filter_type get_type() const override { return RS2_EMBEDDED_FILTER_TYPE_DECIMATION; }
 
         // Override abstract class methods
@@ -35,8 +33,8 @@ namespace librealsense {
     private:
         rsutils::json prepare_all_options_json(const rsutils::json& new_value);
 
-        // Validates decimation filter parameters for depth sensor
         void validate_filter_options(rsutils::json options_j);
+        void validate_one_option(rsutils::json opt_j);
 
         // Helper function to find an option by name in a list of DDS options
         std::shared_ptr<realdds::dds_option> get_dds_option_by_name(

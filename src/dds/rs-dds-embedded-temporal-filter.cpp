@@ -35,20 +35,6 @@ namespace librealsense {
         }
     }
 
-    void rs_dds_embedded_temporal_filter::enable(bool enable)
-    {
-        // Enable/disable temporal filter via DDS
-        // This is equivalent to setting the "Toggle" option to 1 (ON)
-        auto toggle_opt = get_dds_option_by_name(_dds_ef->get_options(), "Toggle");
-        if (toggle_opt) {
-            int32_t value_to_set = enable ? 1 : 0;
-            auto toggle_opt_j = toggle_opt->to_json();
-            toggle_opt_j["value"] = value_to_set;
-            // below line should call the set option callback defined in add_option method
-            toggle_opt->set_value(toggle_opt_j["value"]);
-        }
-    }
-
     // Helper function to find an option by name in a list of DDS options
     std::shared_ptr<realdds::dds_option> rs_dds_embedded_temporal_filter::get_dds_option_by_name(
         const std::vector<std::shared_ptr<realdds::dds_option>>& options, 
@@ -106,15 +92,14 @@ namespace librealsense {
             option,
             [=](json value) // set_option cb for the filter's options
             {
-                // prepare json with all options
-                json all_options_json = prepare_all_options_json(value);
+                // create a proper option json with name and value
+                json option_with_value = option->to_name_and_value_json();
                 // validate values
-                validate_filter_options(all_options_json);
+                validate_filter_options(option_with_value);
                 // set updated options to the remote device
-                _set_ef_cb(all_options_json);
-
+                _set_ef_cb(option_with_value);
                 // Delegate to DDS filter
-                _dds_ef->set_options(all_options_json);
+                _dds_ef->set_options(option_with_value);
             },
             [=]() -> json // get_option cb for the filter's options
             {
@@ -142,103 +127,118 @@ namespace librealsense {
         return json_to_send;
     }
 
+    void rs_dds_embedded_temporal_filter::validate_one_option(rsutils::json opt_j)
+    {
+        if (!opt_j.contains("name"))
+        {
+            throw std::runtime_error("Option json does not contain name!");
+        }
+
+        std::string option_name = opt_j["name"].get<std::string>();
+
+        // Find the corresponding DDS option to get its range
+        auto dds_option = get_dds_option_by_name(_dds_ef->get_options(), option_name);
+        if (!dds_option)
+        {
+            throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");
+        }
+
+        if (option_name == "Toggle")
+        {
+            int32_t toggle_val = opt_j["value"].get<int32_t>();
+
+            // Check range using DDS option
+            if (!dds_option->get_minimum_value().is_null() && toggle_val < dds_option->get_minimum_value().get<int32_t>())
+            {
+                throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) +
+                    " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+            }
+            if (!dds_option->get_maximum_value().is_null() && toggle_val > dds_option->get_maximum_value().get<int32_t>())
+            {
+                throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) +
+                    " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+            }
+
+            // Additional validation: Toggle should be 0 or 1
+            if (toggle_val != 0 && toggle_val != 1)
+            {
+                throw std::runtime_error("Toggle shall be 0 for OFF or 1 for ON");
+            }
+        }
+        else if (option_name == "Alpha")
+        {
+            float alpha_val = opt_j["value"].get<float>();
+
+            // Check range using DDS option
+            if (!dds_option->get_minimum_value().is_null() && alpha_val < dds_option->get_minimum_value().get<float>())
+            {
+                throw std::invalid_argument("Alpha value " + std::to_string(alpha_val) +
+                    " is below minimum " + std::to_string(dds_option->get_minimum_value().get<float>()));
+            }
+            if (!dds_option->get_maximum_value().is_null() && alpha_val > dds_option->get_maximum_value().get<float>())
+            {
+                throw std::invalid_argument("Alpha value " + std::to_string(alpha_val) +
+                    " is above maximum " + std::to_string(dds_option->get_maximum_value().get<float>()));
+            }
+        }
+        else if (option_name == "Delta")
+        {
+            int32_t delta_val = opt_j["value"].get<int32_t>();
+
+            // Check range using DDS option
+            if (!dds_option->get_minimum_value().is_null() && delta_val < dds_option->get_minimum_value().get<int32_t>())
+            {
+                throw std::invalid_argument("Delta value " + std::to_string(delta_val) +
+                    " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+            }
+            if (!dds_option->get_maximum_value().is_null() && delta_val > dds_option->get_maximum_value().get<int32_t>())
+            {
+                throw std::invalid_argument("Delta value " + std::to_string(delta_val) +
+                    " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+            }
+        }
+        else if (option_name == "Persistency")
+        {
+            int32_t persistency_val = opt_j["value"].get<int32_t>();
+
+            // Check range using DDS option
+            if (!dds_option->get_minimum_value().is_null() && persistency_val < dds_option->get_minimum_value().get<int32_t>())
+            {
+                throw std::invalid_argument("Persistency value " + std::to_string(persistency_val) +
+                    " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
+            }
+            if (!dds_option->get_maximum_value().is_null() && persistency_val > dds_option->get_maximum_value().get<int32_t>())
+            {
+                throw std::invalid_argument("Persistency value " + std::to_string(persistency_val) +
+                    " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
+            }
+        }
+        else
+        {
+            // we should not get here
+            throw std::runtime_error("The expected parameters for Temporal filter are toggle, alpha, delta and persistency");
+        }
+    }
+
     void rs_dds_embedded_temporal_filter::validate_filter_options(rsutils::json options_j)
     {
+        // This function validates the temporal filter parameters for depth sensor
+        // All options can be set at once or part of them only
+
         // Check expected number of parameters
-        if (options_j.size() != 4) {
-            throw std::invalid_argument("Four parameters are expected for Temporal filter (enabled + alpha + delta + persistency)");
+        if (options_j.size() > 4) {
+            throw std::invalid_argument("No more than 4 parameters are expected for Temporal filter (enabled + alpha + delta + persistency)");
         }
-        
-        for (auto& opt_j : options_j)
+
+        if (options_j.contains("name")) // means that only one option sent 
         {
-            if (!opt_j.contains("name"))
+            validate_one_option(options_j);
+        }
+        else // means both options are to be set
+        {
+            for (auto& opt_j : options_j)
             {
-                throw std::runtime_error("Option json does not contain name!");
-            }
-            
-            std::string option_name = opt_j["name"].get<std::string>();
-            
-            // Find the corresponding DDS option to get its range
-            auto dds_option = get_dds_option_by_name(_dds_ef->get_options(), option_name);
-            if (!dds_option)
-            {
-                throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");
-            }
-            
-            if (option_name == "Toggle")
-            {
-                int32_t toggle_val = opt_j["value"].get<int32_t>();
-                
-                // Check range using DDS option
-                if (!dds_option->get_minimum_value().is_null() && toggle_val < dds_option->get_minimum_value().get<int32_t>())
-                {
-                    throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) + 
-                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
-                }
-                if (!dds_option->get_maximum_value().is_null() && toggle_val > dds_option->get_maximum_value().get<int32_t>())
-                {
-                    throw std::invalid_argument("Toggle value " + std::to_string(toggle_val) + 
-                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
-                }
-                
-                // Additional validation: Toggle should be 0 or 1
-                if (toggle_val != 0 && toggle_val != 1)
-                {
-                    throw std::runtime_error("Toggle shall be 0 for OFF or 1 for ON");
-                }
-            }
-            else if (option_name == "Alpha")
-            {
-                float alpha_val = opt_j["value"].get<float>();
-                
-                // Check range using DDS option
-                if (!dds_option->get_minimum_value().is_null() && alpha_val < dds_option->get_minimum_value().get<float>())
-                {
-                    throw std::invalid_argument("Alpha value " + std::to_string(alpha_val) + 
-                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<float>()));
-                }
-                if (!dds_option->get_maximum_value().is_null() && alpha_val > dds_option->get_maximum_value().get<float>())
-                {
-                    throw std::invalid_argument("Alpha value " + std::to_string(alpha_val) + 
-                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<float>()));
-                }
-            }
-            else if (option_name == "Delta")
-            {
-                int32_t delta_val = opt_j["value"].get<int32_t>();
-                
-                // Check range using DDS option
-                if (!dds_option->get_minimum_value().is_null() && delta_val < dds_option->get_minimum_value().get<int32_t>())
-                {
-                    throw std::invalid_argument("Delta value " + std::to_string(delta_val) + 
-                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
-                }
-                if (!dds_option->get_maximum_value().is_null() && delta_val > dds_option->get_maximum_value().get<int32_t>())
-                {
-                    throw std::invalid_argument("Delta value " + std::to_string(delta_val) + 
-                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
-                }
-            }
-            else if (option_name == "Persistency")
-            {
-                int32_t persistency_val = opt_j["value"].get<int32_t>();
-                
-                // Check range using DDS option
-                if (!dds_option->get_minimum_value().is_null() && persistency_val < dds_option->get_minimum_value().get<int32_t>())
-                {
-                    throw std::invalid_argument("Persistency value " + std::to_string(persistency_val) + 
-                                              " is below minimum " + std::to_string(dds_option->get_minimum_value().get<int32_t>()));
-                }
-                if (!dds_option->get_maximum_value().is_null() && persistency_val > dds_option->get_maximum_value().get<int32_t>())
-                {
-                    throw std::invalid_argument("Persistency value " + std::to_string(persistency_val) + 
-                                              " is above maximum " + std::to_string(dds_option->get_maximum_value().get<int32_t>()));
-                }
-            }
-            else
-            {
-                // we should not get here
-                throw std::runtime_error("The expected parameters for Temporal filter are toggle, alpha, delta and persistency");
+                validate_one_option(opt_j);
             }
         }
         // Validation passed - parameters are valid

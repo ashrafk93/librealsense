@@ -86,7 +86,7 @@ public:
     void set_option_value( const std::shared_ptr< dds_option > & option, rsutils::json new_value );
     rsutils::json query_option_value( const std::shared_ptr< dds_option > & option );
 
-    void set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, rsutils::json new_value);
+    void set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, rsutils::json options_value);
     rsutils::json query_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter);
 
     using on_metadata_available_signal = rsutils::signal< std::shared_ptr< const rsutils::json > const & >;
