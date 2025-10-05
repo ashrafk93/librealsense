@@ -433,7 +433,7 @@ rsutils::json dds_option::to_name_and_value_json() const
     json j = json::object();
     j["name"] = get_name();
     j["value"] = get_value();
-	return j;
+    return j;
 }
 
 
@@ -650,7 +650,7 @@ rsutils::json dds_options_to_json(dds_options const& options)
             options_json.emplace_back(opt->to_json());
         }
         return options_json;
-	}
+    }
     return rsutils::json();
 }
 

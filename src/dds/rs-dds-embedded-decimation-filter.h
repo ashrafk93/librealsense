@@ -13,7 +13,7 @@ namespace librealsense {
     // Class librealsense::rs_dds_embedded_decimation_filter: 
     // A facade for a realdds::dds_embedded_decimation_filter exposing librealsense interface
     // handles librealsense embedded decimation filter specific logic and parameter validation
-	// Communication to HW is delegated to realdds::dds_decimation_filter
+    // Communication to HW is delegated to realdds::dds_decimation_filter
     class rs_dds_embedded_decimation_filter
         : public rs_dds_embedded_filter
         , public decimation_embedded_filter
@@ -44,7 +44,7 @@ namespace librealsense {
         bool _enabled;
         int _magnitude;
 
-		const int32_t DECIMATION_MAGNITUDE = 2; // Decimation magnitude must always be 2
+        const int32_t DECIMATION_MAGNITUDE = 2; // Decimation magnitude must always be 2
     };
 
 }  // namespace librealsense

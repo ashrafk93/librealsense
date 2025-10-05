@@ -117,16 +117,16 @@ bool dds_depth_sensor_proxy::extend_to( rs2_extension extension_type, void ** pt
 embedded_filters dds_depth_sensor_proxy::get_embedded_filters() const
 {
     embedded_filters filters;
-	for (auto& embedded_filter : _embedded_filters)
-	{
-		filters.push_back(embedded_filter);
-	}
+    for (auto& embedded_filter : _embedded_filters)
+    {
+        filters.push_back(embedded_filter);
+    }
     return filters;
 }
 
 void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< embedded_filter_interface > embedded_filter)
 {
-	_embedded_filters.push_back(embedded_filter);
+    _embedded_filters.push_back(embedded_filter);
 }
 
 }  // namespace librealsense

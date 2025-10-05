@@ -322,7 +322,7 @@ void dds_device_server::on_control_message_received()
         { topics::control::set_option::id, &dds_device_server::on_set_option },
         { topics::control::query_option::id, &dds_device_server::on_query_option },
         { topics::control::query_options::id, &dds_device_server::on_query_options },
-		// TODO add control handlers here for embedded filters controls
+        // TODO add control handlers here for embedded filters controls
         // These are the ones handle internally -- our owner may handle application-dependent controls
     };
 

@@ -335,7 +335,7 @@ namespace rs2
         {
             for (auto&& ef : query_embedded_filters())
             {
-				if (ef.get_type() == type) return ef;
+                if (ef.get_type() == type) return ef;
             }
             throw rs2::error("Could not find requested embedded filter type!");
         }

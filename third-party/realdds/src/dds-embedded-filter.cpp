@@ -82,7 +82,7 @@ rsutils::json dds_embedded_filter::props_to_json() const
     if (!_options.empty()) {
         props["options"] = dds_options_to_json(_options);
     }
-	auto stream = _stream.lock();
+    auto stream = _stream.lock();
     if (stream) {
         props["stream_type"] = stream->name();
     }
@@ -109,10 +109,10 @@ std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutil
     }
     else
     {
-		DDS_THROW(runtime_error, "missing name");
+        DDS_THROW(runtime_error, "missing name");
     }
     auto type = embedded_filter_type_from_string(name_str);
-	// create the appropriate filter type
+    // create the appropriate filter type
     auto filter = create_embedded_filter(type);
     filter->init(j["name"].get<std::string>(), type);
     

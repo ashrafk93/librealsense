@@ -18,16 +18,16 @@ namespace librealsense {
     rs_dds_embedded_decimation_filter::rs_dds_embedded_decimation_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
         set_embedded_filter_callback set_embedded_filter_cb,
         query_embedded_filter_callback query_embedded_filter_cb)
-		: rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
-		, _enabled(false)
-		, _magnitude(DECIMATION_MAGNITUDE)
+        : rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
+        , _enabled(false)
+        , _magnitude(DECIMATION_MAGNITUDE)
     {
         // Initialize options by calling add_option for each DDS option
         for (auto& dds_option : _dds_ef->get_options())
         {
             add_option(dds_option);
         }
-	}
+    }
 
     // Helper function to find an option by name in a list of DDS options
     std::shared_ptr<realdds::dds_option> rs_dds_embedded_decimation_filter::get_dds_option_by_name(
@@ -55,7 +55,7 @@ namespace librealsense {
         {
             option_id = RS2_OPTION_EMBEDDED_FILTER_ENABLED;
         }
-		else
+        else
         {
             throw std::runtime_error("option '" + option->get_name() + "' not in this filter");
         }
@@ -101,18 +101,18 @@ namespace librealsense {
     rsutils::json rs_dds_embedded_decimation_filter::prepare_all_options_json(const rsutils::json& updated_option)
     {
         auto options = _dds_ef->get_options();
-		rsutils::json json_to_send;
+        rsutils::json json_to_send;
         for(auto& opt : options)
         {
             if (opt->get_name() == updated_option["name"].get<std::string>())
             {
                 json_to_send.push_back(updated_option);
-			}
+            }
             else
             {
                 json_to_send.push_back(opt->to_name_and_value_json());
             }
-		}
+        }
 
         return json_to_send;
     }
@@ -185,8 +185,8 @@ namespace librealsense {
 
     void rs_dds_embedded_decimation_filter::validate_filter_options(rsutils::json options_j)
     {
-		// This function validates the decimation filter parameters for depth sensor
-		// All options can be set at once or part of them only
+        // This function validates the decimation filter parameters for depth sensor
+        // All options can be set at once or part of them only
         
         // Check expected number of parameters
         if (options_j.size() > 2) {
@@ -195,9 +195,9 @@ namespace librealsense {
 
         if (options_j.contains("name")) // means that only one option sent 
         {
-			validate_one_option(options_j);
-		}
-		else // means both options are to be set
+            validate_one_option(options_j);
+        }
+        else // means both options are to be set
         {
             for (auto& opt_j : options_j)
             {

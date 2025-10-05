@@ -20,7 +20,7 @@ namespace librealsense {
         virtual ~embedded_filter_interface() = default;
 
         // Pure virtual interface methods
-		virtual rs2_embedded_filter_type get_type() const = 0;
+        virtual rs2_embedded_filter_type get_type() const = 0;
     };
 
     using embedded_filters = std::vector< std::shared_ptr< embedded_filter_interface > >;

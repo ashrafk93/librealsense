@@ -94,7 +94,7 @@ public:
     bool is_default_valid() const { return ! get_default_value().is_null(); }
 
     virtual rsutils::json to_json() const;
-	rsutils::json to_name_and_value_json() const;
+    rsutils::json to_name_and_value_json() const;
     static std::shared_ptr< dds_option > from_json( rsutils::json const & j );
 
 protected:

@@ -83,7 +83,7 @@ private:
 
     processing_blocks _pbs;
 
-	embedded_filters _embedded_filters;
+    embedded_filters _embedded_filters;
 };
 
 MAP_EXTENSION( RS2_EXTENSION_SOFTWARE_SENSOR, software_sensor );

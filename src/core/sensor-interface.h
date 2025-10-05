@@ -30,7 +30,7 @@ class sensor_interface
     : public virtual info_interface
     , public virtual options_interface
     , public virtual recommended_proccesing_blocks_interface
-	, public virtual get_embedded_filters_interface
+    , public virtual get_embedded_filters_interface
 {
 public:
     virtual ~sensor_interface() = default;

@@ -15,18 +15,18 @@ using rsutils::json;
 
 namespace librealsense {
 
-	const float rs_dds_embedded_temporal_filter::ALPHA_DEFAULT = 0.4f;
-	const int32_t rs_dds_embedded_temporal_filter::DELTA_DEFAULT = 20;
-	const int32_t rs_dds_embedded_temporal_filter::PERSISTENCY_DEFAULT = 3;
+    const float rs_dds_embedded_temporal_filter::ALPHA_DEFAULT = 0.4f;
+    const int32_t rs_dds_embedded_temporal_filter::DELTA_DEFAULT = 20;
+    const int32_t rs_dds_embedded_temporal_filter::PERSISTENCY_DEFAULT = 3;
 
     rs_dds_embedded_temporal_filter::rs_dds_embedded_temporal_filter(const std::shared_ptr< realdds::dds_embedded_filter >& dds_embedded_filter,
         set_embedded_filter_callback set_embedded_filter_cb,
         query_embedded_filter_callback query_embedded_filter_cb)
-		: rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
-		, _enabled(false)
-		, _alpha(ALPHA_DEFAULT)
-		, _delta(DELTA_DEFAULT)
-		, _persistency(PERSISTENCY_DEFAULT)
+        : rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
+        , _enabled(false)
+        , _alpha(ALPHA_DEFAULT)
+        , _delta(DELTA_DEFAULT)
+        , _persistency(PERSISTENCY_DEFAULT)
     {
         // Initialize options by calling add_option for each DDS option
         for (auto& dds_option : _dds_ef->get_options())

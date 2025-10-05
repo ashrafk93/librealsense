@@ -45,9 +45,9 @@ namespace librealsense {
         int32_t _delta;
         int32_t _persistency;
 
-		static const float ALPHA_DEFAULT;
-		static const int32_t DELTA_DEFAULT;
-		static const int32_t PERSISTENCY_DEFAULT;
+        static const float ALPHA_DEFAULT;
+        static const int32_t DELTA_DEFAULT;
+        static const int32_t PERSISTENCY_DEFAULT;
     };
 
 }  // namespace librealsense

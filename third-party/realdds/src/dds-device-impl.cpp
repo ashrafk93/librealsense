@@ -244,7 +244,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
         auto stream_it = _streams.find(stream_name);
         if (stream_it == _streams.end())
             DDS_THROW(runtime_error, "stream '" + stream_name + "' not found");
-		filters = stream_it->second->embedded_filters();
+        filters = stream_it->second->embedded_filters();
     }
     auto filter_name_j = j.nested(topics::reply::set_filter::key::name);
     if (!filter_name_j.exists())
@@ -259,7 +259,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     auto& filter_name = filter_name_j.string_ref();
     for (auto& filter : filters)
     {
-		auto filter_type = embedded_filter_type_from_string(filter_name);
+        auto filter_type = embedded_filter_type_from_string(filter_name);
         if (filter->get_filter_type() == filter_type)
         {
             filter->set_options(filter_params_j);  // throws!
