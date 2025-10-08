@@ -177,6 +177,88 @@ def measure_depth_fill_rate(ctx=None, width=640, height=480, fps=30, frames=10, 
         return None
 
 
+def measure_average_depth(ctx=None, width=640, height=480, fps=30, frames=10, timeout_s=12, enable_emitter=True):
+    """Measure the average depth distance (in meters) across a series of frames.
+
+    Valid depth pixels are > 0 (raw units). Invalid (<=0) are ignored.
+
+    Args:
+        ctx (rs.context|None): Optional existing context; created if None.
+        width, height, fps (int): Stream configuration for depth.
+        frames (int): Maximum number of frames to sample.
+        timeout_s (float): Overall timeout for the sampling loop.
+        enable_emitter (bool): Attempt to enable emitter for more reliable data.
+
+    Returns:
+        float | None: Mean depth in meters over all valid pixels from collected frames,
+                      or None if no valid data was obtained.
+    """
+    pipe = None
+    try:
+        import numpy as np
+        if ctx is None:
+            ctx = rs.context()
+        cfg = rs.config()
+        cfg.enable_stream(rs.stream.depth, width, height, rs.format.z16, fps)
+        pipe = rs.pipeline(ctx)
+        profile = pipe.start(cfg)
+
+        # Configure sensor options (best-effort)
+        try:
+            depth_sensor = profile.get_device().first_depth_sensor()
+            if enable_emitter and depth_sensor.supports(rs.option.emitter_enabled):
+                depth_sensor.set_option(rs.option.emitter_enabled, 1)
+            if depth_sensor.supports(rs.option.thermal_compensation):
+                depth_sensor.set_option(rs.option.thermal_compensation, 0)
+            depth_scale = depth_sensor.get_depth_scale()
+        except Exception:
+            # Fallback default RealSense depth scale (commonly 0.001) if retrieval fails
+            depth_scale = 0.001
+
+        start = time.time()
+        collected = 0
+        valid_sum_m = 0.0
+        valid_count = 0
+
+        while collected < frames and (time.time() - start) < timeout_s:
+            try:
+                fs = pipe.wait_for_frames(3000)
+            except Exception:
+                continue
+            depth = fs.get_depth_frame()
+            if not depth:
+                continue
+            data = np.asanyarray(depth.get_data())  # uint16
+            if data.size == 0:
+                continue
+            valid_mask = data > 0  # ignore zero / invalid
+            count = valid_mask.sum()
+            if count == 0:
+                # No valid points in this frame; keep trying
+                collected += 1
+                continue
+            # Accumulate sums in meters (raw * scale)
+            valid_sum_m += float(data[valid_mask].sum()) * depth_scale
+            valid_count += int(count)
+            collected += 1
+            # Early break heuristic: if we already have plenty of samples and elapsed > 1.5s
+            if collected >= 5 and (time.time() - start) > 1.5:
+                break
+
+        pipe.stop()
+        if valid_count == 0:
+            return None
+        return valid_sum_m / valid_count
+    except Exception as e:
+        log.w(f"measure_average_depth failed: {e}")
+        try:
+            if pipe:
+                pipe.stop()
+        except Exception:
+            pass
+        return None
+
+
 def is_mipi_device():
     ctx = rs.context()
     device = ctx.query_devices()[0]
