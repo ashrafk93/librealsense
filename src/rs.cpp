@@ -4349,8 +4349,13 @@ void rs2_project_color_pixel_to_depth_pixel(float to_pixel[2],
     for (float p[2] = { start_pixel[0], start_pixel[1] }; is_pixel_in_line(p, start_pixel, end_pixel); next_pixel_in_line(p, start_pixel, end_pixel))
     {
         float depth = depth_scale * data[(int)p[1] * depth_intrin->width + (int)p[0]];
-        if (depth == 0)
-            continue;
+        if (depth == 0) {
+            if (p[0] == end_pixel[0] && p[1] == end_pixel[1]) {
+                break;
+            } else {
+                continue;
+            }
+        }
 
         float projected_pixel[2] = { 0 }, point[3] = { 0 }, transformed_point[3] = { 0 };
         rs2_deproject_pixel_to_point(point, depth_intrin, p, depth);
