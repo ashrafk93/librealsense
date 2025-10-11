@@ -32,7 +32,7 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
                     '"speed": 2,\n'+\
                     '"scan parameter": 0,\n'+\
                     '"apply preset": 0,\n'+\
-                    '"scan only": ' + str(int(host_assistance)) + ',\n'+\
+                    '"scan only": 1,\n'+\
                     '"interactive scan": 0,\n'+\
                     '"resize factor": 1\n'+\
                     '}'
