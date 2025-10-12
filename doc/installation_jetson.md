@@ -82,6 +82,9 @@ Note that a lower version may not work due to non compatible CUDA versions limit
 
 You can also double-TAB after typing `rs-` to see the full list of SDK examples.
 
+> Note: you may need to also run the driver patch script in order for the camera to work on your platform:
+See [building-from-source-using-native-backend](https://github.com/IntelRealSense/librealsense/edit/development/doc/installation_jetson.md#building-from-source-using-native-backend)
+
 ## Building from Source using **RSUSB** Backend
 
 ⮕ Use the RSUSB backend without the kernel patching
