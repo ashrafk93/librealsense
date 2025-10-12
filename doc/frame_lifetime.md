@@ -79,8 +79,18 @@ librealsense provides some degree of control over this trade-off using `RS2_OPTI
 
 Often the input to an image processing application is not simply a frame, but rather a coherent set of frames, preferably taken at the same time. librealsense provides `rs2::syncer` primitive to help with this problem:
 ```cpp
-auto sync = dev.create_syncer(); // syncronization algorithm can be device specific
-dev.start(sync);
+#define CAPACITY = 10
+// Open color and depth sensors
+depth_sensor.open();
+color_sensor.open();
+
+// Create new syncer and set it’s queue capacity. Default capacity is 1
+rs2::syncer sync(CAPACITY);
+
+// Start the sensors with syncer object
+depth_sensor.start(sync);
+color_sensor.start(sync);
+
 while(true)
 {
     auto frameset = sync.wait_for_frames(); // wait for a coherent set of frames
@@ -94,6 +104,7 @@ while(true)
 * If hardware timestamps are available, librealsense will take advantage of them.
 * If the device supports hardware sync, librealsense will try to take advantage of it if it's enabled, but will not implicitly enable it. 
 * You can also use a single `rs2::syncer` to synchronize between devices, assuming it makes sense. 
+
 
 
 
