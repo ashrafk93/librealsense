@@ -36,13 +36,18 @@ def get_sensors_and_profiles(device):
                 if res not in depth_resolutions:
                     depth_resolutions.append(res)
             for res in depth_resolutions:
+                # Skip 1280x800 resolution for infrared since it's Y16 calibration format
+                if res == (1280, 800):
+                    log.d(f"Skipping resolution {res} for infrared (calibration format)")
+                    continue
+                    
                 depth = fps_helper.get_profile(sensor, rs.stream.depth, res)
                 irs = fps_helper.get_profiles(sensor, rs.stream.infrared, res)
                 ir = next(irs)
                 while ir is not None and ir.stream_index() != 1:
                     ir = next(irs)
                 if ir and depth:
-                    print(ir, depth)
+                    log.d(f"{ir}, {depth}")
                     sensor_profiles_arr.append((sensor, depth))
                     sensor_profiles_arr.append((sensor, ir))
                     break

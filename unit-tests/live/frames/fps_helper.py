@@ -8,7 +8,7 @@ import pyrealsense2 as rs
 # global variable used to count on all the sensors simultaneously
 count_frames = False
 # tests parameters
-TIME_FOR_STEADY_STATE = 3
+TIME_FOR_STEADY_STATE = 5
 TIME_TO_COUNT_FRAMES = 5
 
 
@@ -73,9 +73,17 @@ def generate_callbacks(sensor_profiles_dict, profile_name_fps_dict):
     Creates callable functions for each sensor to be triggered when a new frame arrives
     Used to count frames received for measuring fps
     """
+    log.d(f"Setting up callbacks for profiles: {list(profile_name_fps_dict.keys())}")
+    
     def on_frame_received(frame):
         global count_frames
         profile_name = frame.profile.stream_name()
+        
+        # Check if this profile is expected
+        if profile_name not in profile_name_fps_dict:
+            log.w(f"Received unexpected frame from profile: {profile_name}")
+            return
+            
         counted_frame_number = profile_name_fps_dict[frame.profile.stream_name()] + 1  # frame number counted in test
         frame_number = frame.get_frame_number()  # the actual frame number from the metadata
         frame_ts = frame.get_timestamp()
@@ -108,8 +116,11 @@ def measure_fps(sensor_profiles_dict):
     funcs_dict = generate_callbacks(sensor_profiles_dict, profile_name_fps_dict)
 
     for sensor, profiles in sensor_profiles_dict.items():
+        log.d(f"Opening sensor {sensor.name} with profiles: {[p.stream_name() for p in profiles]}")
         sensor.open(profiles)
+        log.d(f"Starting sensor {sensor.name}")
         sensor.start(funcs_dict[sensor])
+        log.d(f"Sensor {sensor.name} started successfully")
 
     # the core of the test - frames are counted during sleep when count_frames is on
     time.sleep(TIME_FOR_STEADY_STATE)
