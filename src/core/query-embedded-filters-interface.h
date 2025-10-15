@@ -20,7 +20,7 @@ public:
 
     virtual embedded_filters query_embedded_filters() const = 0;};
 
-MAP_EXTENSION( RS2_EXTENSION_GET_EMBEDDED_FILTERS, librealsense::query_embedded_filters_interface );
+MAP_EXTENSION( RS2_EXTENSION_QUERY_EMBEDDED_FILTERS, librealsense::query_embedded_filters_interface );
 
 
 }  // namespace librealsense

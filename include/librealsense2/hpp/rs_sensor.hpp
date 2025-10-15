@@ -322,20 +322,11 @@ namespace rs2
         }
 
         template<class T>
-        T first_embedded_filter() const
+        T get_embedded_filter() const
         {
             for (auto&& ef : query_embedded_filters())
             {
                 if (auto t = ef.as<T>()) return t;
-            }
-            throw rs2::error("Could not find requested embedded filter type!");
-        }
-
-        embedded_filter& get_embedded_filter(rs2_embedded_filter_type type)
-        {
-            for (auto&& ef : query_embedded_filters())
-            {
-                if (ef.get_type() == type) return ef;
             }
             throw rs2::error("Could not find requested embedded filter type!");
         }

@@ -339,7 +339,6 @@ int rs2_is_processing_block_extendable_to(const rs2_processing_block* block, rs2
 * \param[out] error         if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return                   the requested embedded filter, should be released by rs2_delete_embedded_filter
 */
-//rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, rs2_embedded_filter_type fitler_type, rs2_error** error);
 rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, const rs2_embedded_filter_list* list, int index, rs2_error** error);
 
 /**
@@ -367,7 +366,7 @@ int rs2_get_embedded_filters_count(const rs2_embedded_filter_list* list, rs2_err
 /**
  * Test if the given embedded filter can be extended to the requested extension
  * \param[in] embedded_filter embedded filter
- * \param[in] extension The extension to which the sensor should be tested if it is extendable
+ * \param[in] extension The extension to which the embedded filter should be tested if it is extendable
  * \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored
  * \return non-zero value iff the processing block can be extended to the given extension
  */
