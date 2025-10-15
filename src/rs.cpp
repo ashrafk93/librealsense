@@ -467,7 +467,7 @@ rs2_embedded_filter_list* rs2_query_embedded_filters(const rs2_sensor* sensor, r
 {
     VALIDATE_NOT_NULL(sensor);
 
-    return new rs2_embedded_filter_list{ sensor->sensor->get_embedded_filters() };
+    return new rs2_embedded_filter_list{ sensor->sensor->query_embedded_filters() };
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, sensor)
 

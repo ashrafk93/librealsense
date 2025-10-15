@@ -13,14 +13,14 @@
 namespace librealsense {
 
 
-class get_embedded_filters_interface
+class query_embedded_filters_interface
 {
 public:
-    virtual ~get_embedded_filters_interface() = default;
+    virtual ~query_embedded_filters_interface() = default;
 
-    virtual embedded_filters get_embedded_filters() const = 0;};
+    virtual embedded_filters query_embedded_filters() const = 0;};
 
-MAP_EXTENSION( RS2_EXTENSION_GET_EMBEDDED_FILTERS, librealsense::get_embedded_filters_interface );
+MAP_EXTENSION( RS2_EXTENSION_GET_EMBEDDED_FILTERS, librealsense::query_embedded_filters_interface );
 
 
 }  // namespace librealsense

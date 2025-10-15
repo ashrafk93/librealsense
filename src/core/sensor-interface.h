@@ -6,7 +6,7 @@
 #include "info-interface.h"
 #include "options-container.h"
 #include "recommended-processing-blocks-interface.h"
-#include "get-embedded-filters-interface.h"
+#include "query-embedded-filters-interface.h"
 
 #include "tagged-profile.h"
 
@@ -30,7 +30,7 @@ class sensor_interface
     : public virtual info_interface
     , public virtual options_interface
     , public virtual recommended_proccesing_blocks_interface
-    , public virtual get_embedded_filters_interface
+    , public virtual query_embedded_filters_interface
 {
 public:
     virtual ~sensor_interface() = default;
