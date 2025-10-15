@@ -207,7 +207,7 @@ json dds_device::query_option_value( const std::shared_ptr< dds_option > & optio
 void dds_device::set_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter, const json& options_value)
 {
     wait_until_ready(0);  // throw if not
-    _impl->set_embedded_filter(filter, std::move(options_value));
+    _impl->set_embedded_filter(filter, options_value);
 }
 
 json dds_device::query_embedded_filter(const std::shared_ptr< dds_embedded_filter >& filter)

@@ -35,6 +35,9 @@ public:
     rs_dds_embedded_filter( const std::shared_ptr< realdds::dds_embedded_filter > & dds_embedded_filter, 
         set_embedded_filter_callback set_embedded_filter_cb,
         query_embedded_filter_callback query_embedded_filter_cb );
+
+protected:
+    static rsutils::json dds_option_to_name_and_value_json(std::shared_ptr<realdds::dds_option> option);
 };
 
 }  // namespace librealsense

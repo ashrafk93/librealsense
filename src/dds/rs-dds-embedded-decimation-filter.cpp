@@ -70,7 +70,7 @@ namespace librealsense {
             [=](json value) // set_option cb for the filter's options
             {
                 // create a proper option json with name and value
-                json option_with_value = option->to_name_and_value_json();
+                json option_with_value = dds_option_to_name_and_value_json(option);
                 // validate values
                 validate_filter_option(option_with_value);
                 // set updated options to the remote device
@@ -91,7 +91,7 @@ namespace librealsense {
         if (option_j.contains("name")) // means that only one option sent 
         {
 			auto option_name = option_j["name"].get<std::string>();
-            auto dds_option = get_dds_option_by_name(_dds_ef->get_options(), option_name);
+            auto dds_option = find_dds_option_by_name(_dds_ef->get_options(), option_name);
             if (!dds_option)
             {
                 throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");

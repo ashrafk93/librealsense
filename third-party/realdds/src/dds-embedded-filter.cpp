@@ -20,13 +20,11 @@ namespace realdds {
 dds_embedded_filter::dds_embedded_filter()
     : _name("")
     , _options()
-    , _initialized(false)
 {
 }
 
 void dds_embedded_filter::init(const std::string& name)
 {
-    verify_uninitialized();
     _name = name;
 }
 
@@ -38,7 +36,6 @@ void dds_embedded_filter::init_options(const rsutils::json& options_j)
     dds_options options;
     for (auto& option_j : options_j)
     {
-        //LOG_DEBUG( "[" << debug_name() << "]     ... " << option_j );
         auto option = dds_option::from_json(option_j);
         options.push_back(option);
     }
@@ -48,25 +45,16 @@ void dds_embedded_filter::init_options(const rsutils::json& options_j)
 
 void dds_embedded_filter::init_stream(std::shared_ptr< dds_stream_base > const& stream)
 {
-    // NOTE: this happens AFTER we're "initialized" (i.e., the value is set before we get here)
     if (_stream.lock())
-        DDS_THROW(runtime_error, "filter '" << get_name() << "' already has a stream");
+        DDS_THROW(runtime_error, "filter '" + get_name() + "' already has a stream");
     if (!stream)
         DDS_THROW(runtime_error, "null stream");
     _stream = stream;
 }
 
-void dds_embedded_filter::init_default_values(const rsutils::json& defaults)
-{
-    verify_uninitialized();
-    // For now, just mark as initialized without processing defaults
-    // This can be expanded later when specific defaults are needed
-    _initialized = true;
-}
-
 void dds_embedded_filter::verify_uninitialized() const
 {
-    if (_initialized) {
+    if (!_options.empty()) {
         throw std::runtime_error("Cannot re-initialize embedded filter");
     }
 }
@@ -82,7 +70,6 @@ rsutils::json dds_embedded_filter::props_to_json() const
     if (stream) {
         props["stream_type"] = stream->name();
     }
-    props["current_values"] = _current_values;
     return props;
 }
 
@@ -114,13 +101,6 @@ std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutil
     if (j.contains("options")) {
         filter->init_options(j["options"]);
     }
-
-    // TODO - below lines to be checked
-    json defaults;
-    if (j.contains("current_values")) {
-        defaults = j["current_values"];
-    }
-    filter->init_default_values(defaults);
     
     return filter;
 }

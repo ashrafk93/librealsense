@@ -25,7 +25,6 @@ protected:
 
     dds_options _options;
     std::map< std::string, rsutils::json > _current_values;
-    bool _initialized;
     std::weak_ptr< dds_device > _dev;
 
 private:
@@ -39,7 +38,6 @@ public:
     // Initialization functions - must be called before first set_value()
     virtual void init( const std::string & name);
     virtual void init_options( rsutils::json const & options );
-    virtual void init_default_values( rsutils::json const & defaults );
 
     // Core functionality
     rsutils::json get_options_json();
@@ -48,7 +46,6 @@ public:
 
     // Getters
     std::string const & get_name() const { return _name; }
-    bool is_initialized() const { return _initialized; }
     std::shared_ptr< dds_stream_base > get_stream() const { return _stream.lock(); }
 
     // JSON serialization

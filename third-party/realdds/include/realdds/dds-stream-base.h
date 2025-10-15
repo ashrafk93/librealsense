@@ -16,10 +16,13 @@
 
 namespace realdds {
 
+
 class dds_topic;
+
 
 // Base class for both client/subscriber and server/publisher stream implementations: contains
 // information needed to identify a stream, its properties, and its profiles.
+//
 class dds_stream_base : public std::enable_shared_from_this< dds_stream_base >
 {
 protected:

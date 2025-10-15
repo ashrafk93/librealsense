@@ -428,15 +428,6 @@ json dds_option::to_json() const
     return j;
 }
 
-rsutils::json dds_option::to_name_and_value_json() const
-{
-    json j = json::object();
-    j["name"] = get_name();
-    j["value"] = get_value();
-    return j;
-}
-
-
 json dds_option::props_to_json() const
 {
     json props = json::array();
@@ -654,7 +645,7 @@ rsutils::json dds_options_to_json(dds_options const& options)
     return rsutils::json();
 }
 
-std::shared_ptr<dds_option> get_dds_option_by_name(dds_options options, const std::string& name)
+std::shared_ptr<dds_option> find_dds_option_by_name(dds_options options, const std::string& name)
 {
     for (auto opt : options)
     {

@@ -227,7 +227,7 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
 
     std::string explanation;
     if (!dds_device::check_reply(j, &explanation))
-        return;  // we don't care about errors
+        return;
 
     // We need the original control request as part of the reply, 
     // otherwise we can't know what filter this is for
@@ -254,12 +254,9 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     if (!filter_params_j.exists())
         DDS_THROW(runtime_error, "missing filter_params");
 
-
-    // TODO - below code to be corrected and enabled
     auto& filter_name = filter_name_j.string_ref();
     for (auto& filter : filters)
     {
-        //auto filter_type = embedded_filter_type_from_string(filter_name);
         if (filter->get_name() == filter_name)
         {
             filter->set_options(filter_params_j);  // throws!
@@ -294,31 +291,28 @@ void dds_device::impl::on_query_filter(json const& j, dds_sample const&)
     //      }
     //  }
 
-    auto update_filter = [this](std::string const& stream_name, std::string const& filter_name, json const& filter_options)
+    auto stream_name = j.nested(topics::reply::query_filter::key::stream_name).string_ref();
+    auto filter_name = j.nested(topics::reply::query_filter::key::name).string_ref();
+    auto filter_options = j.nested(topics::reply::query_filter::key::options);
+
+    for (auto& stream : _streams)
+    {
+        // Finding the relevant stream
+        if (stream.first == stream_name)
         {
-            for (auto& stream : _streams)
+            // Finding the filter and set its options
+            for (auto& filter : stream.second->embedded_filters())
             {
-                // Finding the relevant stream
-                if (stream.first == stream_name)
+                if (filter->get_name() == filter_name)
                 {
-                    // Finding the filter and set its options
-                    for (auto& filter : stream.second->embedded_filters())
-                    {
-                        if (filter->get_name() == filter_name)
-                        {
-                            filter->set_options(filter_options);
-                            return;
-                        }
-                    }
+                    filter->set_options(filter_options);
+                    return;
                 }
             }
-            
-            throw std::runtime_error("Embedded filter '" + filter_name + "' not found");
-        };
-    auto stream_name = j.nested(topics::reply::query_filter::key::stream_name);
-    auto filter_name = j.nested(topics::reply::query_filter::key::name);
-    auto filter_options = j.nested(topics::reply::query_filter::key::options);
-    update_filter(stream_name.string_ref(), filter_name.string_ref(), filter_options);
+        }
+    }
+
+    throw std::runtime_error("Embedded filter '" + filter_name + "' not found");
 }
 
 

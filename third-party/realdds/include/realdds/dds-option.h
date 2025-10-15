@@ -94,7 +94,6 @@ public:
     bool is_default_valid() const { return ! get_default_value().is_null(); }
 
     virtual rsutils::json to_json() const;
-    rsutils::json to_name_and_value_json() const;
     static std::shared_ptr< dds_option > from_json( rsutils::json const & j );
 
 protected:
@@ -106,7 +105,7 @@ typedef std::vector< std::shared_ptr< dds_option > > dds_options;
 
 rsutils::json dds_options_to_json(dds_options const& options);
 
-std::shared_ptr< dds_option > get_dds_option_by_name(dds_options options, const std::string& name);
+std::shared_ptr< dds_option > find_dds_option_by_name(dds_options options, const std::string& name);
 
 class dds_float_option : public dds_option
 {

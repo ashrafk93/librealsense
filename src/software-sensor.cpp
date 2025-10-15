@@ -9,7 +9,6 @@
 #include "core/notification.h"
 #include "depth-sensor.h"
 #include <src/metadata-parser.h>
-#include "embedded-filter-interface.h"
 
 #include <rsutils/string/from.h>
 #include <rsutils/deferred.h>
@@ -396,6 +395,7 @@ void software_sensor::add_processing_block( std::shared_ptr< processing_block_in
 
     _pbs.push_back( block );
 }
+
 
 std::vector< rs2_option > software_sensor::get_supported_options() const
 {
