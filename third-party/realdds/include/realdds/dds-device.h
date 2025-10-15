@@ -54,7 +54,7 @@ public:
     bool is_ready() const;
 
     // Wait until ready. Will throw if not ready within the timeout!
-    void wait_until_ready( size_t timeout_ms = 5000 );
+    void wait_until_ready( size_t timeout_ms = 5000 ) const;
 
     // A device is offline when discovery is lost, and assumed online otherwise
     bool is_online() const;
@@ -81,7 +81,7 @@ public:
     void set_option_value( const std::shared_ptr< dds_option > & option, rsutils::json new_value );
     rsutils::json query_option_value( const std::shared_ptr< dds_option > & option );
 
-    void send_control( rsutils::json const &, rsutils::json * reply = nullptr );
+    void send_control( rsutils::json const &, rsutils::json * reply = nullptr ) const;
 
     bool has_extrinsics() const;
     std::shared_ptr< extrinsics > get_extrinsics( std::string const & from, std::string const & to ) const;
@@ -109,7 +109,7 @@ protected:
 
 private:
     class impl;
-    std::shared_ptr< impl > _impl;
+    mutable std::shared_ptr< impl > _impl;
 };
 
 

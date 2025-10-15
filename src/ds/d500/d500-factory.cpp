@@ -55,11 +55,12 @@ namespace librealsense
             , d500_active( dev_info )
             , d500_color( dev_info, RS2_FORMAT_M420 )
             , d500_motion( dev_info )
-            , ds_advanced_mode_base( d500_device::_hw_monitor, get_depth_sensor() )
+            , ds_advanced_mode_base()
             , extended_firmware_logger_device( dev_info,
                                                d500_device::_hw_monitor,
                                                get_firmware_logs_command() )
         {
+            ds_advanced_mode_base::initialize_advanced_mode( this );
         }
 
         std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
@@ -109,11 +110,12 @@ namespace librealsense
             , d500_safety( dev_info )
             , d500_depth_mapping( dev_info )
             , d500_motion( dev_info )
-            , ds_advanced_mode_base( d500_device::_hw_monitor, get_depth_sensor() )
+            , ds_advanced_mode_base()
             , extended_firmware_logger_device( dev_info,
                                                d500_device::_hw_monitor,
                                                get_firmware_logs_command() )
         {
+            ds_advanced_mode_base::initialize_advanced_mode( this );
             set_advanced_mode_device( this );
 
             std::map< int, std::string > versions;
@@ -174,10 +176,11 @@ public:
         , d500_active( dev_info )
         , d500_color( dev_info, RS2_FORMAT_YUYV )
         , d500_motion( dev_info )
-        , ds_advanced_mode_base( d500_device::_hw_monitor, get_depth_sensor() )
+        , ds_advanced_mode_base()
         , extended_firmware_logger_device( dev_info, d500_device::_hw_monitor, get_firmware_logs_command() )
     {
         eth_config_device::init( static_cast< debug_interface * >( this ) );
+        ds_advanced_mode_base::initialize_advanced_mode( this );
 
         auto & depth_sensor = get_depth_sensor();
         group_multiple_fw_calls(depth_sensor, [&]()

@@ -26,18 +26,17 @@ with test.remote.fork( nested_indent='  S' ) as remote:
         # set up a server device with a single color stream
         device_server = dds.device_server( participant, d435i.device_info.topic_root )
 
-        color_stream = dds.color_stream_server( 'Color',  'RGB Camera' )
-        color_stream.enable_metadata()  # not there in d435i by default
-        color_stream.init_profiles( d435i.color_stream_profiles(), 0 )
-        color_stream.init_options( [] )
-        color_stream.set_intrinsics( d435i.color_stream_intrinsics() )
+        depth_stream = dds.depth_stream_server( 'Depth', 'Depth Module' ) # Depth sensor is expected
+        depth_stream.enable_metadata()  # not there in d435i by default
+        depth_stream.init_profiles( d435i.depth_stream_profiles(), 0 )
+        depth_stream.init_options( [] )
 
         def on_control( server, id, control, reply ):
             # the control has already been output to debug by the calling code, as will the reply
             return True  # otherwise the control will be flagged as error
 
         device_server.on_control( on_control )
-        device_server.init( [color_stream], [], {} )
+        device_server.init( [depth_stream], [], {} )
 
 
         def broadcast():
@@ -57,7 +56,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
 
         def publish_image( img, timestamp ):
             img.timestamp = timestamp
-            color_stream.publish_image( img )
+            depth_stream.publish_image( img )
 
 
         # From here down, we're in "interactive" mode (see test-metadata.py)
@@ -169,7 +168,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
     #############################################################################################
     #
     with test.closure( "No librs syncer; direct from server" ):
-        md = { 'stream-name' : 'Color', 'invalid-metadata' : True }
+        md = { 'stream-name' : 'Depth', 'invalid-metadata' : True }
         with metadata_expected( md ):
             remote.run( f'device_server.publish_metadata( {md} )' )
     #
@@ -189,7 +188,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
         sensors = device.sensors
         test.check_equal( len(sensors), 1, on_fail=test.RAISE )
         sensor = sensors[0]
-        test.check_equal( sensor.get_info( rs.camera_info.name ), 'RGB Camera', on_fail=test.RAISE )
+        test.check_equal( sensor.get_info( rs.camera_info.name ), 'Depth Module', on_fail=test.RAISE )
         del sensors
         profile = rs.video_stream_profile( sensor.get_stream_profiles()[0] )  # take the first one
         log.d( f'using profile {profile}')
@@ -205,7 +204,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
     with test.closure( "Metadata alone should not come out" ):
         with metadata_expected( count=20 ):
             for i in range(20):
-                md = { 'stream-name' : 'Color', 'header' : { 'i' : i }, 'metadata' : {} }
+                md = { 'stream-name' : 'Depth', 'header' : { 'i' : i }, 'metadata' : {} }
                 remote.run( f'device_server.publish_metadata( {md} )' )
         sleep( 0.25 )  # plus some extra for librs...
         test.check_false( queue.poll_for_frame() )  # we didn't send any images, shouldn't get any frames!
@@ -214,7 +213,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
     #
     with test.closure( 'MD after an image, without frame-number' ):
         timestamp = dds.now()
-        remote.run( f'color_stream.start_streaming( dds.video_encoding( "{encoding}" ), img.width, img.height )' )
+        remote.run( f'depth_stream.start_streaming( dds.video_encoding( "{encoding}" ), img.width, img.height )' )
         # It will take the image a lot longer to get anywhere than the metadata
         with image_expected():
             remote.run( f'publish_image( img, dds.time.from_ns( {timestamp.to_ns()} ))' )
@@ -222,12 +221,12 @@ with test.remote.fork( nested_indent='  S' ) as remote:
         test.check_false( queue.poll_for_frame() )  # the image should still be pending in the syncer
         with metadata_expected():
             md = {
-                'stream-name' : 'Color',
+                'stream-name' : 'Depth',
                 'header' : {
                     'timestamp' : timestamp.to_ns()
                     },
                 'metadata': {
-                    'White Balance' : 0xbaad
+                    'Temperature' : 0xbaad
                     }
             }
             remote.run( f'device_server.publish_metadata( {md} )' )
@@ -236,8 +235,8 @@ with test.remote.fork( nested_indent='  S' ) as remote:
         if test.check( f ) and test.check_equal( f.get_frame_number(), 1 ):     # first frame so far!
             test.check_approx_abs( f.get_timestamp() * 1e-3, image_times[0].to_double(), 1e-6 )  # frames are in ms
             test.check_false( f.supports_frame_metadata( rs.frame_metadata_value.actual_fps ) )
-            if test.check( f.supports_frame_metadata( rs.frame_metadata_value.white_balance ) ):
-                test.check_equal( f.get_frame_metadata( rs.frame_metadata_value.white_balance ), 0xbaad )
+            if test.check( f.supports_frame_metadata( rs.frame_metadata_value.temperature ) ):
+                test.check_equal( f.get_frame_metadata( rs.frame_metadata_value.temperature ), 0xbaad )
         test.check_false( queue.poll_for_frame() )  # the image should still be pending in the syncer
     #
     #############################################################################################
@@ -246,7 +245,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
         timestamp = dds.now()
         with metadata_expected():
             md = {
-                'stream-name' : 'Color',
+                'stream-name' : 'Depth',
                 'header' : {
                     'frame-number' : 1234,
                     'timestamp' : timestamp.to_ns()
@@ -272,7 +271,7 @@ with test.remote.fork( nested_indent='  S' ) as remote:
     #############################################################################################
     #
     with test.closure( "Stop streaming" ):
-        remote.run( 'color_stream.stop_streaming()', on_fail='log' )
+        remote.run( 'depth_stream.stop_streaming()', on_fail='log' )
     #
     #############################################################################################
     #

@@ -36,7 +36,7 @@ bool dds_device::is_online() const
 }
 
 
-void dds_device::wait_until_ready( size_t timeout_ms )
+void dds_device::wait_until_ready( size_t timeout_ms ) const
 {
     if( is_ready() )
         return;
@@ -203,7 +203,7 @@ json dds_device::query_option_value( const std::shared_ptr< dds_option > & optio
     return _impl->query_option_value( option );
 }
 
-void dds_device::send_control( json const & control, json * reply )
+void dds_device::send_control( json const & control, json * reply ) const
 {
     wait_until_ready( 0 );  // throw if not
     _impl->write_control_message( control, reply );
