@@ -3,9 +3,9 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project( rs-embedded-decimation )
+project( rs-embedded-filters )
 
-add_executable( ${PROJECT_NAME} rs-embedded-decimation.cpp )
+add_executable( ${PROJECT_NAME} rs-embedded-filters.cpp )
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
 target_link_libraries( ${PROJECT_NAME} ${DEPENDENCIES} )
 set_target_properties( ${PROJECT_NAME} PROPERTIES FOLDER "Examples" )
