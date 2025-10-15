@@ -780,9 +780,8 @@ rs2_frame_callback_sptr dds_sensor_proxy::get_frames_callback() const
 
 void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedded_filter > embedded_filter )
 {
-    auto filter_type = embedded_filter->get_filter_type();
     std::shared_ptr< embedded_filter_interface > rs_embedded_filter = nullptr;
-    if (filter_type == RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
+    if (auto decimation_filter = std::dynamic_pointer_cast< dds_decimation_filter >(embedded_filter) )
     {
         rs_embedded_filter = std::make_shared< rs_dds_embedded_decimation_filter >(
             embedded_filter,
@@ -816,7 +815,7 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
         //    }
         //}
     }
-    else if (filter_type == RS2_EMBEDDED_FILTER_TYPE_TEMPORAL)
+    else if (auto temporal_filter = std::dynamic_pointer_cast< dds_temporal_filter >(embedded_filter))
     {
         rs_embedded_filter = std::make_shared< rs_dds_embedded_temporal_filter >(
             embedded_filter,
@@ -851,7 +850,7 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
     }
     else
     {
-        throw librealsense::invalid_value_exception("Filter '" + std::string(rs2_embedded_filter_type_to_string(filter_type)) + "' not supported");
+        throw librealsense::invalid_value_exception("Filter '" + embedded_filter->get_name() + "' not supported");
     }
 
     

@@ -397,15 +397,6 @@ void software_sensor::add_processing_block( std::shared_ptr< processing_block_in
     _pbs.push_back( block );
 }
 
-void software_sensor::add_embedded_filter(std::shared_ptr< embedded_filter_interface > const& block)
-{
-    if (!block)
-        throw invalid_value_exception("trying to add an empty software processing block");
-
-    _embedded_filters.push_back(block);
-}
-
-
 std::vector< rs2_option > software_sensor::get_supported_options() const
 {
     // Override the default options_container behavior: software sensors return the options in the same order they were

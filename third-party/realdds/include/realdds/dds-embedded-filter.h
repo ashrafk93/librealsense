@@ -4,7 +4,6 @@
 
 #include <rsutils/json.h>
 #include <rsutils/type/ip-address.h>
-#include <include/librealsense2/h/rs_types.h>
 #include "dds-option.h"
 #include <memory>
 #include <map>
@@ -25,7 +24,6 @@ protected:
     std::string _name;
 
     dds_options _options;
-    rs2_embedded_filter_type _filter_type;
     std::map< std::string, rsutils::json > _current_values;
     bool _initialized;
     std::weak_ptr< dds_device > _dev;
@@ -39,7 +37,7 @@ public:
     dds_embedded_filter();
 
     // Initialization functions - must be called before first set_value()
-    virtual void init( const std::string & name, rs2_embedded_filter_type type );
+    virtual void init( const std::string & name);
     virtual void init_options( rsutils::json const & options );
     virtual void init_default_values( rsutils::json const & defaults );
 
@@ -50,7 +48,6 @@ public:
 
     // Getters
     std::string const & get_name() const { return _name; }
-    rs2_embedded_filter_type get_filter_type() const { return _filter_type; }
     bool is_initialized() const { return _initialized; }
     std::shared_ptr< dds_stream_base > get_stream() const { return _stream.lock(); }
 
@@ -96,10 +93,6 @@ public:
 typedef std::vector< std::shared_ptr< dds_embedded_filter > > dds_embedded_filters;
 
 // Factory function to create appropriate filter based on type
-std::shared_ptr< dds_embedded_filter > create_embedded_filter( rs2_embedded_filter_type type );
-
-// Utility functions
-std::string embedded_filter_type_to_string( rs2_embedded_filter_type type );
-rs2_embedded_filter_type embedded_filter_type_from_string( std::string const & type_str );
+std::shared_ptr< dds_embedded_filter > create_embedded_filter(const std::string& filter_name);
 
 }  // namespace realdds

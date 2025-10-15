@@ -259,8 +259,8 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     auto& filter_name = filter_name_j.string_ref();
     for (auto& filter : filters)
     {
-        auto filter_type = embedded_filter_type_from_string(filter_name);
-        if (filter->get_filter_type() == filter_type)
+        //auto filter_type = embedded_filter_type_from_string(filter_name);
+        if (filter->get_name() == filter_name)
         {
             filter->set_options(filter_params_j);  // throws!
             return;
