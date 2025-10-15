@@ -270,8 +270,6 @@ struct rs2_embedded_filter : public rs2_options
 
     rs2_embedded_filter& operator=(const rs2_embedded_filter&) = delete;
     rs2_embedded_filter(const rs2_embedded_filter&) = delete;
-
-    //rsutils::subscription subscription;
 };
 
 struct rs2_embedded_filter_list
@@ -487,7 +485,7 @@ int rs2_get_embedded_filters_count(const rs2_embedded_filter_list* list, rs2_err
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, list)
 
-rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, const rs2_embedded_filter_list* list, int index, rs2_error** error) BEGIN_API_CALL
+rs2_embedded_filter* rs2_create_embedded_filter(const rs2_embedded_filter_list* list, int index, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(list);
     VALIDATE_RANGE(index, 0, (int)list->list.size() - 1);
@@ -1960,7 +1958,7 @@ int rs2_is_sensor_extendable_to(const rs2_sensor* sensor, rs2_extension extensio
     case RS2_EXTENSION_MAX_USABLE_RANGE_SENSOR : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::max_usable_range_sensor)!= nullptr;
     case RS2_EXTENSION_DEBUG_STREAM_SENSOR     : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::debug_stream_sensor )   != nullptr;
     case RS2_EXTENSION_SAFETY_SENSOR           : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::safety_sensor)          != nullptr;
-    case RS2_EXTENSION_DEPTH_MAPPING_SENSOR: return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::depth_mapping_sensor) != nullptr;
+    case RS2_EXTENSION_DEPTH_MAPPING_SENSOR    : return VALIDATE_INTERFACE_NO_THROW(sensor->sensor, librealsense::depth_mapping_sensor) != nullptr;
 
     default:
         return false;

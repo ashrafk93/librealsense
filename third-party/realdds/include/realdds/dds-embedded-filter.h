@@ -43,7 +43,7 @@ public:
 
     // Core functionality
     rsutils::json get_options_json();
-    dds_options get_options() { return _options; }
+    dds_options get_options() const { return _options; }
     virtual void set_options(rsutils::json const& options) = 0;
 
     // Getters

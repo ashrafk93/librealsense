@@ -12,14 +12,12 @@
 #include <src/core/options-interface.h>
 
 namespace librealsense {
-    // Interface class for embedded filter sensors
     class embedded_filter_interface
         : public virtual options_interface
     {
     public:
         virtual ~embedded_filter_interface() = default;
 
-        // Pure virtual interface methods
         virtual rs2_embedded_filter_type get_type() const = 0;
     };
 

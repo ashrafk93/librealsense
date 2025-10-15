@@ -14,13 +14,6 @@
 
 namespace librealsense {
 
-dds_depth_sensor_proxy::dds_depth_sensor_proxy(std::string const& sensor_name,
-    software_device* owner,
-    std::shared_ptr< realdds::dds_device > const& dev)
-    : super(sensor_name, owner, dev)
-{
-}
-
 float dds_depth_sensor_proxy::get_depth_scale() const
 {
     if( auto opt = get_option_handler( RS2_OPTION_DEPTH_UNITS ) )

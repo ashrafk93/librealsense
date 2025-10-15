@@ -311,7 +311,7 @@ namespace rs2
             for (auto i = 0; i < size; i++)
             {
                 std::shared_ptr<rs2_embedded_filter> ef(
-                    rs2_create_embedded_filter(_sensor.get(), list.get(), i, &e),
+                    rs2_create_embedded_filter(list.get(), i, &e),
                     rs2_delete_embedded_filter);
                 error::handle(e);
 

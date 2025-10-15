@@ -334,12 +334,11 @@ int rs2_is_processing_block_extendable_to(const rs2_processing_block* block, rs2
 
 /**
 * create embedded filter
-* \param[in] sensor         RealSense sensor
 * \param[in] fitler_type    embedded filter type
 * \param[out] error         if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return                   the requested embedded filter, should be released by rs2_delete_embedded_filter
 */
-rs2_embedded_filter* rs2_create_embedded_filter(const rs2_sensor* sensor, const rs2_embedded_filter_list* list, int index, rs2_error** error);
+rs2_embedded_filter* rs2_create_embedded_filter(const rs2_embedded_filter_list* list, int index, rs2_error** error);
 
 /**
 * Delete embedded filter allocated by rs2_create_embedded_filter

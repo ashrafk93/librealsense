@@ -15,9 +15,6 @@ class decimation_embedded_filter
 public:
     virtual ~decimation_embedded_filter() = default;
 
-    // TODO - check if needed
-    options_watcher& get_options_watcher() { return _options_watcher; }
-
 protected:
     options_watcher _options_watcher;
 };

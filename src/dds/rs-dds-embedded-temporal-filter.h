@@ -31,14 +31,11 @@ namespace librealsense {
         virtual void add_option(std::shared_ptr< realdds::dds_option > option) override;
 
     private:
-        rsutils::json prepare_all_options_json(const rsutils::json& new_value);
-        void validate_filter_options(rsutils::json options_j);
-        void validate_one_option(rsutils::json opt_j);
-
-        // Helper function to find an option by name in a list of DDS options
-        std::shared_ptr<realdds::dds_option> get_dds_option_by_name(
-            const std::vector<std::shared_ptr<realdds::dds_option>>& options, 
-            const std::string& name);
+        void validate_filter_option(rsutils::json option_j) const;
+        void validate_toggle_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_toggle) const;
+        void validate_alpha_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_alpha) const;
+		void validate_delta_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_delta) const;
+		void validate_persistency_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_persistency) const;
 
         bool _enabled;
         float _alpha;

@@ -32,9 +32,9 @@ protected:
     query_embedded_filter_callback _query_ef_cb;
 
 public:
-    rs_dds_embedded_filter( const std::shared_ptr< realdds::dds_embedded_filter > & dds_embedded_filter,
-                   set_embedded_filter_callback set_embedded_filter_cb,
-                   query_embedded_filter_callback query_embedded_filter_cb );
+    rs_dds_embedded_filter( const std::shared_ptr< realdds::dds_embedded_filter > & dds_embedded_filter, 
+        set_embedded_filter_callback set_embedded_filter_cb,
+        query_embedded_filter_callback query_embedded_filter_cb );
 };
 
 }  // namespace librealsense
