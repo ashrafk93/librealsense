@@ -70,7 +70,7 @@ namespace librealsense {
             [=](json value) // set_option cb for the filter's options
             {
                 // create a proper option json with name and value
-                json option_with_value = dds_option_to_name_and_value_json(option);
+                json option_with_value = dds_option_to_name_and_value_json(option, value);
                 // validate values
                 validate_filter_option(option_with_value);
                 // set updated options to the remote device
@@ -88,31 +88,25 @@ namespace librealsense {
 
     void rs_dds_embedded_decimation_filter::validate_filter_option(rsutils::json option_j) const
     {
-        if (option_j.contains("name")) // means that only one option sent 
+        if (option_j.contains("Toggle"))
         {
-			auto option_name = option_j["name"].get<std::string>();
-            auto dds_option = find_dds_option_by_name(_dds_ef->get_options(), option_name);
-            if (!dds_option)
-            {
-                throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");
-            }
-            if (option_name == "Toggle")
-                validate_toggle_option(option_j, dds_option);
-            else if (option_name == "Magnitude")
-                validate_magnitude_option(option_j, dds_option);
-            else
-				throw std::runtime_error("The expected parameters for Decimation filter are toggle and magnitude");
+            validate_toggle_option(option_j);
         }
-        else
+        else if (option_j.contains("Magnitude"))
         {
-			throw std::runtime_error("Option should contain name field");
-        }        
+            validate_magnitude_option(option_j);
+        }
+		else
+        {
+            throw std::runtime_error("Option should contain name field");
+        }
         // Validation passed - parameter is valid
     }
 
-    void rs_dds_embedded_decimation_filter::validate_toggle_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_toggle) const
+    void rs_dds_embedded_decimation_filter::validate_toggle_option(rsutils::json opt_j) const
     {
-        int32_t toggle_val = opt_j["value"].get<int32_t>();
+		auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
+        int32_t toggle_val = opt_j["Toggle"].get<int32_t>();
 
         // Check range using DDS option
         if (!dds_toggle->get_minimum_value().is_null() && toggle_val < dds_toggle->get_minimum_value().get<int32_t>())
@@ -133,9 +127,10 @@ namespace librealsense {
         }
     }
 
-    void rs_dds_embedded_decimation_filter::validate_magnitude_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_magnitude) const
+    void rs_dds_embedded_decimation_filter::validate_magnitude_option(rsutils::json opt_j) const
     {
-        int32_t mag_val = opt_j["value"].get<int32_t>();
+        auto dds_magnitude = find_dds_option_by_name(_dds_ef->get_options(), "Magnitude");
+        int32_t mag_val = opt_j["Magnitude"].get<int32_t>();
         // Check range using DDS option
         if (!dds_magnitude->get_minimum_value().is_null() && mag_val < dds_magnitude->get_minimum_value().get<int32_t>())
         {
@@ -151,6 +146,5 @@ namespace librealsense {
         if (mag_val != DECIMATION_MAGNITUDE) {
             throw std::invalid_argument("Decimation filter magnitude must be " + std::to_string(DECIMATION_MAGNITUDE) + ". Received: " + std::to_string(mag_val));
         }
-	}
-
+    }
 }  // namespace librealsense

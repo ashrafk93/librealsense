@@ -32,8 +32,8 @@ namespace librealsense {
 
     private:
         void validate_filter_option(rsutils::json option_j) const;
-        void validate_toggle_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_toggle) const;
-        void validate_magnitude_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_magnitude) const;
+        void validate_toggle_option(rsutils::json opt_j) const;
+        void validate_magnitude_option(rsutils::json opt_j) const;
 
         bool _enabled;
         int _magnitude;

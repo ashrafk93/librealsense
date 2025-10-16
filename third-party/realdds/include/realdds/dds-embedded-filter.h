@@ -42,7 +42,7 @@ public:
     // Core functionality
     rsutils::json get_options_json();
     dds_options get_options() const { return _options; }
-    virtual void set_options(rsutils::json const& options) = 0;
+    void set_options(rsutils::json const& options);
 
     // Getters
     std::string const & get_name() const { return _name; }
@@ -68,10 +68,6 @@ class dds_decimation_filter : public dds_embedded_filter
 public:
     dds_decimation_filter();
     virtual ~dds_decimation_filter() = default;
-
-    // Override base class methods
-    void set_options(rsutils::json const& options) override;
-    rsutils::json to_json() const override;
 };
 
 // Temporal filter implementation
@@ -81,10 +77,6 @@ class dds_temporal_filter : public dds_embedded_filter
 public:
     dds_temporal_filter();
     virtual ~dds_temporal_filter() = default;
-
-    // Override base class methods
-    void set_options(rsutils::json const& options) override;
-    rsutils::json to_json() const override;
 };
 
 typedef std::vector< std::shared_ptr< dds_embedded_filter > > dds_embedded_filters;

@@ -135,39 +135,30 @@ dds_decimation_filter::dds_decimation_filter()
     _name = "Decimation Filter";
 }
 
-void dds_decimation_filter::set_options(const rsutils::json& options)
+void dds_embedded_filter::set_options(const rsutils::json& options)
 {
     check_options(options);
     
-    // Expect options to be an array of option objects with "name" and "value"
-    if (options.is_array()) {
-        for (auto& opt_json : options) {
-            if (!opt_json.contains("name") || !opt_json.contains("value")) {
-                DDS_THROW(runtime_error, "Option must contain 'name' and 'value' fields");
-            }
+    // Expect options to be an object where each key-value pair represents an option
+    if (options.is_object()) {
+        for (auto it = options.begin(); it != options.end(); ++it) {
+            const std::string& key = it.key();
+            const auto& value = it.value();
             
-            std::string opt_name = opt_json["name"].get<std::string>();
             auto found_option = std::find_if(_options.begin(), _options.end(),
-                [&opt_name](const std::shared_ptr<dds_option>& option) {
-                    return option->get_name() == opt_name;
+                [&key](const std::shared_ptr<dds_option>& option) {
+                    return option->get_name() == key;
                 });
                 
             if (found_option != _options.end()) {
-                (*found_option)->set_value(opt_json["value"]);
+                (*found_option)->set_value(value);
             } else {
-                DDS_THROW(runtime_error, "Option '" + opt_name + "' not found in filter");
+                DDS_THROW(runtime_error, "Option '" + key + "' not found in filter");
             }
         }
     } else {
-        DDS_THROW(runtime_error, "Options must be provided as an array");
+        DDS_THROW(runtime_error, "Options must be provided as an object");
     }
-}
-
-rsutils::json dds_decimation_filter::to_json() const
-{
-    auto props = props_to_json();
-    // Add any decimation-specific properties here if needed
-    return props;
 }
 
 // Temporal filter implementation
@@ -175,41 +166,6 @@ dds_temporal_filter::dds_temporal_filter()
     : dds_embedded_filter()
 {
     _name = "Temporal Filter";
-}
-
-void dds_temporal_filter::set_options(const rsutils::json& options)
-{
-    check_options(options);
-    
-    // Expect options to be an array of option objects with "name" and "value"
-    if (options.is_array()) {
-        for (auto& opt_json : options) {
-            if (!opt_json.contains("name") || !opt_json.contains("value")) {
-                DDS_THROW(runtime_error, "Option must contain 'name' and 'value' fields");
-            }
-            
-            std::string opt_name = opt_json["name"].get<std::string>();
-            auto found_option = std::find_if(_options.begin(), _options.end(),
-                [&opt_name](const std::shared_ptr<dds_option>& option) {
-                    return option->get_name() == opt_name;
-                });
-                
-            if (found_option != _options.end()) {
-                (*found_option)->set_value(opt_json["value"]);
-            } else {
-                DDS_THROW(runtime_error, "Option '" + opt_name + "' not found in filter");
-            }
-        }
-    } else {
-        DDS_THROW(runtime_error, "Options must be provided as an array");
-    }
-}
-
-rsutils::json dds_temporal_filter::to_json() const
-{
-    auto props = props_to_json();
-    // Add any temporal-specific properties here if needed
-    return props;
 }
 
 // Factory and utility functions

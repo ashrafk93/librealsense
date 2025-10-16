@@ -32,10 +32,10 @@ namespace librealsense {
 
     private:
         void validate_filter_option(rsutils::json option_j) const;
-        void validate_toggle_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_toggle) const;
-        void validate_alpha_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_alpha) const;
-		void validate_delta_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_delta) const;
-		void validate_persistency_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_persistency) const;
+        void validate_toggle_option(rsutils::json opt_j) const;
+        void validate_alpha_option(rsutils::json opt_j) const;
+		void validate_delta_option(rsutils::json opt_j) const;
+		void validate_persistency_option(rsutils::json opt_j) const;
 
         bool _enabled;
         float _alpha;

@@ -83,7 +83,7 @@ namespace librealsense {
             [=](json value) // set_option cb for the filter's options
             {
                 // create a proper option json with name and value
-                json option_with_value = dds_option_to_name_and_value_json(option);
+                json option_with_value = dds_option_to_name_and_value_json(option, value);
                 // validate values
                 validate_filter_option(option_with_value);
                 // set updated options to the remote device
@@ -101,25 +101,22 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_filter_option(rsutils::json option_j) const
     {
-        if (option_j.contains("name")) // means that only one option sent 
+        if (option_j.contains("Toggle"))
         {
-            auto option_name = option_j["name"].get<std::string>();
-            auto dds_option = find_dds_option_by_name(_dds_ef->get_options(), option_name);
-            if (!dds_option)
-            {
-                throw std::runtime_error("Option '" + option_name + "' not found in DDS filter options");
-            }
-            if (option_name == "Toggle")
-                validate_toggle_option(option_j, dds_option);
-            else if (option_name == "Alpha")
-                validate_alpha_option(option_j, dds_option);
-			else if (option_name == "Delta")
-				validate_delta_option(option_j, dds_option);
-			else if (option_name == "Persistency")
-				validate_persistency_option(option_j, dds_option);
-            else
-                throw std::runtime_error("The expected parameters for Temporal filter are toggle, alpha, delta and persistency");
+            validate_toggle_option(option_j);
         }
+        else if (option_j.contains("Alpha"))
+        {
+            validate_alpha_option(option_j);
+        }
+		else if (option_j.contains("Delta"))
+		{
+			validate_delta_option(option_j);
+		}
+		else if (option_j.contains("Persistency"))
+		{
+			validate_persistency_option(option_j);
+		}
         else
         {
             throw std::runtime_error("Option should contain name field");
@@ -127,8 +124,9 @@ namespace librealsense {
         // Validation passed - parameter is valid
     }
 
-    void rs_dds_embedded_temporal_filter::validate_toggle_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_toggle) const
+    void rs_dds_embedded_temporal_filter::validate_toggle_option(rsutils::json opt_j) const
     {
+        auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
         int32_t toggle_val = opt_j["value"].get<int32_t>();
 
         // Check range using DDS option
@@ -150,8 +148,9 @@ namespace librealsense {
         }
     }
 
-    void rs_dds_embedded_temporal_filter::validate_alpha_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_alpha) const
+    void rs_dds_embedded_temporal_filter::validate_alpha_option(rsutils::json opt_j) const
     {
+		auto dds_alpha = find_dds_option_by_name(_dds_ef->get_options(), "Alpha");
         float alpha_val = opt_j["value"].get<float>();
         // Check range using DDS option
         if (!dds_alpha->get_minimum_value().is_null() && alpha_val < dds_alpha->get_minimum_value().get<float>())
@@ -166,8 +165,9 @@ namespace librealsense {
 		}
     }
 
-    void rs_dds_embedded_temporal_filter::validate_delta_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_delta) const
+    void rs_dds_embedded_temporal_filter::validate_delta_option(rsutils::json opt_j) const
     {
+		auto dds_delta = find_dds_option_by_name(_dds_ef->get_options(), "Delta");
         int32_t delta_val = opt_j["value"].get<int32_t>();
         // Check range using DDS option
         if (!dds_delta->get_minimum_value().is_null() && delta_val < dds_delta->get_minimum_value().get<int32_t>())
@@ -182,8 +182,9 @@ namespace librealsense {
         }
 	}
 
-    void rs_dds_embedded_temporal_filter::validate_persistency_option(rsutils::json opt_j, std::shared_ptr<realdds::dds_option> dds_persistency) const
+    void rs_dds_embedded_temporal_filter::validate_persistency_option(rsutils::json opt_j) const
     {
+		auto dds_persistency = find_dds_option_by_name(_dds_ef->get_options(), "Persistency");
         int32_t persistency_val = opt_j["value"].get<int32_t>();
         // Check range using DDS option
         if (!dds_persistency->get_minimum_value().is_null() && persistency_val < dds_persistency->get_minimum_value().get<int32_t>())

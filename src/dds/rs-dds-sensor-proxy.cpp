@@ -794,26 +794,6 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
             {
                 return _dev->query_embedded_filter(embedded_filter);
             });
-
-        //TODO
-        // below code is already done in rs_dds_embedded_decimation_filter::add_option
-        // check which one is better
-        //// Register the embedded filter options with this sensor proxy so they can be accessed
-        //// through the sensor's options interface
-        //auto decimation_filter = std::dynamic_pointer_cast<rs_dds_embedded_decimation_filter>(rs_embedded_filter);
-        //for (auto option_id : decimation_filter->get_supported_options())
-        //{
-        //    if (!get_option_handler(option_id))  // Don't duplicate options
-        //    {
-        //        auto opt_handler = decimation_filter->get_option_handler(option_id);
-        //        if (opt_handler)
-        //        {
-        //            decimation_filter->register_option(option_id, opt_handler);
-        //            auto& filter_options_watcher = decimation_filter->get_options_watcher();
-        //            filter_options_watcher.register_option(option_id, opt_handler);
-        //        }
-        //    }
-        //}
     }
     else if (auto temporal_filter = std::dynamic_pointer_cast< dds_temporal_filter >(embedded_filter))
     {
@@ -828,25 +808,6 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
             {
                 return _dev->query_embedded_filter(embedded_filter);
             });
-        //TODO
-        // below code is already done in rs_dds_embedded_temporal_filter::add_option
-        // check which one is better
-        //// Register the embedded filter options with this sensor proxy so they can be accessed
-        //// through the sensor's options interface
-        //auto temporal_filter = std::dynamic_pointer_cast<rs_dds_embedded_temporal_filter>(rs_embedded_filter);
-        //for (auto option_id : temporal_filter->get_supported_options())
-        //{
-        //    if (!get_option_handler(option_id))  // Don't duplicate options
-        //    {
-        //        auto opt_handler = temporal_filter->get_option_handler(option_id);
-        //        if (opt_handler)
-        //        {
-        //            temporal_filter->register_option(option_id, opt_handler);
-        //            auto& filter_options_watcher = temporal_filter->get_options_watcher();
-        //            filter_options_watcher.register_option(option_id, opt_handler);
-        //        }
-        //    }
-        //}
     }
     else
     {

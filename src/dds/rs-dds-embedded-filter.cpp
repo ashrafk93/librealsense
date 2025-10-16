@@ -18,11 +18,10 @@ namespace librealsense {
 {
 }
 
-    rsutils::json rs_dds_embedded_filter::dds_option_to_name_and_value_json(std::shared_ptr<realdds::dds_option> option)
+    rsutils::json rs_dds_embedded_filter::dds_option_to_name_and_value_json(std::shared_ptr<realdds::dds_option> option, const json& value)
     {
         json j = json::object();
-        j["name"] = option->get_name();
-        j["value"] = option->get_value();
+        j[option->get_name()] = value;
         return j;
     }
 

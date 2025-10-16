@@ -37,7 +37,7 @@ public:
         query_embedded_filter_callback query_embedded_filter_cb );
 
 protected:
-    static rsutils::json dds_option_to_name_and_value_json(std::shared_ptr<realdds::dds_option> option);
+    static rsutils::json dds_option_to_name_and_value_json(std::shared_ptr<realdds::dds_option> option, const rsutils::json& value);
 };
 
 }  // namespace librealsense
