@@ -3,8 +3,8 @@
 
 # test:device each(D400*)
 # test:donotrun:!nightly
-# test:timeout 300
-# CI timeout set to 5 minutes to accommodate comprehensive testing of all
+# test:timeout 600
+# CI timeout set to 10 minutes to accommodate comprehensive testing of all
 # supported depth profiles
 
 """
