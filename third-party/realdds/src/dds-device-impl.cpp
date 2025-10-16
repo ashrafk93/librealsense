@@ -901,7 +901,7 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         stream->set_recommended_filters( std::move( filter_names ) );
     }
 
-    if (auto embedded_filters_j = j.nested(topics::notification::stream_options::key::filters))
+    if (auto embedded_filters_j = j.nested(topics::notification::stream_options::key::embedded_filters))
     {
         dds_embedded_filters embedded_filters;
         for (auto& embedded_filter_j : embedded_filters_j)

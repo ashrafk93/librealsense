@@ -85,7 +85,6 @@ namespace notification {
             extern std::string const intrinsics;
             extern std::string const recommended_filters;
             extern std::string const embedded_filters;
-            extern std::string const filters;
         }
         namespace intrinsics {
             namespace key {

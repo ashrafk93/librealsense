@@ -44,7 +44,6 @@ namespace notification {
             std::string const intrinsics( "intrinsics", 10 );
             std::string const recommended_filters( "recommended-filters", 19 );
             std::string const embedded_filters( "embedded-filters", 16 );
-            std::string const filters( "filters", 7 );
         }
         namespace intrinsics {
             namespace key {
