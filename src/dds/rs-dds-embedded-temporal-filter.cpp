@@ -40,19 +40,19 @@ namespace librealsense {
         rs2_option option_id;
         
         // Map DDS option names to standard RealSense option IDs
-        if (option->get_name() == "Toggle")
+        if (option->get_name() == TOGGLE_OPTION_NAME)
         {
             option_id = RS2_OPTION_EMBEDDED_FILTER_ENABLED;
         }
-        else if (option->get_name() == "Alpha")
+        else if (option->get_name() == ALPHA_OPTION_NAME)
         {
             option_id = RS2_OPTION_FILTER_SMOOTH_ALPHA;
         }
-        else if (option->get_name() == "Delta")
+        else if (option->get_name() == DELTA_OPTION_NAME)
         {
             option_id = RS2_OPTION_FILTER_SMOOTH_DELTA;
         }
-        else if (option->get_name() == "Persistency")
+        else if (option->get_name() == PERSISTENCY_OPTION_NAME)
         {
             option_id = RS2_OPTION_HOLES_FILL;
         }
@@ -101,19 +101,19 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_filter_option(rsutils::json option_j) const
     {
-        if (option_j.contains("Toggle"))
+        if (option_j.contains(TOGGLE_OPTION_NAME))
         {
             validate_toggle_option(option_j);
         }
-        else if (option_j.contains("Alpha"))
+        else if (option_j.contains(ALPHA_OPTION_NAME))
         {
             validate_alpha_option(option_j);
         }
-		else if (option_j.contains("Delta"))
+		else if (option_j.contains(DELTA_OPTION_NAME))
 		{
 			validate_delta_option(option_j);
 		}
-		else if (option_j.contains("Persistency"))
+		else if (option_j.contains(PERSISTENCY_OPTION_NAME))
 		{
 			validate_persistency_option(option_j);
 		}
@@ -126,7 +126,7 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_toggle_option(rsutils::json opt_j) const
     {
-        auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
+        auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), TOGGLE_OPTION_NAME);
         int32_t toggle_val = opt_j["value"].get<int32_t>();
 
         // Check range using DDS option
@@ -150,7 +150,7 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_alpha_option(rsutils::json opt_j) const
     {
-		auto dds_alpha = find_dds_option_by_name(_dds_ef->get_options(), "Alpha");
+		auto dds_alpha = find_dds_option_by_name(_dds_ef->get_options(), ALPHA_OPTION_NAME);
         float alpha_val = opt_j["value"].get<float>();
         // Check range using DDS option
         if (!dds_alpha->get_minimum_value().is_null() && alpha_val < dds_alpha->get_minimum_value().get<float>())
@@ -167,7 +167,7 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_delta_option(rsutils::json opt_j) const
     {
-		auto dds_delta = find_dds_option_by_name(_dds_ef->get_options(), "Delta");
+		auto dds_delta = find_dds_option_by_name(_dds_ef->get_options(), DELTA_OPTION_NAME);
         int32_t delta_val = opt_j["value"].get<int32_t>();
         // Check range using DDS option
         if (!dds_delta->get_minimum_value().is_null() && delta_val < dds_delta->get_minimum_value().get<int32_t>())
@@ -184,7 +184,7 @@ namespace librealsense {
 
     void rs_dds_embedded_temporal_filter::validate_persistency_option(rsutils::json opt_j) const
     {
-		auto dds_persistency = find_dds_option_by_name(_dds_ef->get_options(), "Persistency");
+		auto dds_persistency = find_dds_option_by_name(_dds_ef->get_options(), PERSISTENCY_OPTION_NAME);
         int32_t persistency_val = opt_j["value"].get<int32_t>();
         // Check range using DDS option
         if (!dds_persistency->get_minimum_value().is_null() && persistency_val < dds_persistency->get_minimum_value().get<int32_t>())

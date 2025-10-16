@@ -42,6 +42,11 @@ namespace librealsense {
         int32_t _delta;
         int32_t _persistency;
 
+        const std::string TOGGLE_OPTION_NAME = "Toggle";
+		const std::string ALPHA_OPTION_NAME = "Alpha";
+		const std::string DELTA_OPTION_NAME = "Delta";
+		const std::string PERSISTENCY_OPTION_NAME = "Persistency";
+
         static const float ALPHA_DEFAULT;
         static const int32_t DELTA_DEFAULT;
         static const int32_t PERSISTENCY_DEFAULT;

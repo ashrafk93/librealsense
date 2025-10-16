@@ -34,11 +34,11 @@ namespace librealsense {
         rs2_option option_id;
         
         // Map DDS option names to standard RealSense option IDs
-        if (option->get_name() == "Toggle")
+        if (option->get_name() == TOGGLE_OPTION_NAME)
         {
             option_id = RS2_OPTION_EMBEDDED_FILTER_ENABLED;
         }
-        else if (option->get_name() == "Magnitude")
+        else if (option->get_name() == MAGNITUDE_OPTION_NAME)
         {
             option_id = RS2_OPTION_FILTER_MAGNITUDE;
         }
@@ -88,11 +88,11 @@ namespace librealsense {
 
     void rs_dds_embedded_decimation_filter::validate_filter_option(rsutils::json option_j) const
     {
-        if (option_j.contains("Toggle"))
+        if (option_j.contains(TOGGLE_OPTION_NAME))
         {
             validate_toggle_option(option_j);
         }
-        else if (option_j.contains("Magnitude"))
+        else if (option_j.contains(MAGNITUDE_OPTION_NAME))
         {
             validate_magnitude_option(option_j);
         }
@@ -106,7 +106,7 @@ namespace librealsense {
     void rs_dds_embedded_decimation_filter::validate_toggle_option(rsutils::json opt_j) const
     {
 		auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
-        int32_t toggle_val = opt_j["Toggle"].get<int32_t>();
+        int32_t toggle_val = opt_j[TOGGLE_OPTION_NAME].get<int32_t>();
 
         // Check range using DDS option
         if (!dds_toggle->get_minimum_value().is_null() && toggle_val < dds_toggle->get_minimum_value().get<int32_t>())
@@ -130,7 +130,7 @@ namespace librealsense {
     void rs_dds_embedded_decimation_filter::validate_magnitude_option(rsutils::json opt_j) const
     {
         auto dds_magnitude = find_dds_option_by_name(_dds_ef->get_options(), "Magnitude");
-        int32_t mag_val = opt_j["Magnitude"].get<int32_t>();
+        int32_t mag_val = opt_j[MAGNITUDE_OPTION_NAME].get<int32_t>();
         // Check range using DDS option
         if (!dds_magnitude->get_minimum_value().is_null() && mag_val < dds_magnitude->get_minimum_value().get<int32_t>())
         {

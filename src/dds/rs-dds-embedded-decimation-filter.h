@@ -38,6 +38,9 @@ namespace librealsense {
         bool _enabled;
         int _magnitude;
 
+		const std::string TOGGLE_OPTION_NAME = "Toggle";
+		const std::string MAGNITUDE_OPTION_NAME = "Magnitude";
+
         const int32_t DECIMATION_MAGNITUDE = 2; // Decimation magnitude must always be 2
     };
 
