@@ -553,52 +553,6 @@ namespace rs2
                 set_laser_emitter_state( off_value );
                 set_thermal_loop_state( off_value );
             }
-            else if (action == RS2_CALIB_ACTION_UVMAPPING_CALIB)
-            {
-                _uid = 1;
-                _uid2 = 0;
-                bool first_done = false;
-                bool second_done = false;
-                for (const auto& format : _sub->formats)
-                {
-                    if (format.second[0] == "Y8" && !first_done)
-                    {
-                        _uid = format.first;
-                        first_done = true;
-                    }
-
-                    if (format.second[0] == "Z16" && !second_done)
-                    {
-                        _uid2 = format.first;
-                        second_done = true;
-                    }
-
-                    if (first_done && second_done)
-                        break;
-                }
-
-                _sub_color->ui.selected_format_id.clear();
-                _sub_color->ui.selected_format_id[_uid_color] = 0;
-                for (const auto& format : _sub_color->formats)
-                {
-                    int done = false;
-                    for (int i = 0; i < format.second.size(); ++i)
-                    {
-                        if (format.second[i] == "RGB8")
-                        {
-                            _uid_color = format.first;
-                            _sub_color->ui.selected_format_id[_uid_color] = i;
-                            done = true;
-                            break;
-                        }
-                    }
-                    if (done)
-                        break;
-                }
-
-                // TODO - When implementing UV mapping calibration - should remove from here and handle in process_flow()
-                set_laser_emitter_state( off_value );
-            }
             else if (action == RS2_CALIB_ACTION_FL_PLUS_CALIB)
             {
                 _uid = 1;
