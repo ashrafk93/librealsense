@@ -96,7 +96,7 @@ namespace librealsense {
         {
             validate_magnitude_option(option_j);
         }
-		else
+        else
         {
             throw std::runtime_error("Option should contain name field");
         }
@@ -105,7 +105,7 @@ namespace librealsense {
 
     void rs_dds_embedded_decimation_filter::validate_toggle_option(rsutils::json opt_j) const
     {
-		auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
+        auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
         int32_t toggle_val = opt_j[TOGGLE_OPTION_NAME].get<int32_t>();
 
         // Check range using DDS option

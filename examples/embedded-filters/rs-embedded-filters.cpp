@@ -102,8 +102,8 @@ try
         std::cout << "Embedded filter supported: " << rs2_embedded_filter_type_to_string(filter.get_type()) << std::endl;
     }
 
-	std::cout << std::endl;
-	std::cout << "Decimation Filter" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Decimation Filter" << std::endl;
     std::cout << "=========================================" << std::endl;
 
     rs2::embedded_decimation_filter dec_filter = depth_sensor.get_embedded_filter< rs2::embedded_decimation_filter>(); //--> better - enum remain for now - for dds needs
@@ -115,16 +115,16 @@ try
     }
 
     // getting initial values
-	std::cout << "Initial values:" << std::endl;
+    std::cout << "Initial values:" << std::endl;
     auto enabled = dec_filter.get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
     auto magnitude = dec_filter.get_option(RS2_OPTION_FILTER_MAGNITUDE);
     std::cout << "Decimation filter enabled: " << enabled << std::endl;
     std::cout << "Decimation filter magnitude: " << magnitude << std::endl;
-	std::cout << std::endl;
+    std::cout << std::endl;
 
-	std::cout << "Setting toggle ON" << std::endl;
+    std::cout << "Setting toggle ON" << std::endl;
     dec_filter.set_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED, 1);
-	std::cout << "Decimation filter enabled: " << dec_filter.get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED) << std::endl;
+    std::cout << "Decimation filter enabled: " << dec_filter.get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED) << std::endl;
 
     // below line won't run because option is read-only
     try {
@@ -135,7 +135,7 @@ try
         // expected - option is read-only
     }
 
-	std::cout << "Setting toggle back to initial value: " << enabled << std::endl;
+    std::cout << "Setting toggle back to initial value: " << enabled << std::endl;
     dec_filter.set_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED, enabled);
 
     return EXIT_SUCCESS;

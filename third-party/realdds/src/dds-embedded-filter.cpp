@@ -176,7 +176,7 @@ std::shared_ptr<dds_embedded_filter> create_embedded_filter(const std::string& f
     else if ( filter_name == "Temporal Filter")
         return std::make_shared<dds_temporal_filter>();
     else
-		DDS_THROW(runtime_error, "Unknown embedded filter name: " + filter_name);
+        DDS_THROW(runtime_error, "Unknown embedded filter name: " + filter_name);
 }
 
 }  // namespace realdds
