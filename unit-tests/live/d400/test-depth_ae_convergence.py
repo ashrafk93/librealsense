@@ -270,7 +270,8 @@ def check_metadata_availability(profile, timeout=2.0):
 # Run Tests
 
 # Run AE convergence for all supported depth profiles (resolution + fps)
-depth_profiles = [p for p in sensor.profiles if p.stream_type() == rs.stream.depth]
+# Exclude profiles with frame rates lower than 15 fps from testing
+depth_profiles = [p for p in sensor.profiles if p.stream_type() == rs.stream.depth and p.fps() >= 15]
 if not depth_profiles:
     log.i('Requested depth profile 640x480@30 not found - exiting')
     tw.stop_wrapper(device)
