@@ -906,7 +906,7 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         dds_embedded_filters embedded_filters;
         for (auto& embedded_filter_j : embedded_filters_j)
         {
-            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j, stream_name);
+            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
             embedded_filters.push_back(embedded_filter);
         }
 

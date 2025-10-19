@@ -119,7 +119,7 @@ namespace librealsense {
         }
         else
         {
-            throw std::runtime_error("Option should contain name field");
+            throw std::runtime_error("Option json must contain a key matching one of the options name");
         }
         // Validation passed - parameter is valid
     }
@@ -127,7 +127,7 @@ namespace librealsense {
     void rs_dds_embedded_temporal_filter::validate_toggle_option(rsutils::json opt_j) const
     {
         auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), TOGGLE_OPTION_NAME);
-        int32_t toggle_val = opt_j["value"].get<int32_t>();
+        int32_t toggle_val = opt_j[TOGGLE_OPTION_NAME].get<int32_t>();
 
         // Check range using DDS option
         if (!dds_toggle->get_minimum_value().is_null() && toggle_val < dds_toggle->get_minimum_value().get<int32_t>())
@@ -151,7 +151,7 @@ namespace librealsense {
     void rs_dds_embedded_temporal_filter::validate_alpha_option(rsutils::json opt_j) const
     {
         auto dds_alpha = find_dds_option_by_name(_dds_ef->get_options(), ALPHA_OPTION_NAME);
-        float alpha_val = opt_j["value"].get<float>();
+        float alpha_val = opt_j[ALPHA_OPTION_NAME].get<float>();
         // Check range using DDS option
         if (!dds_alpha->get_minimum_value().is_null() && alpha_val < dds_alpha->get_minimum_value().get<float>())
         {
@@ -168,7 +168,7 @@ namespace librealsense {
     void rs_dds_embedded_temporal_filter::validate_delta_option(rsutils::json opt_j) const
     {
         auto dds_delta = find_dds_option_by_name(_dds_ef->get_options(), DELTA_OPTION_NAME);
-        int32_t delta_val = opt_j["value"].get<int32_t>();
+        int32_t delta_val = opt_j[DELTA_OPTION_NAME].get<int32_t>();
         // Check range using DDS option
         if (!dds_delta->get_minimum_value().is_null() && delta_val < dds_delta->get_minimum_value().get<int32_t>())
         {
@@ -185,7 +185,7 @@ namespace librealsense {
     void rs_dds_embedded_temporal_filter::validate_persistency_option(rsutils::json opt_j) const
     {
         auto dds_persistency = find_dds_option_by_name(_dds_ef->get_options(), PERSISTENCY_OPTION_NAME);
-        int32_t persistency_val = opt_j["value"].get<int32_t>();
+        int32_t persistency_val = opt_j[PERSISTENCY_OPTION_NAME].get<int32_t>();
         // Check range using DDS option
         if (!dds_persistency->get_minimum_value().is_null() && persistency_val < dds_persistency->get_minimum_value().get<int32_t>())
         {

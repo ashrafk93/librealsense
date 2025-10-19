@@ -8,6 +8,6 @@ The example shows how to:
 1. Find embedded filters supported by the first found connected RealSense device
 2. Read current options for each supported filter
 3. Modify various options for each supported filter
-4. Setting back the options' to their initial value
+4. Setting the options back to their initial values
 
 

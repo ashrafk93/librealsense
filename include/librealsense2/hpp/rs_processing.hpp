@@ -1337,7 +1337,7 @@ namespace rs2
     class embedded_temporal_filter : public embedded_filter
     {
     public:
-        embedded_temporal_filter(std::shared_ptr<rs2_embedded_filter> filter)
+        embedded_temporal_filter(embedded_filter filter)
             : embedded_filter(filter)
         {
             rs2_error* e = nullptr;

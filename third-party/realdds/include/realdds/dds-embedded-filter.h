@@ -50,7 +50,7 @@ public:
 
     // JSON serialization
     virtual rsutils::json to_json() const;
-    static std::shared_ptr< dds_embedded_filter > from_json( rsutils::json const & j, const std::string& stream_name);
+    static std::shared_ptr< dds_embedded_filter > from_json( rsutils::json const & j);
 
 protected:
     void verify_uninitialized() const;  // throws if already has a value (use by init_ functions)

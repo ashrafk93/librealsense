@@ -98,14 +98,14 @@ namespace librealsense {
         }
         else
         {
-            throw std::runtime_error("Option should contain name field");
+            throw std::runtime_error("Option json must contain a key matching one of the options name");
         }
         // Validation passed - parameter is valid
     }
 
     void rs_dds_embedded_decimation_filter::validate_toggle_option(rsutils::json opt_j) const
     {
-        auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), "Toggle");
+        auto dds_toggle = find_dds_option_by_name(_dds_ef->get_options(), TOGGLE_OPTION_NAME);
         int32_t toggle_val = opt_j[TOGGLE_OPTION_NAME].get<int32_t>();
 
         // Check range using DDS option
@@ -129,7 +129,7 @@ namespace librealsense {
 
     void rs_dds_embedded_decimation_filter::validate_magnitude_option(rsutils::json opt_j) const
     {
-        auto dds_magnitude = find_dds_option_by_name(_dds_ef->get_options(), "Magnitude");
+        auto dds_magnitude = find_dds_option_by_name(_dds_ef->get_options(), MAGNITUDE_OPTION_NAME);
         int32_t mag_val = opt_j[MAGNITUDE_OPTION_NAME].get<int32_t>();
         // Check range using DDS option
         if (!dds_magnitude->get_minimum_value().is_null() && mag_val < dds_magnitude->get_minimum_value().get<int32_t>())

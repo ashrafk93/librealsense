@@ -83,7 +83,7 @@ rsutils::json dds_embedded_filter::get_options_json()
     return dds_options_to_json(_options);
 }
 
-std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutils::json& j, const std::string& stream_name)
+std::shared_ptr<dds_embedded_filter> dds_embedded_filter::from_json(const rsutils::json& j)
 {
     std::string name_str;
     if (j.contains("name")) 

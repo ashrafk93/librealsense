@@ -2057,7 +2057,7 @@ int rs2_is_embedded_filter_extendable_to(const rs2_embedded_filter* embedded_fil
     switch (extension_type)
     {
     case RS2_EXTENSION_DECIMATION_EMBEDDED_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(embedded_filter->_embedded_filter.get()), librealsense::decimation_embedded_filter) != nullptr;
-    case RS2_EXTENSION_TEMPORAL_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(embedded_filter->_embedded_filter.get()), librealsense::temporal_embedded_filter) != nullptr;
+    case RS2_EXTENSION_TEMPORAL_EMBEDDED_FILTER: return VALIDATE_INTERFACE_NO_THROW((embedded_filter_interface*)(embedded_filter->_embedded_filter.get()), librealsense::temporal_embedded_filter) != nullptr;
     default:
         return false;
     }
