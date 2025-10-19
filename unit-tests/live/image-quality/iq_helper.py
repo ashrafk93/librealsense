@@ -5,11 +5,15 @@ from rspy import log, test
 import numpy as np
 import cv2
 import time
+import pyrealsense2 as rs
 
 
-# A4 size in pixels at 96 DPI
-A4_WIDTH = 794
-A4_HEIGHT = 1123
+# standard size to display / process the target
+WIDTH = 1280
+HEIGHT = 720
+
+# transformation matrix from frame to aligned region of interest
+M = None
 
 def compute_homography(pts):
     """
@@ -21,7 +25,7 @@ def compute_homography(pts):
     bottom_left, bottom_right = sorted(pts_sorted[2:], key=lambda p: p[0])
 
     src = np.array([top_left, top_right, bottom_right, bottom_left], dtype=np.float32)
-    dst = np.array([[0,0],[A4_WIDTH-1,0],[A4_WIDTH-1,A4_HEIGHT-1],[0,A4_HEIGHT-1]], dtype=np.float32)
+    dst = np.array([[0,0],[WIDTH-1,0],[WIDTH-1,HEIGHT-1],[0,HEIGHT-1]], dtype=np.float32)
     M = cv2.getPerspectiveTransform(src, dst)
     return M  # we later use M to get our roi
 
@@ -59,13 +63,15 @@ def find_roi_location(pipeline, required_ids, DEBUG_MODE=False):
     Returns a matrix that transforms from frame to region of interest
     This matrix will later be used with cv2.warpPerspective()
     """
+    global M
     # stream until page found
     page_pts = None
     start_time = time.time()
     while page_pts is None and time.time() - start_time < 5:
         frames = pipeline.wait_for_frames()
-        color_frame = frames.get_color_frame()
-        img_bgr = np.asanyarray(color_frame.get_data())
+        aruco_detectable_streams = (rs.stream.color, rs.stream.infrared) # we need one of those streams to detect ArUco markers
+        frame = next(f for f in frames if f.get_profile().stream_type() in aruco_detectable_streams)
+        img_bgr = np.asanyarray(frame.get_data())
 
         if DEBUG_MODE:
             cv2.imshow("PageDetect - waiting for page", img_bgr)
@@ -82,3 +88,16 @@ def find_roi_location(pipeline, required_ids, DEBUG_MODE=False):
     M = compute_homography(page_pts)
     cv2.destroyAllWindows()
     return M, page_pts
+
+def get_roi_from_frame(frame):
+    """
+    Apply the previously computed transformation matrix to the given frame
+    to get the region of interest (A4 page)
+    """
+    global M
+    if M is None:
+        raise Exception("Transformation matrix not computed yet")
+
+    np_frame = np.asanyarray(frame.get_data())
+    warped = cv2.warpPerspective(np_frame, M, (WIDTH, HEIGHT)) # using A4 size for its ratio
+    return warped

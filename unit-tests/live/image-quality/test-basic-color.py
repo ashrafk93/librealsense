@@ -7,7 +7,7 @@ import pyrealsense2 as rs
 from rspy import log, test
 import numpy as np
 import cv2
-from iq_helper import find_roi_location, A4_WIDTH, A4_HEIGHT
+from iq_helper import find_roi_location, get_roi_from_frame, WIDTH, HEIGHT
 
 NUM_FRAMES = 100 # Number of frames to check
 COLOR_TOLERANCE = 60 # Acceptable per-channel deviation in RGB values
@@ -46,8 +46,8 @@ def draw_debug(frame_bgr, a4_page_bgr):
       - left: camera frame
       - right: focused view on the A4 page with grid and color names
     """
-    vertical_lines = [A4_WIDTH / 3.0, 2.0 * A4_WIDTH / 3.0]
-    horizontal_lines = [A4_HEIGHT / 3.0, 2.0 * A4_HEIGHT / 3.0]
+    vertical_lines = [WIDTH / 3.0, 2.0 * WIDTH / 3.0]
+    horizontal_lines = [HEIGHT / 3.0, 2.0 * HEIGHT / 3.0]
     H, W = a4_page_bgr.shape[:2]
 
     # draw grid on a4 page image
@@ -95,7 +95,7 @@ def run_test(resolution, fps):
         pipeline.wait_for_frames()
     try:
         # find region of interest (page) and get the transformation matrix
-        M, _ = find_roi_location(pipeline, (0, 1, 2, 3), DEBUG_MODE) # markers in the lab are 0,1,2,3
+        find_roi_location(pipeline, (0, 1, 2, 3), DEBUG_MODE) # markers in the lab are 0,1,2,3
 
         # sampling loop
         for i in range(NUM_FRAMES):
@@ -103,8 +103,7 @@ def run_test(resolution, fps):
             color_frame = frames.get_color_frame()
             img_bgr = np.asanyarray(color_frame.get_data())
 
-            # use M to get the region of interest - our colored grid printed in the lab
-            a4_bgr = cv2.warpPerspective(img_bgr, M, (A4_WIDTH, A4_HEIGHT))
+            color_frame_roi = get_roi_from_frame(color_frame)
 
             # sample each grid center and compare to expected color by row-major insertion order
             for idx, (x, y) in enumerate(centers):
@@ -112,7 +111,7 @@ def run_test(resolution, fps):
                 expected_rgb = expected_colors[color]
                 x = int(round(x))
                 y = int(round(y))
-                b, g, r = (int(v) for v in a4_bgr[y, x])  # stream is BGR, convert to RGB
+                b, g, r = (int(v) for v in color_frame_roi[y, x])  # stream is BGR, convert to RGB
                 pixel = (r, g, b)
                 if is_color_close(pixel, expected_rgb, COLOR_TOLERANCE):
                     color_match_count[color] += 1
@@ -120,7 +119,7 @@ def run_test(resolution, fps):
                     log.d(f"Frame {i} - {color} at ({x},{y}) sampled: {pixel} too far from expected {expected_rgb}")
 
             if DEBUG_MODE:
-                dbg = draw_debug(img_bgr, a4_bgr)
+                dbg = draw_debug(img_bgr, color_frame_roi)
                 cv2.imshow("PageDetect - camera | A4", dbg)
                 cv2.waitKey(1)
 
