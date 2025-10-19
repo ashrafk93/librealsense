@@ -38,7 +38,7 @@ with test.remote.fork( nested_indent=None ) as remote:
             """
             decimation_json = json.loads( decimation_json_str )
             s1.init_embedded_filters( [
-                dds.decimation_embedded_filter.from_json( decimation_json, 'Depth' )
+                dds.decimation_embedded_filter.from_json( decimation_json)
                 ])
             server = dds.device_server( participant, device_info.topic_root )
             server.init( [s1], [
