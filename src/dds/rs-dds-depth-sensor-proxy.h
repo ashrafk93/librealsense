@@ -36,7 +36,7 @@ public:
 protected:
     void add_no_metadata( frame *, streaming_impl & ) override;
     void add_frame_metadata( frame *, rsutils::json const & md, streaming_impl & ) override;
-    std::vector< std::shared_ptr< embedded_filter_interface > > _embedded_filters;
+    std::map< rs2_embedded_filter_type, std::shared_ptr< embedded_filter_interface > > _embedded_filters;
 };
 
 }  // namespace librealsense

@@ -64,7 +64,6 @@ private:
 
     formats_converter _formats_converter;
     stream_profiles _active_converted_profiles;
-    std::vector< std::shared_ptr< embedded_filter_interface>> _embedded_filters;
 
 public:
     dds_sensor_proxy( std::string const & sensor_name,

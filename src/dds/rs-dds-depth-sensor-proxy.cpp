@@ -112,14 +112,14 @@ embedded_filters dds_depth_sensor_proxy::query_embedded_filters() const
     embedded_filters filters;
     for (auto& embedded_filter : _embedded_filters)
     {
-        filters.push_back(embedded_filter);
+        filters.push_back(embedded_filter.second);
     }
     return filters;
 }
 
 void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< embedded_filter_interface > embedded_filter)
 {
-    _embedded_filters.push_back(embedded_filter);
+    _embedded_filters.insert(std::make_pair(embedded_filter->get_type(), embedded_filter));
 }
 
 }  // namespace librealsense

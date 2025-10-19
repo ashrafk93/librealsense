@@ -822,7 +822,7 @@ void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedd
     }
     else
     {
-        _embedded_filters.push_back(rs_embedded_filter);
+        throw std::runtime_error("Embedded Filters are only enabled for depth sensor for now");
     }
 }
 
