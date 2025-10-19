@@ -58,12 +58,15 @@ namespace rs2
     protected:
         bool _enabled = true;
         std::shared_ptr<rs2::filter> _block;
-        std::map< rs2_option, option_model > options_metadata;
+        std::map< rs2_option, option_model > _options_id_to_model;
         std::string _name;
         std::string _full_name;
         std::function<rs2::frame( rs2::frame )> _invoker;
         subdevice_model* _owner;
     };
+
+    bool restore_processing_block(const char* name,
+        std::shared_ptr<rs2::processing_block> pb, bool enable);
 
     void save_processing_block_to_config_file(const char* name,
         std::shared_ptr<rs2::processing_block> pb, bool enable = true);

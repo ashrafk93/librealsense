@@ -20,6 +20,7 @@
 
 #include "objects-in-frame.h"
 #include "processing-block-model.h"
+#include "embedded-filter-model.h"
 
 #include "realsense-ui-advanced-mode.h"
 #include "fw-update-helper.h"
@@ -206,6 +207,9 @@ namespace rs2
         std::vector<std::shared_ptr<processing_block_model>> post_processing;
         bool post_processing_enabled = true;
         std::vector<std::shared_ptr<processing_block_model>> const_effects;
+
+		std::vector<std::shared_ptr<embedded_filter_model>> embedded_filters;
+        bool embedded_filters_enabled = true;
 
         bool uvmapping_calib_full = false;
         device_model* dev_model;

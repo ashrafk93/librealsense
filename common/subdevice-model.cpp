@@ -57,39 +57,6 @@ namespace rs2
         }
     }
 
-    // to be moved to processing-block-model
-    bool restore_processing_block(const char* name,
-        std::shared_ptr<rs2::processing_block> pb, bool enable)
-    {
-        for( auto opt : pb->get_supported_option_values() )
-        {
-            std::string key = name;
-            key += ".";
-            key += pb->get_option_name( opt->id );
-            if (config_file::instance().contains(key.c_str()))
-            {
-                float val = config_file::instance().get(key.c_str());
-                try
-                {
-                    auto range = pb->get_option_range( opt->id );
-                    if (val >= range.min && val <= range.max)
-                        pb->set_option( opt->id, val );
-                }
-                catch (...)
-                {
-                }
-            }
-        }
-
-        std::string key = name;
-        key += ".enabled";
-        if (config_file::instance().contains(key.c_str()))
-        {
-            return config_file::instance().get(key.c_str());
-        }
-        return enable;
-    }
-
     subdevice_model::subdevice_model(
         device& dev,
         std::shared_ptr<sensor> s,
@@ -203,6 +170,22 @@ namespace rs2
             }
 
             post_processing.push_back(model);
+        }
+
+        for (auto&& f : s->query_embedded_filters())
+        {
+            auto shared_filter = std::make_shared<embedded_filter>(f);
+
+            auto model = std::make_shared<embedded_filter_model>(
+                this, shared_filter->get_type(), shared_filter, error_message);
+
+            if (shared_filter->is<embedded_decimation_filter>())
+                model->enable(false);
+
+            if (shared_filter->is<embedded_temporal_filter>())
+                model->enable(false);
+
+			embedded_filters.push_back(model);
         }
 
         if (is_rgb_camera)
