@@ -191,6 +191,7 @@ namespace rs2
                         threshold_pb.set_option(RS2_OPTION_MAX_DISTANCE, SHORT_RANGE_MAX_DISTANCE);
                     }
                 }
+                model->enable( false ); 
             }
 
             if (shared_filter->is<hdr_merge>())
