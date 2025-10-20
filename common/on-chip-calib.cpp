@@ -297,12 +297,7 @@ namespace rs2
             }
 
             // Select Resolution
-            for (int i = 0; i < _sub->res_values.size(); i++)
-            {
-                auto kvp = _sub->res_values[i];
-                if (kvp.first == 1280 && kvp.second == 720)
-                    _sub->ui.selected_res_id = i;
-            }
+            _sub->select_resolution( 1280, 720, RS2_STREAM_INFRARED );
 
             auto profiles = _sub->get_selected_profiles();
 
@@ -360,12 +355,7 @@ namespace rs2
             }
 
             // Select Resolution
-            for (int i = 0; i < _sub->res_values.size(); i++)
-            {
-                auto kvp = _sub->res_values[i];
-                if (kvp.first == 1280 && kvp.second == 720)
-                    _sub->ui.selected_res_id = i;
-            }
+            _sub->select_resolution( 1280, 720, RS2_STREAM_INFRARED );
 
             auto profiles = _sub->get_selected_profiles();
 
@@ -446,12 +436,8 @@ namespace rs2
                 }
 
                 // Select Resolution
-                for (int i = 0; i < _sub->res_values.size(); i++)
-                {
-                    auto kvp = _sub->res_values[i];
-                    if (kvp.first == 1280 && kvp.second == 720)
-                        _sub->ui.selected_res_id = i;
-                }
+                _sub->select_resolution( 1280, 720, RS2_STREAM_INFRARED );
+                _sub->select_resolution( 1280, 720, RS2_STREAM_DEPTH );
 
                 auto profiles = _sub->get_selected_profiles();
 
@@ -464,12 +450,7 @@ namespace rs2
                         _sub_color->ui.selected_shared_fps_id = i;
                 }
 
-                for (int i = 0; i < _sub_color->res_values.size(); i++)
-                {
-                    auto kvp = _sub_color->res_values[i];
-                    if (kvp.first == 1280 && kvp.second == 720)
-                        _sub_color->ui.selected_res_id = i;
-                }
+                _sub_color->select_resolution( 1280, 720, RS2_STREAM_COLOR );
 
                 profiles_color = _sub_color->get_selected_profiles();
 
@@ -505,6 +486,7 @@ namespace rs2
                         break;
                     }
                 }
+                _sub->select_resolution( w, h, RS2_STREAM_INFRARED );
             }
             else if (action == RS2_CALIB_ACTION_UVMAPPING_CALIB)
             {
@@ -529,6 +511,8 @@ namespace rs2
                     if (first_done && second_done)
                         break;
                 }
+                _sub->select_resolution( w, h, RS2_STREAM_INFRARED );
+                _sub->select_resolution( w, h, RS2_STREAM_DEPTH);
 
                 _sub_color->ui.selected_format_id.clear();
                 _sub_color->ui.selected_format_id[_uid_color] = 0;
@@ -587,6 +571,9 @@ namespace rs2
                         break;
                 }
 
+                _sub->select_resolution( w, h, RS2_STREAM_INFRARED );
+                _sub->select_resolution( w, h, RS2_STREAM_DEPTH );
+
                 // TODO - When implementing FL plus calibration - should remove from here and handle in process_flow()
                 set_laser_emitter_state( off_value );
             }
@@ -611,6 +598,7 @@ namespace rs2
                         }
                     }
                 }
+                _sub->select_resolution( w, h, RS2_STREAM_INFRARED );
             }
             else
             {
@@ -623,6 +611,7 @@ namespace rs2
                         break;
                     }
                 }
+                _sub->select_resolution( w, h, RS2_STREAM_DEPTH );
             }
 
             // Select stream
@@ -643,14 +632,6 @@ namespace rs2
                     _sub->ui.selected_shared_fps_id = i;
             }
 
-            // Select Resolution
-            for (int i = 0; i < _sub->res_values.size(); i++)
-            {
-                auto kvp = _sub->res_values[i];
-                if (kvp.first == w && kvp.second == h)
-                    _sub->ui.selected_res_id = i;
-            }
-
             // If not supported, try WxHx30
             if (!_sub->is_selected_combination_supported())
             {
@@ -664,12 +645,8 @@ namespace rs2
                 // If still not supported, try VGA30
                 if (!_sub->is_selected_combination_supported())
                 {
-                    for (int i = 0; i < _sub->res_values.size(); i++)
-                    {
-                        auto kvp = _sub->res_values[i];
-                        if (kvp.first == 640 && kvp.second == 480)
-                            _sub->ui.selected_res_id = i;
-                    }
+                    _sub->select_resolution( 640, 480, RS2_STREAM_DEPTH );
+                    _sub->select_resolution( 640, 480, RS2_STREAM_INFRARED );
                 }
             }
 
@@ -686,12 +663,7 @@ namespace rs2
                         _sub_color->ui.selected_shared_fps_id = i;
                 }
 
-                for (int i = 0; i < _sub_color->res_values.size(); i++)
-                {
-                    auto kvp = _sub_color->res_values[i];
-                    if (kvp.first == w && kvp.second == h)
-                        _sub_color->ui.selected_res_id = i;
-                }
+                _sub_color->select_resolution( w, h, RS2_STREAM_COLOR );
 
                 profiles_color = _sub_color->get_selected_profiles();
             }
@@ -1444,7 +1416,7 @@ namespace rs2
             if (!_was_streaming)
             {
                 if (action == RS2_CALIB_ACTION_FL_CALIB)
-                    try_start_viewer(848, 480, fps, invoke);
+                    try_start_viewer(1280, 720, fps, invoke);
                 else
                     try_start_viewer(0, 0, 0, invoke);
             }

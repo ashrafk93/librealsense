@@ -84,7 +84,8 @@ namespace rs2
         bool supports_on_chip_calib();
         bool draw_stream_selection(std::string& error_message);
         bool is_selected_combination_supported();
-        std::vector<stream_profile> get_selected_profiles(bool enforce_inter_stream_policies = true);
+        void select_resolution( int width, int height, rs2_stream stream = RS2_STREAM_ANY );
+        std::vector< stream_profile > get_selected_profiles( bool enforce_inter_stream_policies = true );
         std::vector<stream_profile> get_supported_profiles();
         void stop(std::shared_ptr<notifications_model> not_model);
         void play(const std::vector<stream_profile>& profiles, viewer_model& viewer, std::shared_ptr<rs2::asynchronous_syncer>);

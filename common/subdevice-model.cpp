@@ -1366,6 +1366,25 @@ namespace rs2
         throw std::runtime_error(error_message.str());
     }
 
+    void subdevice_model::select_resolution( int width, int height, rs2_stream stream )
+    {
+        if( ui.is_multiple_resolutions )
+        {
+            // (0, 0) indicates keep current resolution
+            if( width != 0 && height != 0 && stream != RS2_STREAM_ANY )
+                ui.selected_stream_to_res[stream] = { width, height };
+        }
+        else
+        {
+            for( int i = 0; i < res_values.size(); i++ )
+            {
+                auto kvp = res_values[i];
+                if( kvp.first == width && kvp.second == height )
+                    ui.selected_res_id = i;
+            }
+        }
+    }
+
     std::vector<stream_profile> subdevice_model::get_selected_profiles(bool enforce_inter_stream_policies)
     {
         std::vector<stream_profile> results;
