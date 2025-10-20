@@ -128,6 +128,29 @@ std::shared_ptr< dds_topic > const & dds_stream::get_topic() const
     DDS_THROW( runtime_error, "stream '" + name() + "' must be open to get_topic()" );
 }
 
+std::vector<std::string> dds_stream::get_post_processing_filters_names() const
+{
+    std::vector<std::string> filter_names;
+    if (_name == "Depth")
+    {
+        filter_names.push_back("Decimation Filter");
+        filter_names.push_back("Rotation Filter");
+        filter_names.push_back("HDR Merge");
+        filter_names.push_back("Filter By Sequence id");
+        filter_names.push_back("Threshold Filter");
+        filter_names.push_back("Depth to Disparity");
+        filter_names.push_back("Spatial Filter");
+        filter_names.push_back("Temporal Filter");
+        filter_names.push_back("Hole Filling Filter");
+        filter_names.push_back("Disparity to Depth");
+    }
+    else if (_name == "Color")
+    {
+        filter_names.push_back("Decimation Filter");
+        filter_names.push_back("Rotation Filter");
+    }
+    return filter_names;
+}
 
 dds_video_stream::dds_video_stream( std::string const & stream_name, std::string const & sensor_name )
     : super( stream_name, sensor_name )

@@ -827,6 +827,13 @@ void dds_device::impl::on_stream_header( json const & j, dds_sample const & samp
                              << "' received with " << profiles.size() << " profiles"
                              << ( stream->metadata_enabled() ? " and metadata" : "" ) );
 
+
+    std::vector< std::string > filter_names = stream->get_post_processing_filters_names();
+    if (filter_names.size() > 0)
+    {
+        stream->set_recommended_filters(std::move(filter_names));
+    }
+
     set_state( state_t::WAIT_FOR_STREAM_OPTIONS );
 }
 
@@ -888,17 +895,6 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
             motion_stream->set_gyro_intrinsics( motion_intrinsics::from_json(
                 j_int.at( topics::notification::stream_options::intrinsics::key::gyro ) ) );
         }
-    }
-
-    if( auto filters_j = j.nested( topics::notification::stream_options::key::recommended_filters ) )
-    {
-        std::vector< std::string > filter_names;
-        for( auto & filter : filters_j )
-        {
-            filter_names.push_back( filter );
-        }
-
-        stream->set_recommended_filters( std::move( filter_names ) );
     }
 
     if (auto embedded_filters_j = j.nested(topics::notification::stream_options::key::embedded_filters))

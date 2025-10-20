@@ -49,6 +49,8 @@ public:
 
     std::shared_ptr< dds_topic > const & get_topic() const override;
 
+    std::vector<std::string> get_post_processing_filters_names() const;
+
 protected:
     virtual void handle_data() = 0;
     virtual bool can_start_streaming() const = 0;
