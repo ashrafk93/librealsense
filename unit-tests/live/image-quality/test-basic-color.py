@@ -31,8 +31,8 @@ color_names = list(expected_colors.keys())
 
 # we are given a 3x3 grid, we split it using 2 vertical and 2 horizontal separators
 # we also calculate the center of each grid cell for sampling from it for the test
-xs = [1.5 * A4_WIDTH / 6.0, A4_WIDTH / 2.0, 4.5 * A4_WIDTH / 6.0]
-ys = [1.5 * A4_HEIGHT / 6.0, A4_HEIGHT / 2.0, 4.5 * A4_HEIGHT / 6.0]
+xs = [1.5 * WIDTH / 6.0, WIDTH / 2.0, 4.5 * WIDTH / 6.0]
+ys = [1.5 * HEIGHT / 6.0, HEIGHT / 2.0, 4.5 * HEIGHT / 6.0]
 centers = [(x, y) for y in ys for x in xs]
 
 dev, ctx = test.find_first_device_or_exit()
