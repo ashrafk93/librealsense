@@ -1018,6 +1018,11 @@ namespace rs2
         std::string pid = this->dev->dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID);
         if (pid == "0B6B")
             add_d585S_metadata_descriptions(descriptions);
+
+        if (this->dev->dev.supports(RS2_CAMERA_INFO_PRODUCT_LINE) &&
+            std::string(this->dev->dev.get_info(RS2_CAMERA_INFO_PRODUCT_LINE)) == "D500")
+            add_d500_metadata_descriptions(descriptions);
+
         for (auto i = 0; i < RS2_FRAME_METADATA_COUNT; i++)
         {
             auto&& kvp = frame_md.md_attributes[i];
@@ -1317,6 +1322,14 @@ namespace rs2
             return "White Balance"; // D585S also outputs auto white balance values in this fields so the "manual" in the name is wrong
 
         return name;
+    }
+
+    void stream_model::add_d500_metadata_descriptions(std::map<rs2_frame_metadata_value, std::string>& descriptions) const
+    {
+        std::vector<std::string> meanings;
+
+        meanings = { "Decimation", "Spatial", "Temporal", "Holes Filling"};
+        descriptions[RS2_FRAME_METADATA_EMBEDDED_FILTERS] = "Embedded Filter " + get_meaning(RS2_FRAME_METADATA_EMBEDDED_FILTERS, meanings, "None");
     }
 
 

@@ -859,6 +859,7 @@ std::string const & get_string( rs2_frame_metadata_value value )
         CASE( DIAGNOSTIC_ZONE_POINT_2_Y_CORD )
         CASE( DIAGNOSTIC_ZONE_POINT_3_X_CORD )
         CASE( DIAGNOSTIC_ZONE_POINT_3_Y_CORD )
+        CASE( EMBEDDED_FILTERS )
 #undef CASE
             return arr;
     }();
