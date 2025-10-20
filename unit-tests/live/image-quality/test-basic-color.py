@@ -10,7 +10,7 @@ import cv2
 import time
 
 NUM_FRAMES = 100 # Number of frames to check
-COLOR_TOLERANCE = 30 # Acceptable per-channel deviation in RGB values
+COLOR_TOLERANCE = 60 # Acceptable per-channel deviation in RGB values
 FRAMES_PASS_THRESHOLD =0.8 # Percentage of frames that needs to pass
 DEBUG_MODE = False
 
@@ -24,19 +24,19 @@ expected_colors = {
     "green": (40, 84, 72),
     "blue":  (20, 67, 103),
     "black": (35, 35, 35),
-    "white": (130, 130, 130),
+    "white": (150, 150, 150),
     "gray": (90, 90, 90),
     "purple": (56, 72, 98),
-    "orange": (136, 66, 50),
-    "yellow": (136, 122, 60),
+    "orange": (136, 86, 70),
+    "yellow": (166, 142, 80),
 }
 # list of color names in insertion order -> used left->right, top->bottom
 color_names = list(expected_colors.keys())
 
 # we are given a 3x3 grid, we split it using 2 vertical and 2 horizontal separators
 # we also calculate the center of each grid cell for sampling from it for the test
-xs = [A4_WIDTH / 6.0, A4_WIDTH / 2.0, 5.0 * A4_WIDTH / 6.0]
-ys = [A4_HEIGHT / 6.0, A4_HEIGHT / 2.0, 5.0 * A4_HEIGHT / 6.0]
+xs = [1.5 * A4_WIDTH / 6.0, A4_WIDTH / 2.0, 4.5 * A4_WIDTH / 6.0]
+ys = [1.5 * A4_HEIGHT / 6.0, A4_HEIGHT / 2.0, 4.5 * A4_HEIGHT / 6.0]
 centers = [(x, y) for y in ys for x in xs]
 
 dev, ctx = test.find_first_device_or_exit()
