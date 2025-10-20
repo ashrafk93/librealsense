@@ -66,6 +66,21 @@ void init_sensor(py::module &m) {
         .def("get_active_streams", &rs2::sensor::get_active_streams, "Retrieves the list of stream profiles currently streaming on the sensor.")
         .def_property_readonly("profiles", &rs2::sensor::get_stream_profiles, "The list of stream profiles supported by the sensor. Identical to calling get_stream_profiles")
         .def("get_recommended_filters", &rs2::sensor::get_recommended_filters, "Return the recommended list of filters by the sensor.")
+		.def("query_embedded_filters", &rs2::sensor::query_embedded_filters, "Return the list of embedded filters in the sensor.")
+        .def("get_embedded_filter", [](const rs2::sensor& self, rs2_embedded_filter_type filter_type) {
+            switch (filter_type) {
+                case RS2_EMBEDDED_FILTER_TYPE_DECIMATION:
+                    return rs2::embedded_filter(self.get_embedded_filter<rs2::embedded_decimation_filter>());
+                case RS2_EMBEDDED_FILTER_TYPE_TEMPORAL:
+                    return rs2::embedded_filter(self.get_embedded_filter<rs2::embedded_temporal_filter>());
+                default:
+                    throw std::runtime_error("Unsupported embedded filter type");
+            }
+        }, "Return the embedded filter in the sensor by filter type.", "filter_type"_a)
+        .def("get_embedded_decimation_filter", &rs2::sensor::get_embedded_filter<rs2::embedded_decimation_filter>, 
+             "Return the embedded decimation filter in the sensor.")
+        .def("get_embedded_temporal_filter", &rs2::sensor::get_embedded_filter<rs2::embedded_temporal_filter>, 
+             "Return the embedded temporal filter in the sensor.")
         .def(py::init<>())
         .def("__nonzero__", &rs2::sensor::operator bool) // Called to implement truth value testing in Python 2
         .def("__bool__", &rs2::sensor::operator bool)    // Called to implement truth value testing in Python 3

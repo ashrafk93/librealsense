@@ -68,6 +68,8 @@ void init_types(py::module &m) {
 
     BIND_ENUM(m, rs2_safety_mode, RS2_SAFETY_MODE_COUNT, "Safety Mode")
 
+    BIND_ENUM(m, rs2_embedded_filter_type, RS2_EMBEDDED_FILTER_TYPE_COUNT, "Embedded Filter Type")
+
     /** end rs_types.hpp **/
 }
 
