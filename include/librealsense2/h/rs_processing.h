@@ -334,7 +334,8 @@ int rs2_is_processing_block_extendable_to(const rs2_processing_block* block, rs2
 
 /**
 * create embedded filter
-* \param[in] fitler_type    embedded filter type
+* \param[in] list           list of embedded filters returned by rs2_query_embedded_filters
+* \param[in] index          index of the requested embedded filter in the list
 * \param[out] error         if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return                   the requested embedded filter, should be released by rs2_delete_embedded_filter
 */

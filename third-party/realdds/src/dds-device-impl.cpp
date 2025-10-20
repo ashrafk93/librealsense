@@ -222,8 +222,8 @@ void dds_device::impl::on_set_filter(rsutils::json const& j, dds_sample const&)
     if (!is_ready())
         return;
 
-    // This is the handler for "set-filter" or "query-filter", meaning someone sent a control request to set/get an
-    // filter value. In either case a value will be returned; we want to update our local copy to reflect it:
+    // This is the handler for "set-filter", meaning someone sent a control request to set a
+    // filter value. A value will be returned, and it is then updated in the cached values
 
     std::string explanation;
     if (!dds_device::check_reply(j, &explanation))

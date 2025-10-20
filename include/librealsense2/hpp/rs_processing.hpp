@@ -1338,7 +1338,7 @@ namespace rs2
     {
     public:
         embedded_temporal_filter(embedded_filter filter)
-            : embedded_filter(filter)
+            : embedded_filter(filter.get())
         {
             rs2_error* e = nullptr;
             if (rs2_is_embedded_filter_extendable_to(_embedded_filter.get(), 

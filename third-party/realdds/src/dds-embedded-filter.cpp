@@ -55,7 +55,7 @@ void dds_embedded_filter::init_stream(std::shared_ptr< dds_stream_base > const& 
 void dds_embedded_filter::verify_uninitialized() const
 {
     if (!_options.empty()) {
-        throw std::runtime_error("Cannot re-initialize embedded filter");
+        DDS_THROW( runtime_error, "Cannot re-initialize embedded filter");
     }
 }
 
