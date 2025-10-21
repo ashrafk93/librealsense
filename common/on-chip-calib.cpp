@@ -632,22 +632,9 @@ namespace rs2
                     _sub->ui.selected_shared_fps_id = i;
             }
 
-            // If not supported, try WxHx30
             if (!_sub->is_selected_combination_supported())
             {
-                for (int i = 0; i < _sub->shared_fps_values.size(); i++)
-                {
-                    //if (_sub->shared_fps_values[i] == 30)
-                    _sub->ui.selected_shared_fps_id = i;
-                    if (_sub->is_selected_combination_supported()) break;
-                }
-
-                // If still not supported, try VGA30
-                if (!_sub->is_selected_combination_supported())
-                {
-                    _sub->select_resolution( 640, 480, RS2_STREAM_DEPTH );
-                    _sub->select_resolution( 640, 480, RS2_STREAM_INFRARED );
-                }
+                return false;
             }
 
             auto profiles = _sub->get_selected_profiles();
