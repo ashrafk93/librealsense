@@ -815,7 +815,8 @@ namespace rs2
                 const std::string str((std::istreambuf_iterator<char>(f)),
                                  std::istreambuf_iterator<char>());
 
-                std::string tmp = realsense_udev_rules;
+                // The generated array 'realsense_udev_rules' is not NUL-terminated...
+                std::string tmp = std::string(realsense_udev_rules, sizeof(realsense_udev_rules));
                 tmp.erase(tmp.find_last_of("\n") + 1);
                 const std::string udev = tmp;
                 float udev_file_ver{0}, built_in_file_ver{0};
