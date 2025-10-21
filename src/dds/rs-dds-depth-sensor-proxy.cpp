@@ -107,7 +107,7 @@ bool dds_depth_sensor_proxy::extend_to( rs2_extension extension_type, void ** pt
     return super::extend_to( extension_type, ptr );
 }
 
-embedded_filters dds_depth_sensor_proxy::query_embedded_filters() const
+embedded_filters dds_depth_sensor_proxy::get_supported_embedded_filters() const
 {
     embedded_filters filters;
     for (auto& embedded_filter : _embedded_filters)

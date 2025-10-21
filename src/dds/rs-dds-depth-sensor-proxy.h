@@ -30,7 +30,7 @@ public:
     float get_stereo_baseline_mm() const override;
 
     bool extend_to( rs2_extension, void ** ptr ) override;  // extendable_interface
-    embedded_filters query_embedded_filters() const override;
+    embedded_filters get_supported_embedded_filters() const override;
     void add_embedded_filter(std::shared_ptr< embedded_filter_interface > embedded_filter);
 
 protected:

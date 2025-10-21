@@ -35,9 +35,6 @@ namespace librealsense {
         void validate_toggle_option(rsutils::json opt_j) const;
         void validate_magnitude_option(rsutils::json opt_j) const;
 
-        bool _enabled;
-        int _magnitude;
-
         const std::string TOGGLE_OPTION_NAME = "Toggle";
         const std::string MAGNITUDE_OPTION_NAME = "Magnitude";
 

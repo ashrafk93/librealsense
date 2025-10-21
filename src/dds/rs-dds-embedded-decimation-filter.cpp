@@ -19,8 +19,6 @@ namespace librealsense {
         set_embedded_filter_callback set_embedded_filter_cb,
         query_embedded_filter_callback query_embedded_filter_cb)
         : rs_dds_embedded_filter(dds_embedded_filter, set_embedded_filter_cb, query_embedded_filter_cb)
-        , _enabled(false)
-        , _magnitude(DECIMATION_MAGNITUDE)
     {
         // Initialize options by calling add_option for each DDS option
         for (auto& filter_option : _dds_ef->get_options())
