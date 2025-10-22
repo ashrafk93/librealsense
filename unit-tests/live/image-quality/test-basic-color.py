@@ -91,7 +91,7 @@ def run_test(resolution, fps):
     cfg = rs.config()
     cfg.enable_stream(rs.stream.color, resolution[0], resolution[1], rs.format.bgr8, fps)
     pipeline_profile = pipeline.start(cfg)
-    for i in range(30):  # skip initial frames
+    for i in range(60):  # skip initial frames
         pipeline.wait_for_frames()
     try:
         # find region of interest (page) and get the transformation matrix
