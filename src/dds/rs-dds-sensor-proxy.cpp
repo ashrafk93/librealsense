@@ -765,19 +765,16 @@ void dds_sensor_proxy::add_processing_block_settings( const std::string & filter
 
     if (rsutils::string::nocase_equal(filter_name, "Rotation Filter"))
     {
-        if (!ppb->supports_option(RS2_OPTION_STREAM_FILTER))
-            LOG_ERROR("Rotation Filter does not support stream filter option");
+        auto rotation = std::dynamic_pointer_cast<librealsense::rotation_filter>(ppb);
+        if (!rotation)
+            throw std::runtime_error("Failed to cast to rotation filter");
+        if (rsutils::string::nocase_equal(get_name(), "RGB Camera"))
+        {
+            rotation->set_streams_to_rotate({ RS2_STREAM_COLOR });
+        }
         else
         {
-            auto rotation = std::dynamic_pointer_cast<librealsense::rotation_filter>(ppb);
-            if (rsutils::string::nocase_equal(get_name(), "RGB Camera"))
-            {
-                rotation->set_streams_to_rotate({ RS2_STREAM_COLOR });
-            }
-            else
-            {
-                rotation->set_streams_to_rotate({ RS2_STREAM_DEPTH, RS2_STREAM_INFRARED });
-            }
+            rotation->set_streams_to_rotate({ RS2_STREAM_DEPTH, RS2_STREAM_INFRARED });
         }
     }
 }
