@@ -42,7 +42,6 @@ namespace notification {
             std::string const stream_name( "stream-name", 11 );
             std::string const options( "options", 7 );
             std::string const intrinsics( "intrinsics", 10 );
-            std::string const recommended_filters( "recommended-filters", 19 );
             std::string const embedded_filters( "embedded-filters", 16 );
         }
         namespace intrinsics {

@@ -164,10 +164,6 @@ static void on_discovery_stream_header( std::shared_ptr< dds_stream_server > con
         } );
     }
 
-    auto & j_filters = j_stream_options[topics::notification::stream_options::key::recommended_filters] = json::array();
-    for( auto & filter : stream->recommended_filters() )
-        j_filters.push_back( filter );
-
     topics::flexible_msg stream_options_message( j_stream_options );
     LOG_DEBUG( stream->name() << " stream-options " << std::setw( 4 ) << j_stream_options << " size "
                               << stream_options_message._data.size() );

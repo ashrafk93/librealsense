@@ -827,13 +827,6 @@ void dds_device::impl::on_stream_header( json const & j, dds_sample const & samp
                              << "' received with " << profiles.size() << " profiles"
                              << ( stream->metadata_enabled() ? " and metadata" : "" ) );
 
-
-    std::vector< std::string > filter_names = stream->get_post_processing_filters_names();
-    if (filter_names.size() > 0)
-    {
-        stream->set_recommended_filters(std::move(filter_names));
-    }
-
     set_state( state_t::WAIT_FOR_STREAM_OPTIONS );
 }
 

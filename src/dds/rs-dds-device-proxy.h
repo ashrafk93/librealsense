@@ -123,6 +123,7 @@ public:
 private:
     void device_specific_initialization() override;
     void toggle_advanced_mode( bool enable ) override {}; // Cannot be toggled on DDS devices. Set in device info.
+    std::vector<std::string> get_stream_recommended_filters(const std::shared_ptr<realdds::dds_stream> stream) const;
 };
 
 }  // namespace librealsense
