@@ -299,7 +299,7 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
             }
 
             auto recommended_filters_names = get_stream_recommended_filters(stream);
-            for( auto & filter_name : recommended_filters_names)
+            for( auto & filter_name : recommended_filters_names )
             {
                 sensor_info.proxy->add_processing_block( filter_name );
             }
@@ -847,7 +847,7 @@ void dds_device_proxy::device_specific_initialization()
 std::vector<std::string> dds_device_proxy::get_stream_recommended_filters(const std::shared_ptr<realdds::dds_stream> stream) const
 {
     std::vector<std::string> filter_names;
-    if (auto depth_stream = std::dynamic_pointer_cast< realdds::dds_video_stream >(stream))
+    if (auto depth_stream = std::dynamic_pointer_cast< realdds::dds_depth_stream >(stream))
     {
         filter_names.push_back("Decimation Filter");
         filter_names.push_back("Rotation Filter");
@@ -860,7 +860,7 @@ std::vector<std::string> dds_device_proxy::get_stream_recommended_filters(const 
         filter_names.push_back("Hole Filling Filter");
         filter_names.push_back("Disparity to Depth");
     }
-    else if (auto color_stream = std::dynamic_pointer_cast< realdds::dds_video_stream >(stream))
+    else if (auto color_stream = std::dynamic_pointer_cast< realdds::dds_color_stream >(stream))
     {
         filter_names.push_back("Decimation Filter");
         filter_names.push_back("Rotation Filter");

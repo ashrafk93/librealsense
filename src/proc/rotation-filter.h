@@ -15,6 +15,7 @@ namespace librealsense
     public:
         rotation_filter();
         rotation_filter( std::vector< rs2_stream > streams_to_rotate );
+        void set_streams_to_rotate(const std::vector<rs2_stream>& streams_to_rotate);
 
     protected:
         rs2::frame prepare_target_frame( const rs2::frame & f,
