@@ -18,10 +18,19 @@ namespace rs2
         return res;
     }
 
-    std::string get_device_sensor_name(subdevice_model* sub)
+    std::string get_post_processing_device_sensor_name(subdevice_model* sub)
     {
         std::stringstream ss;
         ss << configurations::viewer::post_processing
+            << "." << sub->dev.get_info(RS2_CAMERA_INFO_NAME)
+            << "." << sub->s->get_info(RS2_CAMERA_INFO_NAME);
+        return ss.str();
+    }
+
+    std::string get_embedded_filters_device_sensor_name(subdevice_model* sub)
+    {
+        std::stringstream ss;
+        ss << configurations::viewer::embedded_filters
             << "." << sub->dev.get_info(RS2_CAMERA_INFO_NAME)
             << "." << sub->s->get_info(RS2_CAMERA_INFO_NAME);
         return ss.str();
@@ -82,21 +91,9 @@ namespace rs2
         restore_processing_block("m420_to_rgb", m420_to_rgb);
         restore_processing_block("y411", y411);
 
-        std::string device_name(dev.get_info(RS2_CAMERA_INFO_NAME));
-        std::string sensor_name(s->get_info(RS2_CAMERA_INFO_NAME));
+        post_processing_enabled = is_post_processing_enabled_in_config_file();
 
-        std::stringstream ss;
-        ss << configurations::viewer::post_processing
-            << "." << device_name
-            << "." << sensor_name;
-        auto key = ss.str();
-
-        bool const is_rgb_camera = s->is< color_sensor >();
-
-        if (config_file::instance().contains(key.c_str()))
-        {
-            post_processing_enabled = config_file::instance().get(key.c_str());
-        }
+		embedded_filters_enabled = is_embedded_filters_enabled_in_config_file();
 
         try
         {
@@ -121,6 +118,8 @@ namespace rs2
                 stereo_baseline = s->get_option(RS2_OPTION_STEREO_BASELINE);
         }
         catch (...) {}
+
+        bool const is_rgb_camera = s->is< color_sensor >();
 
         for (auto&& f : s->get_recommended_filters())
         {
@@ -235,7 +234,7 @@ namespace rs2
             depth_colorizer->set_option(RS2_OPTION_VISUAL_PRESET, option_value);
         }
 
-        ss.str("");
+        std::stringstream ss;
         ss << "##" << dev.get_info(RS2_CAMERA_INFO_NAME)
             << "/" << s->get_info(RS2_CAMERA_INFO_NAME)
             << "/" << (long long)this;
@@ -420,6 +419,46 @@ namespace rs2
         catch( ... )
         {
         }
+    }
+
+    bool subdevice_model::is_post_processing_enabled_in_config_file() const
+    {
+        bool is_enabled = false;
+
+        std::string device_name(dev.get_info(RS2_CAMERA_INFO_NAME));
+        std::string sensor_name(s->get_info(RS2_CAMERA_INFO_NAME));
+
+        std::stringstream ss;
+        ss << configurations::viewer::post_processing
+            << "." << device_name
+            << "." << sensor_name;
+        auto key = ss.str();
+
+        if (config_file::instance().contains(key.c_str()))
+        {
+            is_enabled = config_file::instance().get(key.c_str());
+        }
+        return is_enabled;
+    }
+
+    bool subdevice_model::is_embedded_filters_enabled_in_config_file() const
+    {
+        bool is_enabled = false;
+
+        std::string device_name(dev.get_info(RS2_CAMERA_INFO_NAME));
+        std::string sensor_name(s->get_info(RS2_CAMERA_INFO_NAME));
+
+        std::stringstream ss;
+        ss << configurations::viewer::embedded_filters
+            << "." << device_name
+            << "." << sensor_name;
+        auto key = ss.str();
+
+        if (config_file::instance().contains(key.c_str()))
+        {
+            is_enabled = config_file::instance().get(key.c_str());
+        }
+        return is_enabled;
     }
 
     void subdevice_model::sort_resolutions(std::vector<std::pair<int, int>>& resolutions) const

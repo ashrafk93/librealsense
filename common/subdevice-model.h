@@ -37,7 +37,9 @@ namespace rs2
     bool restore_processing_block(const char* name,
         std::shared_ptr<rs2::processing_block> pb, bool enable = true);
 
-    std::string get_device_sensor_name(subdevice_model* sub);
+    std::string get_post_processing_device_sensor_name(subdevice_model* sub);
+
+    std::string get_embedded_filters_device_sensor_name(subdevice_model* sub);
 
     class frame_queues
     {
@@ -230,6 +232,8 @@ namespace rs2
         void sort_resolutions(std::vector<std::pair<int, int>>& resolutions) const;
         bool is_ir_calibration_profile() const;
         void set_extrinsics_from_depth_if_needed();
+        bool is_post_processing_enabled_in_config_file() const;
+        bool is_embedded_filters_enabled_in_config_file() const;
         // used in method get_max_resolution per stream
         std::map<rs2_stream, std::vector<std::pair<int, int>>> resolutions_per_stream;
 

@@ -24,7 +24,7 @@ namespace rs2
             << "/" << (long long)this;
 
         if (_owner)
-            _full_name = get_device_sensor_name(_owner) + "." + _name;
+            _full_name = get_post_processing_device_sensor_name(_owner) + "." + _name;
         else
             _full_name = _name;
 

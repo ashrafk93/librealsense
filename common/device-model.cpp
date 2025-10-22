@@ -2805,7 +2805,7 @@ namespace rs2
                         if (ImGui::Button(label.c_str(), { 30,24 }))
                         {
                             sub->post_processing_enabled = true;
-                            config_file::instance().set(get_device_sensor_name(sub.get()).c_str(),
+                            config_file::instance().set(get_post_processing_device_sensor_name(sub.get()).c_str(),
                                 sub->post_processing_enabled);
                             for (auto&& pb : sub->post_processing)
                             {
@@ -2832,7 +2832,7 @@ namespace rs2
                         if (ImGui::Button(label.c_str(), { 30,24 }))
                         {
                             sub->post_processing_enabled = false;
-                            config_file::instance().set(get_device_sensor_name(sub.get()).c_str(),
+                            config_file::instance().set(get_post_processing_device_sensor_name(sub.get()).c_str(),
                                 sub->post_processing_enabled);
                             for (auto&& pb : sub->post_processing)
                             {
@@ -3016,7 +3016,7 @@ namespace rs2
                         if (ImGui::Button(label.c_str(), { 30,24 }))
                         {
                             sub->embedded_filters_enabled = true;
-                            config_file::instance().set(get_device_sensor_name(sub.get()).c_str(),
+                            config_file::instance().set(get_embedded_filters_device_sensor_name(sub.get()).c_str(),
                                 sub->embedded_filters_enabled);
                             for (auto&& pb : sub->embedded_filters)
                             {
@@ -3036,14 +3036,14 @@ namespace rs2
                     {
                         std::string label = rsutils::string::from()
                             << " " << textual_icons::toggle_on << "##" << id << ","
-                            << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ",post";
+                            << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ",embedded";
                         ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
                         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
 
                         if (ImGui::Button(label.c_str(), { 30,24 }))
                         {
                             sub->embedded_filters_enabled = false;
-                            config_file::instance().set(get_device_sensor_name(sub.get()).c_str(),
+                            config_file::instance().set(get_embedded_filters_device_sensor_name(sub.get()).c_str(),
                                 sub->embedded_filters_enabled);
                             for (auto&& pb : sub->embedded_filters)
                             {
@@ -3055,7 +3055,7 @@ namespace rs2
                         }
                         if (ImGui::IsItemHovered())
                         {
-                            RsImGui::CustomTooltip("Disable post-processing filters");
+                            RsImGui::CustomTooltip("Disable embedded filters");
                             window.link_hovered();
                         }
                     }
@@ -3137,7 +3137,7 @@ namespace rs2
                                     }
                                     if (ImGui::IsItemHovered())
                                     {
-                                        label = rsutils::string::from() << "Enable " << pb->get_name() << " post-processing filter";
+                                        label = rsutils::string::from() << "Enable " << pb->get_name() << " embedded filter";
                                         RsImGui::CustomTooltip("%s", label.c_str());
                                         window.link_hovered();
                                     }
@@ -3159,7 +3159,7 @@ namespace rs2
                                     if (ImGui::IsItemHovered())
                                     {
                                         label = rsutils::string::from()
-                                            << "Disable " << pb->get_name() << " post-processing filter";
+                                            << "Disable " << pb->get_name() << " embedded filter";
                                         RsImGui::CustomTooltip("%s", label.c_str());
                                         window.link_hovered();
                                     }
@@ -3193,6 +3193,7 @@ namespace rs2
             }
         }
     }
+
     void device_model::handle_hardware_events(const std::string& serialized_data)
     {
         //TODO: Move under hour glass

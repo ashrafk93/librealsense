@@ -159,6 +159,7 @@ namespace rs2
             static const char* log_filename{ "viewer_model.log_filename" };
             static const char* log_severity{ "viewer_model.log_severity" };
             static const char* post_processing{ "viewer_model.post_processing" };
+            static const char* embedded_filters{ "viewer_model.embedded_filters" };
             static const char* show_map_ruler{ "viewer_model.show_map_ruler" };
             static const char* show_stream_details{ "viewer_model.show_stream_details" };
             static const char* metric_system{ "viewer_model.metric_system" };

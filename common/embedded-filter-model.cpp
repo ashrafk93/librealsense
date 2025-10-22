@@ -25,7 +25,7 @@ namespace rs2
             << "/" << (long long)this;
 
         if (_owner)
-            _full_name = get_device_sensor_name(_owner) + "." + _name;
+            _full_name = get_embedded_filters_device_sensor_name(_owner) + "." + _name;
         else
             _full_name = _name;
 
@@ -80,6 +80,10 @@ namespace rs2
     {
         for (auto opt : ef->get_supported_option_values())
         {
+			// below continue is because the enabled status will be restored separately
+			// right after this loop
+            if (opt->id == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
+				continue;
             std::string key = name;
             key += ".";
             key += ef->get_option_name(opt->id);
@@ -112,6 +116,10 @@ namespace rs2
     {
         for (auto opt : ef->get_supported_options())
         {
+			// below continue is because the enabled status will already be saved separately
+			// right after this loop
+            if (opt == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
+				continue;
             auto val = ef->get_option(opt);
             std::string key = name;
             key += ".";
