@@ -353,6 +353,20 @@ rs2_stream_profile_list* rs2_get_stream_profiles(rs2_sensor* sensor, rs2_error**
 rs2_stream_profile_list * rs2_get_debug_stream_profiles( rs2_sensor * sensor, rs2_error ** error );
 
 /**
+* create a static snapshot of all embedded filters within a specific sensor.
+* \param[in]  sensor    specific RealSense sensor
+* \param[out] error     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return               the list of embedded filters, should be released by rs2_delete_embeddded_filter_list
+*/
+rs2_embedded_filter_list* rs2_query_embedded_filters(const rs2_sensor* sensor, rs2_error** error);
+
+/**
+* delete embedded filter list allocated by rs2_query_embedded_filters
+* \param[in] embedded_filter_list       embedded filter list to delete
+*/
+void rs2_delete_embedded_filter_list(rs2_embedded_filter_list* embedded_filter_list);
+
+/**
 * check how subdevice is streaming
 * \param[in] sensor  input RealSense subdevice
 * \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored

@@ -29,6 +29,14 @@
 
 #include <rsutils/string/nocase.h>
 #include <rsutils/json.h>
+
+#include <dds/rs-dds-embedded-decimation-filter.h>
+#include <dds/rs-dds-embedded-temporal-filter.h>
+
+#include "rs-dds-depth-sensor-proxy.h"
+
+
+using namespace realdds;
 using rsutils::json;
 
 
@@ -767,6 +775,55 @@ void dds_sensor_proxy::set_frames_callback( rs2_frame_callback_sptr callback )
 rs2_frame_callback_sptr dds_sensor_proxy::get_frames_callback() const
 {
     return _formats_converter.get_frames_callback();
+}
+
+
+void dds_sensor_proxy::add_embedded_filter( std::shared_ptr< realdds::dds_embedded_filter > embedded_filter )
+{
+    std::shared_ptr< embedded_filter_interface > rs_embedded_filter = nullptr;
+    if (auto decimation_filter = std::dynamic_pointer_cast< dds_decimation_filter >(embedded_filter) )
+    {
+        rs_embedded_filter = std::make_shared< rs_dds_embedded_decimation_filter >(
+            embedded_filter,
+            [=](json options_value)
+            {
+                // Send the new value to the remote device; the local value gets cached automatically as part of the reply
+                _dev->set_embedded_filter(embedded_filter, std::move(options_value));
+            },
+            [=]() -> json
+            {
+                return _dev->query_embedded_filter(embedded_filter);
+            });
+    }
+    else if (auto temporal_filter = std::dynamic_pointer_cast< dds_temporal_filter >(embedded_filter))
+    {
+        rs_embedded_filter = std::make_shared< rs_dds_embedded_temporal_filter >(
+            embedded_filter,
+            [=](json options_value)
+            {
+                // Send the new value to the remote device; the local value gets cached automatically as part of the reply
+                _dev->set_embedded_filter(embedded_filter, std::move(options_value));
+            },
+            [=]() -> json
+            {
+                return _dev->query_embedded_filter(embedded_filter);
+            });
+    }
+    else
+    {
+        throw librealsense::invalid_value_exception("Filter '" + embedded_filter->get_name() + "' not supported");
+    }
+
+    
+
+    if (auto depth_sensor_proxy = dynamic_cast<dds_depth_sensor_proxy*>(this))
+    {
+        depth_sensor_proxy->add_embedded_filter(rs_embedded_filter);
+    }
+    else
+    {
+        throw std::runtime_error("Embedded Filters are only enabled for depth sensor for now");
+    }
 }
 
 

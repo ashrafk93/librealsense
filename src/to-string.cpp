@@ -313,6 +313,20 @@ const char* get_string(rs2_calib_location calib_location)
 #undef CASE
 }
 
+const char* get_string(rs2_embedded_filter_type embedded_filter_type)
+{
+#define CASE( X ) STRCASE( EMBEDDED_FILTER_TYPE, X )
+    switch (embedded_filter_type)
+    {
+        CASE(DECIMATION)
+        CASE(TEMPORAL)
+    default:
+        assert(!is_valid(embedded_filter_type));
+        return UNKNOWN_VALUE;
+    }
+#undef CASE
+}
+
 const char * get_string( rs2_gyro_sensitivity value )
 {
 #define CASE( X ) STRCASE( GYRO_SENSITIVITY, X )
@@ -396,6 +410,9 @@ const char * get_string( rs2_extension value )
     CASE( DEPTH_MAPPING_SENSOR )
     CASE( LABELED_POINTS )
     CASE( ETH_CONFIG )
+    CASE( SUPPORTED_EMBEDDED_FILTERS )
+    CASE( DECIMATION_EMBEDDED_FILTER )
+    CASE( TEMPORAL_EMBEDDED_FILTER )
     default:
         assert( ! is_valid( value ) );
         return UNKNOWN_VALUE;
@@ -548,6 +565,8 @@ std::string const & get_string_( rs2_option value )
         CASE( SAFETY_MODE )
         CASE( RGB_TNR_ENABLED )
         CASE( SAFETY_MCU_TEMPERATURE )
+        CASE( LEFT_IR_TEMPERATURE )
+        CASE( EMBEDDED_FILTER_ENABLED )
 #undef CASE
         return arr;
     }();
@@ -1003,5 +1022,6 @@ const char * rs2_safety_mode_to_string( rs2_safety_mode mode ) { return libreals
 const char * rs2_d500_intercam_sync_mode_to_string( rs2_d500_intercam_sync_mode mode ) { return librealsense::get_string( mode ); }
 const char * rs2_point_cloud_label_to_string(rs2_point_cloud_label label) { return librealsense::get_string(label); }
 const char * rs2_calib_location_to_string(rs2_calib_location calib_location) { return librealsense::get_string(calib_location); }
+const char * rs2_embedded_filter_type_to_string(rs2_embedded_filter_type embedded_filter_type) { return librealsense::get_string(embedded_filter_type); }
 const char * rs2_gyro_sensitivity_to_string( rs2_gyro_sensitivity mode ){return librealsense::get_string( mode );}
 const char * rs2_eth_link_priority_to_string( rs2_eth_link_priority priority ){return librealsense::get_string( priority );}

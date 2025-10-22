@@ -43,6 +43,7 @@ namespace notification {
             std::string const options( "options", 7 );
             std::string const intrinsics( "intrinsics", 10 );
             std::string const recommended_filters( "recommended-filters", 19 );
+            std::string const embedded_filters( "embedded-filters", 16 );
         }
         namespace intrinsics {
             namespace key {
@@ -155,6 +156,18 @@ namespace control {
         namespace key {
             std::string const cancel( "cancel", 6 );
         }
+    }
+    namespace set_filter {
+        std::string const id("set-filter", 10);
+        namespace key {
+            std::string const name("name", 4);
+            std::string const options("options", 7);
+            std::string const stream_name("stream-name", 11);
+        }
+    }
+
+    namespace query_filter {
+        std::string const id("query-filter", 12);
     }
 }
 

@@ -90,6 +90,7 @@ namespace librealsense
         {
             return {};
         }
+        embedded_filters get_supported_embedded_filters() const override { return embedded_filters(); };
 
         // Sometimes it is more efficient to prepare for large or repeating operations. Depending on the actual sensor
         // type we might want to change power state or encapsulate small transactions into a large one.

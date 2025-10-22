@@ -331,6 +331,48 @@ int rs2_supports_processing_block_info(const rs2_processing_block* block, rs2_ca
  */
 int rs2_is_processing_block_extendable_to(const rs2_processing_block* block, rs2_extension extension_type, rs2_error** error);
 
+
+/**
+* create embedded filter
+* \param[in] list           list of embedded filters returned by rs2_query_embedded_filters
+* \param[in] index          index of the requested embedded filter in the list
+* \param[out] error         if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                   the requested embedded filter, should be released by rs2_delete_embedded_filter
+*/
+rs2_embedded_filter* rs2_create_embedded_filter(const rs2_embedded_filter_list* list, int index, rs2_error** error);
+
+/**
+* Delete embedded filter allocated by rs2_create_embedded_filter
+* \param[in] embedded_filter        embedded filter to delete
+*/
+void rs2_delete_embedded_filter(rs2_embedded_filter* embedded_filter);
+
+/**
+* get embedded filter type
+* \param[in] embedded_filter       RealSense embedded filter
+* \param[out] error                if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                          the embedded filter's type
+*/
+rs2_embedded_filter_type rs2_get_embedded_filter_type(const rs2_embedded_filter* embedded_filter, rs2_error** error);
+
+/**
+* get the number of supported embedded filters
+* \param[in] list        the list of supported embedded filters returned by rs2_query_embedded_filters
+* \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return number of supported embedded filters
+*/
+int rs2_get_embedded_filters_count(const rs2_embedded_filter_list* list, rs2_error** error);
+
+/**
+ * Test if the given embedded filter can be extended to the requested extension
+ * \param[in] embedded_filter embedded filter
+ * \param[in] extension The extension to which the embedded filter should be tested if it is extendable
+ * \param[out] error  if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+ * \return non-zero value iff the processing block can be extended to the given extension
+ */
+int rs2_is_embedded_filter_extendable_to(const rs2_embedded_filter* embedded_filter, rs2_extension extension_type, rs2_error** error);
+
+
 #ifdef __cplusplus
 }
 #endif

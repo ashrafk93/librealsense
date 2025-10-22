@@ -5,6 +5,7 @@
 #include "rs-dds-option.h"
 
 #include <realdds/topics/dds-topic-names.h>
+#include <src/dds/rs-dds-embedded-filter.h>
 
 #include <src/stream.h>
 #include <src/librealsense-exception.h>
@@ -12,7 +13,6 @@
 
 
 namespace librealsense {
-
 
 float dds_depth_sensor_proxy::get_depth_scale() const
 {
@@ -105,6 +105,21 @@ bool dds_depth_sensor_proxy::extend_to( rs2_extension extension_type, void ** pt
         }
     }
     return super::extend_to( extension_type, ptr );
+}
+
+embedded_filters dds_depth_sensor_proxy::get_supported_embedded_filters() const
+{
+    embedded_filters filters;
+    for (auto& embedded_filter : _embedded_filters)
+    {
+        filters.push_back(embedded_filter.second);
+    }
+    return filters;
+}
+
+void dds_depth_sensor_proxy::add_embedded_filter(std::shared_ptr< embedded_filter_interface > embedded_filter)
+{
+    _embedded_filters.insert(std::make_pair(embedded_filter->get_type(), embedded_filter));
 }
 
 }  // namespace librealsense

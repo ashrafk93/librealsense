@@ -133,6 +133,8 @@ extern "C" {
         RS2_OPTION_RGB_TNR_ENABLED, /**< RGB Temporal Noise Reduction enabling ON (1) / OFF (0)*/
         RS2_OPTION_SAFETY_MCU_TEMPERATURE, /**< Temperature of the SMCU */
         RS2_OPTION_LEFT_IR_TEMPERATURE, /**< Temperature of the Left IR Sensor */
+        
+        RS2_OPTION_EMBEDDED_FILTER_ENABLED, /**< Enable/Disable Embedded Filter */
         RS2_OPTION_COUNT /**< Number of enumeration values. Not a valid input: intended to be used in for-loops. */
     } rs2_option;
 
