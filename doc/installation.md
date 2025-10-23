@@ -29,20 +29,24 @@ Some OEM/Vendors choose to lock the kernel for modifications. Unlocking this cap
 
 ## Install dependencies
 
-1. Make Ubuntu up-to-date including the latest stable kernel:
+1. Make Ubuntu packages up-to-date:
    ```sh
-   sudo apt-get update && sudo apt-get upgrade && sudo apt-get dist-upgrade
+   sudo apt-get update && sudo apt-get upgrade
    ```
-2. Install the core packages required to build _librealsense_ binaries and the affected kernel modules:
+   > Note - Optional - Update kenel to the latest stable kernel (Assuming already supported by RealSense, see supported kernel versions below)
+   
+   > `sudo apt-get dist-upgrade`
+   
+3. Install the core packages required to build _librealsense_ binaries and the affected kernel modules:
    ```sh
    sudo apt-get install libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev
    ```
    **Cmake Note:** certain _librealsense_ [CMAKE](https://cmake.org/download/) flags (e.g. CUDA) require version 3.8+ which is currently not made available via apt manager for Ubuntu LTS.
-3. Install build tools
+4. Install build tools
    ```sh
    sudo apt-get install git wget cmake build-essential
    ```
-4. Prepare Linux Backend and the Dev. Environment \
+5. Prepare Linux Backend and the Dev. Environment \
    Unplug any connected RealSense camera and run:
    ```sh
    sudo apt-get install libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev at
