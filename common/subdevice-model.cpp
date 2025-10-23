@@ -93,7 +93,7 @@ namespace rs2
 
         post_processing_enabled = is_post_processing_enabled_in_config_file();
 
-		embedded_filters_enabled = is_embedded_filters_enabled_in_config_file();
+        embedded_filters_enabled = is_embedded_filters_enabled_in_config_file();
 
         try
         {
@@ -178,13 +178,7 @@ namespace rs2
             auto model = std::make_shared<embedded_filter_model>(
                 this, shared_filter->get_type(), shared_filter, error_message);
 
-            if (shared_filter->is<embedded_decimation_filter>())
-                model->enable(false);
-
-            if (shared_filter->is<embedded_temporal_filter>())
-                model->enable(false);
-
-			embedded_filters.push_back(model);
+            embedded_filters.push_back(model);
         }
 
         if (is_rgb_camera)

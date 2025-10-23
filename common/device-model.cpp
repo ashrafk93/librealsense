@@ -2731,7 +2731,7 @@ namespace rs2
                     }
                 }
 
-				draw_processing_blocks(sub, windows_width, window, viewer, 
+                draw_processing_blocks(sub, windows_width, window, viewer, 
                     error_message, label, draw_later, update_read_only_options);
 
                 draw_embedded_filters(sub, windows_width, window, viewer,
@@ -3133,7 +3133,6 @@ namespace rs2
                                     if (ImGui::Button(label.c_str(), button_size))
                                     {
                                         pb->enable(true);
-                                        pb->save_to_config_file();
                                     }
                                     if (ImGui::IsItemHovered())
                                     {
@@ -3154,7 +3153,6 @@ namespace rs2
                                     if (ImGui::Button(label.c_str(), button_size))
                                     {
                                         pb->enable(false);
-                                        pb->save_to_config_file();
                                     }
                                     if (ImGui::IsItemHovered())
                                     {

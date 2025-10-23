@@ -15,29 +15,16 @@ namespace rs2
         const rs2_embedded_filter_type& type,
         std::shared_ptr<rs2::embedded_filter> filter,
         std::string& error_message, bool enable)
-        : _owner(owner), _embedded_filter(filter), _enabled(enable)
+        : _embedded_filter(filter), _enabled(enable)
     {
-		_name = rs2_embedded_filter_type_to_string(type);
+        _name = rs2_embedded_filter_type_to_string(type);
 
         std::stringstream ss;
         ss << "##" << ((owner) ? owner->dev.get_info(RS2_CAMERA_INFO_NAME) : _name)
             << "/" << ((owner) ? (*owner->s).get_info(RS2_CAMERA_INFO_NAME) : "_")
             << "/" << (long long)this;
 
-        if (_owner)
-            _full_name = get_embedded_filters_device_sensor_name(_owner) + "." + _name;
-        else
-            _full_name = _name;
-
-        _enabled = restore_embedded_filter(_full_name.c_str(),
-            filter, _enabled);
-
         populate_options(ss.str().c_str(), owner, owner ? &owner->_options_invalidated : nullptr, error_message);
-    }
-
-    void embedded_filter_model::save_to_config_file()
-    {
-        save_embedded_filter_to_config_file(_full_name.c_str(), _embedded_filter, _enabled);
     }
 
     void embedded_filter_model::draw_options( viewer_model & viewer,
@@ -56,8 +43,8 @@ namespace rs2
 
     void embedded_filter_model::embedded_filter_enable_disable(bool actual)
     {
-		_embedded_filter->set_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED, actual ? 1.0f : 0.0f);
-		_enabled = _embedded_filter->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
+        _embedded_filter->set_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED, actual ? 1.0f : 0.0f);
+        _enabled = _embedded_filter->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
     }
 
     void embedded_filter_model::populate_options(const std::string& opt_base_label,
@@ -74,16 +61,17 @@ namespace rs2
                                                                 model ? &model->_options_invalidated : nullptr,
                                                                 error_message );
         }
+        _enabled = _embedded_filter->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
     }
 
     bool restore_embedded_filter(const char* name, std::shared_ptr<rs2::embedded_filter> ef, bool enable)
     {
         for (auto opt : ef->get_supported_option_values())
         {
-			// below continue is because the enabled status will be restored separately
-			// right after this loop
+            // below continue is because the enabled status will be restored separately
+            // right after this loop
             if (opt->id == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
-				continue;
+                continue;
             std::string key = name;
             key += ".";
             key += ef->get_option_name(opt->id);
@@ -109,26 +97,5 @@ namespace rs2
             return config_file::instance().get(key.c_str());
         }
         return enable;
-    }
-
-    void save_embedded_filter_to_config_file(const char* name,
-        std::shared_ptr<rs2::embedded_filter> ef, bool enable)
-    {
-        for (auto opt : ef->get_supported_options())
-        {
-			// below continue is because the enabled status will already be saved separately
-			// right after this loop
-            if (opt == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
-				continue;
-            auto val = ef->get_option(opt);
-            std::string key = name;
-            key += ".";
-            key += ef->get_option_name(opt);
-            config_file::instance().set(key.c_str(), val);
-        }
-
-        std::string key = name;
-        key += ".enabled";
-        config_file::instance().set(key.c_str(), enable);
     }
 }

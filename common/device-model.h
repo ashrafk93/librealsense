@@ -486,7 +486,7 @@ namespace rs2
         void draw_processing_blocks(std::shared_ptr<subdevice_model> sub, float windows_width,
             ux_window& window, viewer_model& viewer,
             std::string& error_message, std::string& label,
-			std::vector<std::function<void()>>& draw_later, const bool& update_read_only_options);
+            std::vector<std::function<void()>>& draw_later, const bool& update_read_only_options);
 
         void draw_embedded_filters(std::shared_ptr<subdevice_model> sub, float windows_width,
             ux_window& window, viewer_model& viewer, std::string& error_message, std::string& label,

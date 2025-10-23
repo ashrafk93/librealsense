@@ -25,8 +25,6 @@ namespace rs2
 
         const std::string& get_name() const { return _name; }
 
-        void save_to_config_file();
-
         void populate_options( const std::string& opt_base_label,
             subdevice_model* model,
             bool* options_invalidated,
@@ -54,13 +52,8 @@ namespace rs2
         std::shared_ptr<rs2::embedded_filter> _embedded_filter;
         std::map< rs2_option, option_model > _options_id_to_model;
         std::string _name;
-        std::string _full_name;
-        subdevice_model* _owner;
     };
 
     bool restore_embedded_filter(const char* name,
         std::shared_ptr<rs2::embedded_filter> ef, bool enable);
-
-    void save_embedded_filter_to_config_file(const char* name,
-        std::shared_ptr<rs2::embedded_filter> pb, bool enable = true);
 }

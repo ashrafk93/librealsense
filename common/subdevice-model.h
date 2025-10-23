@@ -210,7 +210,7 @@ namespace rs2
         bool post_processing_enabled = true;
         std::vector<std::shared_ptr<processing_block_model>> const_effects;
 
-		std::vector<std::shared_ptr<embedded_filter_model>> embedded_filters;
+        std::vector<std::shared_ptr<embedded_filter_model>> embedded_filters;
         bool embedded_filters_enabled = true;
 
         bool uvmapping_calib_full = false;
