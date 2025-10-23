@@ -3,18 +3,18 @@
 
 from argparse import ArgumentParser
 from argparse import ArgumentTypeError as ArgumentError  # NOTE: only ArgumentTypeError passes along the original error string
+import sys
+import json
+import os
+
+print("ARGS:", sys.argv)
 args = ArgumentParser()
 args.add_argument( '--debug', action='store_true', help='enable debug mode' )
 args.add_argument( '--quiet', action='store_true', help='no output' )
 args.add_argument( '--device', metavar='<path>', help='the topic root for the device' )
 args.add_argument( '--topic', metavar='<path>', help='the topic on which to send a message/blob, if --device is not supplied' )
-import json
-def json_arg(x):
-    try:
-        return json.loads(x)
-    except Exception as e:
-        raise ArgumentError( str(e) )
-args.add_argument( '--message', metavar='<json>', type=json_arg, help='a message to send', default='{"id":"ping","message":"some message"}' )
+args.add_argument( '--message-file', metavar='<filename>', help='JSON file to read message from (use "-" for stdin)' )
+args.add_argument( '--message', metavar='<json>', help='inline JSON message (overrides --message-file)', default=None )
 args.add_argument( '--blob', metavar='<filename>', help='a file to send' )
 args.add_argument( '--ack', action='store_true', help='wait for acks' )
 def domain_arg(x):
@@ -36,9 +36,45 @@ def e( *a, **kw ):
     print( '-E-', *a, **kw )
 
 
+# Read message from file or stdin if --message-file is specified and --message is not provided
+if not args.message and args.message_file:
+    try:
+        if args.message_file == "-":
+            # Read from stdin
+            i( "Reading JSON message from stdin..." )
+            message_content = sys.stdin.read()
+        else:
+            # Read from file
+            if not os.path.isfile( args.message_file ):
+                e( f'Message file does not exist: {args.message_file}' )
+                sys.exit( 1 )
+            i( f"Reading JSON message from file: {args.message_file}" )
+            with open( args.message_file, 'r' ) as f:
+                message_content = f.read()
+        
+        # Parse JSON
+        message = json.loads( message_content )
+        i( f"Loaded message: {message}" )
+    except json.JSONDecodeError as e:
+        e( f'Invalid JSON in message file/stdin: {e}' )
+        sys.exit( 1 )
+    except Exception as e:
+        e( f'Error reading message file/stdin: {e}' )
+        sys.exit( 1 )
+elif args.message:
+    # Parse inline JSON message
+    try:
+        message = json.loads( args.message )
+    except json.JSONDecodeError as e:
+        e( f'Invalid JSON in --message: {e}' )
+        sys.exit( 1 )
+else:
+    # Default message
+    message = {"id":"ping","message":"some message"}
+
+
 import pyrealdds as dds
 import time
-import sys
 
 dds.debug( args.debug )
 
@@ -58,14 +94,11 @@ settings = {
 participant = dds.participant()
 participant.init( dds.load_rs_settings( settings ), args.domain )
 
-message = args.message
-
 if args.blob:
     if not args.topic:
         e( '--blob requires --topic' )
         sys.exit( 1 )
     topic_path = args.topic
-    import os
     if not os.path.isfile( args.blob ):
         e( '--blob <file> does not exist:', args.blob )
         sys.exit( 1 )
@@ -134,5 +167,3 @@ else:
     # all the packets are sent, they may need resending (reliable) but if we exit they won't be...
 
 i( f'After {dds.timestr( dds.now(), start )}' )
-
-
