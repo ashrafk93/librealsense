@@ -26,6 +26,7 @@
 
 #include <src/proc/color-formats-converter.h>
 #include <src/proc/y16-10msb-to-y16.h>
+#include <src/proc/rotation-filter.h>
 
 #include <rsutils/string/nocase.h>
 #include <rsutils/json.h>
@@ -761,6 +762,21 @@ void dds_sensor_proxy::add_processing_block_settings( const std::string & filter
                 ppb->get_option( RS2_OPTION_STREAM_FILTER ).set( RS2_STREAM_DEPTH );
                 ppb->get_option( RS2_OPTION_STREAM_FORMAT_FILTER ).set( RS2_FORMAT_Z16 );
             }
+
+    if (rsutils::string::nocase_equal(filter_name, "Rotation Filter"))
+    {
+        auto rotation = std::dynamic_pointer_cast<librealsense::rotation_filter>(ppb);
+        if (!rotation)
+            throw std::runtime_error("Failed to cast to rotation filter");
+        if (rsutils::string::nocase_equal(get_name(), "RGB Camera"))
+        {
+            rotation->set_streams_to_rotate({ RS2_STREAM_COLOR });
+        }
+        else
+        {
+            rotation->set_streams_to_rotate({ RS2_STREAM_DEPTH, RS2_STREAM_INFRARED });
+        }
+    }
 }
 
 

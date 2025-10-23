@@ -280,6 +280,10 @@ namespace librealsense {
         }
     }
 
+    void rotation_filter::set_streams_to_rotate(const std::vector<rs2_stream>& streams_to_rotate)
+    {
+        _streams_to_rotate = streams_to_rotate;
+    }
 
     bool rotation_filter::should_process( const rs2::frame & frame )
     {

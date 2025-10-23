@@ -424,14 +424,7 @@ std::vector< std::shared_ptr< realdds::dds_stream_server > > lrs_device_controll
                     auto dds_opt = realdds::dds_option::from_json( j );
                     stream_options.push_back( dds_opt );
                 }
-
-                auto recommended_filters = sensor.get_recommended_filters();
-                std::vector< std::string > filter_names;
-                for( auto const & filter : recommended_filters )
-                    filter_names.push_back( filter.get_info( RS2_CAMERA_INFO_NAME ) );
-
                 server->init_options( stream_options );
-                server->set_recommended_filters( std::move( filter_names ) );
             }
         }
 

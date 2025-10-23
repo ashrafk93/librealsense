@@ -128,7 +128,6 @@ std::shared_ptr< dds_topic > const & dds_stream::get_topic() const
     DDS_THROW( runtime_error, "stream '" + name() + "' must be open to get_topic()" );
 }
 
-
 dds_video_stream::dds_video_stream( std::string const & stream_name, std::string const & sensor_name )
     : super( stream_name, sensor_name )
 {

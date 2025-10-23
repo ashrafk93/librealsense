@@ -75,16 +75,6 @@ void dds_stream_base::init_embedded_filters( dds_embedded_filters const & embedd
     _embedded_filters = embedded_filters;
 }
 
-
-void dds_stream_base::set_recommended_filters( std::vector< std::string > && recommended_filters )
-{
-    if( !_recommended_filters.empty() )
-        DDS_THROW( runtime_error, "stream '" + _name + "' recommended filters are already set" );
-
-    _recommended_filters = std::move( recommended_filters );
-}
-
-
 void dds_stream_base::check_profile( std::shared_ptr< dds_stream_profile > const & profile ) const
 {
     if( ! profile )
