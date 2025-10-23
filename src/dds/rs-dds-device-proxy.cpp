@@ -298,7 +298,7 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
                 }
             }
 
-            auto recommended_filters_names = get_stream_recommended_filters(stream);
+            auto recommended_filters_names = get_recommended_filters_names(stream);
             for( auto & filter_name : recommended_filters_names )
             {
                 sensor_info.proxy->add_processing_block( filter_name );
@@ -844,7 +844,7 @@ void dds_device_proxy::device_specific_initialization()
         ds_advanced_mode_base::_amplitude_factor_support = true;
 }
 
-std::vector<std::string> dds_device_proxy::get_stream_recommended_filters(const std::shared_ptr<realdds::dds_stream> stream) const
+std::vector<std::string> dds_device_proxy::get_recommended_filters_names(const std::shared_ptr<realdds::dds_stream> stream) const
 {
     std::vector<std::string> filter_names;
     if (auto depth_stream = std::dynamic_pointer_cast< realdds::dds_depth_stream >(stream))
