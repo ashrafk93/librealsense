@@ -39,7 +39,7 @@ namespace rs2
 
         void enable( bool e = true )
         {
-            embedded_filter_enable_disable( _enabled = e );
+            embedded_filter_enable_disable( e );
         }
         bool is_enabled() const { return _enabled; }
 
