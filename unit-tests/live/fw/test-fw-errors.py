@@ -17,7 +17,7 @@ ERROR_TOLERANCE = 0  # No firmware errors should be tolerated
 
 # Known errors that might be expected in certain environments
 KNOWN_ERRORS = [
-    "Motion Module failure", # RSDSO-20645
+    #"Motion Module failure", # RSDSO-20645
     # Add other known/expected errors here as needed
 ]
 
@@ -157,8 +157,56 @@ with test.closure("Monitor firmware errors during streaming"):
         log.i(f"Streaming completed - Duration: {elapsed_time:.1f}s, Total frames: {frame_count}")
         
     finally:
-        pipe.stop()
-        log.d("Pipeline stopped")
+        # Stop pipeline first (if running) and then attempt to cleanly stop/close all sensors
+        try:
+            pipe.stop()
+            log.d("Pipeline stopped")
+        except Exception as e:
+            log.w(f"Failed to stop pipeline cleanly: {e}")
+
+        # Attempt to unregister callbacks, stop streaming and close each sensor to free device resources
+        try:
+            for sensor in sensors:
+                try:
+                    # Stop sensor streaming if active. Ignore errors if sensor isn't streaming.
+                    try:
+                        sensor.stop()
+                    except Exception:
+                        pass
+
+                    # Replace the notification callback with a no-op to avoid retaining Python callbacks
+                    try:
+                        sensor.set_notifications_callback(lambda n: None)
+                    except Exception:
+                        # Some sensor implementations may not accept a new callback at this stage
+                        pass
+
+                    # Close sensor for exclusive access if possible
+                    try:
+                        sensor.close()
+                    except Exception:
+                        pass
+                except Exception:
+                    # Continue cleaning other sensors even if one fails
+                    pass
+
+            # Release references to objects that may keep devices open
+            try:
+                del sensors
+            except Exception:
+                pass
+            try:
+                del pipe
+            except Exception:
+                pass
+            try:
+                # Release device/context handles so they can be garbage collected
+                del device
+                del ctx
+            except Exception:
+                pass
+        except Exception as e:
+            log.w(f"Error during sensor/device cleanup: {e}")
     
     # Analyze results
     error_summary = error_monitor.get_error_summary()
