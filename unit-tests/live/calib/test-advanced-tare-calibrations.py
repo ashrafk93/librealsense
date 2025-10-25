@@ -31,12 +31,6 @@ def tare_calibration_json(tare_json_file, host_assistance):
         log.i('Using default parameters for Tare calibration.')
         tare_json = '{\n  '+\
                     '"host assistance": ' + str(int(host_assistance)) + ',\n'+\
-                    '"speed": 3,\n'+\
-                    '"scan parameter": 0,\n'+\
-                    '"step count": 20,\n'+\
-                    '"apply preset": 1,\n'+\
-                    '"accuracy": 2,\n'+\
-                    '"depth": 0,\n'+\
                     '"resize factor": 1\n'+\
                     '}'
     return tare_json
@@ -94,7 +88,7 @@ TARGET_Z_MAX = 1500
 _target_z = None
 
 # Additional constants & thresholds for advanced calibration modification test
-PIXEL_CORRECTION = -1.0  # pixel shift to apply to principal point (right IR)
+PIXEL_CORRECTION = -1.5  # pixel shift to apply to principal point (right IR)
 EPSILON = 0.001          # distance comparison tolerance for reversion checks
 HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 2.0  # OCC health factor acceptance for modified run
 

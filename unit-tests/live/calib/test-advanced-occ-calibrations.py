@@ -12,11 +12,11 @@ from test_calibrations_common import (
     modify_extrinsic_calibration,
     restore_calibration_table,
     write_calibration_table_with_crc,
-    measure_depth_fill_rate,
+    measure_average_depth,
 )
 
 # Constants & thresholds (reintroduce after import fix)
-PIXEL_CORRECTION = -0.8  # pixel shift to apply to principal point
+PIXEL_CORRECTION = -1.5  # pixel shift to apply to principal point
 EPSILON = 0.001         # distance comparison tolerance
 HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.8
 
@@ -33,17 +33,6 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
         occ_json = '{\n  ' + \
                    '"calib type": 0,\n' + \
                    '"host assistance": ' + str(int(host_assistance)) + ',\n' + \
-                   '"keep new value after successful scan": 1,\n' + \
-                   '"fl data sampling": 0,\n' + \
-                   '"adjust both sides": 0,\n' + \
-                   '"fl scan location": 0,\n' + \
-                   '"fy scan direction": 0,\n' + \
-                   '"white wall mode": 0,\n' + \
-                   '"speed": 2,\n' + \
-                   '"scan parameter": 0,\n' + \
-                   '"apply preset": 0,\n' + \
-                   '"scan only": ' + str(int(host_assistance)) + ',\n' + \
-                   '"interactive scan": 0,\n' + \
                    '"resize factor": 1\n' + \
                    '}'
     return occ_json
@@ -51,7 +40,7 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
 #disabled until we stabilize lab
 #test:donotrun:disabled
 
-def run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True):
+def run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=None):
     """Run advanced OCC calibration test with calibration table modifications.
 
         Flow:
@@ -98,6 +87,20 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
 
         base_axis_val = base_right_pp[1]
 
+        # Baseline average depth (after initial OCC, before perturbation)
+        baseline_avg_depth_m = measure_average_depth(width=image_width, height=image_height, fps=fps)
+        if baseline_avg_depth_m is not None:
+            baseline_mm = baseline_avg_depth_m * 1000.0
+            log.i(f"Baseline average depth (pre-modification): {baseline_mm:.1f} mm")
+            # If caller did not supply ground_truth_mm, derive it from baseline
+            if ground_truth_mm is None:
+                ground_truth_mm = baseline_mm
+                log.i(f"Ground truth depth set from baseline: {ground_truth_mm:.1f} mm")
+            else:
+                log.i(f"Ground truth depth provided: {ground_truth_mm:.1f} mm")
+        else:
+            log.w("Baseline average depth unavailable; depth convergence assertion will be skipped")
+
         # 3. Apply perturbation
         log.i(f"Applying manual raw intrinsic correction: delta={PIXEL_CORRECTION:+.3f} px")
         modification_success, _modified_table_bytes, modified_ppx, modified_ppy = modify_extrinsic_calibration(
@@ -119,12 +122,12 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             test.fail()
         applied_delta = modified_axis_val - base_axis_val
 
-        # Measure depth fill rate before OCC correction
-        pre_occ_fill = measure_depth_fill_rate(width=image_width, height=image_height, fps=fps)
-        if pre_occ_fill is not None:
-            log.i(f"Depth fill rate before OCC: {pre_occ_fill:.2f}%")
+        # Measure average depth after modification, before OCC correction (modified baseline)
+        modified_avg_depth_m = measure_average_depth(width=image_width, height=image_height, fps=fps)
+        if modified_avg_depth_m is not None:
+            log.i(f"Average depth after modification (pre-OCC): {modified_avg_depth_m*1000:.1f} mm")
         else:
-            log.e("Depth fill rate before OCC unavailable")
+            log.e("Average depth after modification unavailable")
             test.fail()
 
         # 5. Run OCC again
@@ -162,16 +165,28 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
         dist_from_modified = abs(final_axis_val - modified_axis_val)
         log.i(f"  ppy distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
 
-        # Measure depth fill rate after OCC correction
-        post_occ_fill = measure_depth_fill_rate(width=image_width, height=image_height, fps=fps)
-        if post_occ_fill is not None:
-            log.i(f"Depth fill rate after OCC: {post_occ_fill:.2f}%")
-            if pre_occ_fill is not None and post_occ_fill + 0.01 < pre_occ_fill:
-                log.e(f"Depth fill rate did not improve (pre={pre_occ_fill:.2f}% post={post_occ_fill:.2f}%)")
-                test.fail()
+        # Measure average depth after OCC correction
+        post_avg_depth_m = measure_average_depth(width=image_width, height=image_height, fps=fps)
+        if post_avg_depth_m is not None:
+            log.i(f"Average depth after OCC: {post_avg_depth_m*1000:.1f} mm")
         else:
-            log.e("Depth fill rate after OCC unavailable")
+            log.e("Average depth after OCC unavailable")
             test.fail()
+
+        # Depth convergence assertion relative to ground truth: ensure post depth is closer to ground truth than modified depth
+        if (ground_truth_mm is not None and
+            modified_avg_depth_m is not None and
+            post_avg_depth_m is not None):
+            dist_modified_gt_mm = abs(modified_avg_depth_m * 1000.0 - ground_truth_mm)
+            dist_post_gt_mm = abs(post_avg_depth_m * 1000.0 - ground_truth_mm)
+            log.i(f"Depth to ground truth (mm): modified={dist_modified_gt_mm:.1f} post={dist_post_gt_mm:.1f} (ground truth={ground_truth_mm:.1f} mm)")
+            # Allow small tolerance of 1mm
+            if dist_post_gt_mm > dist_modified_gt_mm + 1.0:
+                log.e("Post-calibration average depth did not converge toward ground truth")
+                test.fail()
+            else:
+                improvement = dist_modified_gt_mm - dist_post_gt_mm
+                log.i(f"Post-calibration average depth converged toward ground truth (improvement={improvement:.1f} mm)")
 
         if abs(final_axis_val - modified_axis_val) <= EPSILON:
             log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
@@ -194,10 +209,12 @@ with test.closure("Advanced OCC calibration test with calibration table modifica
     try:
         host_assistance = False
         image_width, image_height, fps = (256, 144, 90)
-        calib_dev = run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True)
+        ground_truth_mm = None # Example ground-truth depth (mm); adjust if known
+        calib_dev = run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=ground_truth_mm)
     except Exception as e:
         log.e("OCC calibration with principal point modification failed: ", str(e))
-        restore_calibration_table(calib_dev)
+        if calib_dev is not None:
+            restore_calibration_table(calib_dev)
         test.fail()
 
 with test.closure("Advanced OCC calibration test with host assistance"):
@@ -205,10 +222,12 @@ with test.closure("Advanced OCC calibration test with host assistance"):
     try:
         host_assistance = True
         image_width, image_height, fps = (1280, 720, 30)
-        calib_dev = run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True)
+        ground_truth_mm = None # Example ground-truth depth (mm); adjust if known
+        calib_dev = run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=ground_truth_mm)
     except Exception as e:
         log.e("OCC calibration with principal point modification failed: ", str(e))
-        restore_calibration_table(calib_dev)
+        if calib_dev is not None:
+            restore_calibration_table(calib_dev)
         test.fail()        
             
 
