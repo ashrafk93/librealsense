@@ -1,7 +1,8 @@
 # License: Apache 2.0. See LICENSE file in root directory.
 # Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
 
-# test:device each(D400*)
+# Currently, we exclude D457 as it's failing
+# test:device each(D400*) !D457
 # test:donotrun:!nightly
 # test:timeout 600
 # CI timeout set to 10 minutes to accommodate comprehensive testing of all

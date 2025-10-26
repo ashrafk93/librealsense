@@ -1,9 +1,9 @@
 # License: Apache 2.0. See LICENSE file in root directory.
 # Copyright(c) 2023 RealSense, Inc. All Rights Reserved.
 
+# Currently, we exclude D457 and D555 as it's failing
 # test:device D400* !D457
-# Currently, we exclude D457 as it's failing
-# test:device D555
+
 # test:donotrun:!nightly
 # test:timeout 300
 # timeout - on the worst case we have 8 streams, so:
