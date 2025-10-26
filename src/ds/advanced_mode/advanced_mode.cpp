@@ -43,7 +43,7 @@ namespace librealsense
             if( dynamic_cast< depth_sensor * >( base ) )
                 _depth_sensor = base;
         }
-        if( !_depth_sensor && !dynamic_cast<update_device_interface *> (dev) )
+        if( !_depth_sensor )
             throw std::runtime_error( "Advanced mode expects camera to have a depth sensor" );
 
         for( size_t i = 0; i < _dev->get_sensors_count(); ++i )
