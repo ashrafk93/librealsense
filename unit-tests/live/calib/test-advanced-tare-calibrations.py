@@ -90,7 +90,7 @@ _target_z = None
 # Additional constants & thresholds for advanced calibration modification test
 PIXEL_CORRECTION = -1.5  # pixel shift to apply to principal point (right IR)
 EPSILON = 0.001          # distance comparison tolerance for reversion checks
-HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 2.0  # OCC health factor acceptance for modified run
+HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.75  # OCC health factor acceptance for modified run
 
 
 def run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, target_z=None):
@@ -255,10 +255,11 @@ with test.closure("Advanced tare calibration test with calibration table modific
     try:
         host_assistance = False
         if (_target_z is None):
-            _target_z = 1100 # calculate_target_z()
+            _target_z = calculate_target_z()
             test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
         image_width, image_height, fps = (256, 144, 90)
         calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
+        restore_calibration_table(calib_dev)
     except Exception as e:
         log.e("Tare calibration with principal point modification failed: ", str(e))
         if calib_dev is not None:
@@ -270,10 +271,11 @@ with test.closure("Advanced tare calibration test with host assistance"):
     try:
         host_assistance = True
         if (_target_z is None):
-            _target_z = 811 # calculate_target_z()
+            _target_z = calculate_target_z()
             test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
         image_width, image_height, fps = (1280, 720, 30)
         calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
+        restore_calibration_table(calib_dev)
     except Exception as e:
         log.e("Tare calibration with principal point modification failed: ", str(e))
         if calib_dev is not None:

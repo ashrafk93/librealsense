@@ -508,7 +508,7 @@ EPSILON = 0.001  # Small tolerance for floating point precision
 
 # Health factor thresholds
 HEALTH_FACTOR_THRESHOLD = 0.3
-HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.8
+HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.75
 
 def on_chip_calibration_json(occ_json_file, host_assistance):
     """Return OCC JSON string (default if file not provided)."""
