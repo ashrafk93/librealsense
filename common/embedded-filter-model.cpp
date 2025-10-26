@@ -63,39 +63,4 @@ namespace rs2
         }
         _enabled = _embedded_filter->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
     }
-
-    bool restore_embedded_filter(const char* name, std::shared_ptr<rs2::embedded_filter> ef, bool enable)
-    {
-        for (auto opt : ef->get_supported_option_values())
-        {
-            // below continue is because the enabled status will be restored separately
-            // right after this loop
-            if (opt->id == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
-                continue;
-            std::string key = name;
-            key += ".";
-            key += ef->get_option_name(opt->id);
-            if (config_file::instance().contains(key.c_str()))
-            {
-                float val = config_file::instance().get(key.c_str());
-                try
-                {
-                    auto range = ef->get_option_range(opt->id);
-                    if (val >= range.min && val <= range.max)
-                        ef->set_option(opt->id, val);
-                }
-                catch (...)
-                {
-                }
-            }
-        }
-
-        std::string key = name;
-        key += ".enabled";
-        if (config_file::instance().contains(key.c_str()))
-        {
-            return config_file::instance().get(key.c_str());
-        }
-        return enable;
-    }
 }

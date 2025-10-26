@@ -27,15 +27,6 @@ namespace rs2
         return ss.str();
     }
 
-    std::string get_embedded_filters_device_sensor_name(subdevice_model* sub)
-    {
-        std::stringstream ss;
-        ss << configurations::viewer::embedded_filters
-            << "." << sub->dev.get_info(RS2_CAMERA_INFO_NAME)
-            << "." << sub->s->get_info(RS2_CAMERA_INFO_NAME);
-        return ss.str();
-    }
-
     void subdevice_model::populate_options( const std::string & opt_base_label,
                                             bool * options_invalidated,
                                             std::string & error_message )
@@ -92,8 +83,6 @@ namespace rs2
         restore_processing_block("y411", y411);
 
         post_processing_enabled = is_post_processing_enabled_in_config_file();
-
-        embedded_filters_enabled = is_embedded_filters_enabled_in_config_file();
 
         try
         {
@@ -424,26 +413,6 @@ namespace rs2
 
         std::stringstream ss;
         ss << configurations::viewer::post_processing
-            << "." << device_name
-            << "." << sensor_name;
-        auto key = ss.str();
-
-        if (config_file::instance().contains(key.c_str()))
-        {
-            is_enabled = config_file::instance().get(key.c_str());
-        }
-        return is_enabled;
-    }
-
-    bool subdevice_model::is_embedded_filters_enabled_in_config_file() const
-    {
-        bool is_enabled = false;
-
-        std::string device_name(dev.get_info(RS2_CAMERA_INFO_NAME));
-        std::string sensor_name(s->get_info(RS2_CAMERA_INFO_NAME));
-
-        std::stringstream ss;
-        ss << configurations::viewer::embedded_filters
             << "." << device_name
             << "." << sensor_name;
         auto key = ss.str();
@@ -1561,8 +1530,52 @@ namespace rs2
         return false;
     }
 
+    void subdevice_model::avoid_streaming_on_embedded_filters_not_matching_configuration() const
+    {
+        // check if sensor is depth
+		// check if embedded decimation filter is ON
+        // check if reolution is different from 640 X 360
+		if (s->is<depth_sensor>())
+            {
+            auto current_depth_sensor = s->as<depth_sensor>();
+
+            std::shared_ptr<embedded_filter_model> embedded_decimation = nullptr;
+            for (auto& ef : embedded_filters)
+            {
+                if (ef->get_filter()->get_type() == RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
+                {
+                    embedded_decimation = ef;
+                    break;
+                }
+			}
+            if (embedded_decimation &&
+                embedded_decimation->get_filter()->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED))
+            {
+                // check if resolution is different from 640 X 360
+                int width = 0;
+                int height = 0;
+                if (!ui.is_multiple_resolutions)
+                {
+                    width = res_values[ui.selected_res_id].first;
+                    height = res_values[ui.selected_res_id].second;
+                }
+                else
+                {
+                    auto res_pair = ui.selected_stream_to_res.at(RS2_STREAM_DEPTH);
+                    width = res_pair.first;
+                    height = res_pair.second;
+                }
+                if (width != 640 || height != 360)
+                {
+                    throw std::runtime_error("Cannot start streaming: Embedded Decimation filter to be used only with resolution 640x360.");
+                }
+            }
+		}
+	}
+
     void subdevice_model::play(const std::vector<stream_profile>& profiles, viewer_model& viewer, std::shared_ptr<rs2::asynchronous_syncer> syncer)
     {
+        avoid_streaming_on_embedded_filters_not_matching_configuration();
         set_extrinsics_from_depth_if_needed();
 
         std::stringstream ss;

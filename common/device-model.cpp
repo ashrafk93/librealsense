@@ -2731,10 +2731,10 @@ namespace rs2
                     }
                 }
 
-                draw_processing_blocks(sub, windows_width, window, viewer, 
+                draw_embedded_filters(sub, windows_width, window, viewer,
                     error_message, label, draw_later, update_read_only_options);
 
-                draw_embedded_filters(sub, windows_width, window, viewer,
+                draw_processing_blocks(sub, windows_width, window, viewer, 
                     error_message, label, draw_later, update_read_only_options);
 
                 ImGui::TreePop();
@@ -2992,84 +2992,6 @@ namespace rs2
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
             const ImVec2 pos = ImGui::GetCursorPos();
 
-            draw_later.push_back([windows_width, &window, sub, pos, &viewer, this]() {
-                ImGui::SetCursorPos({ windows_width - 41, pos.y - 3 });
-
-                try
-                {
-
-                    ImGui::PushFont(window.get_font());
-
-                    ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-
-                    if (!sub->embedded_filters_enabled)
-                    {
-                        std::string label = rsutils::string::from()
-                            << " " << textual_icons::toggle_off << "##" << id << ","
-                            << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ", embedded";
-
-                        ImGui::PushStyleColor(ImGuiCol_Text, redish);
-                        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-                        if (ImGui::Button(label.c_str(), { 30,24 }))
-                        {
-                            sub->embedded_filters_enabled = true;
-                            config_file::instance().set(get_embedded_filters_device_sensor_name(sub.get()).c_str(),
-                                sub->embedded_filters_enabled);
-                            for (auto&& pb : sub->embedded_filters)
-                            {
-                                if (!pb->visible)
-                                    continue;
-                                if (pb->is_enabled())
-                                    pb->embedded_filter_enable_disable(true);
-                            }
-                        }
-                        if (ImGui::IsItemHovered())
-                        {
-                            RsImGui::CustomTooltip("Enable embedded filters");
-                            window.link_hovered();
-                        }
-                    }
-                    else
-                    {
-                        std::string label = rsutils::string::from()
-                            << " " << textual_icons::toggle_on << "##" << id << ","
-                            << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ",embedded";
-                        ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
-                        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-                        if (ImGui::Button(label.c_str(), { 30,24 }))
-                        {
-                            sub->embedded_filters_enabled = false;
-                            config_file::instance().set(get_embedded_filters_device_sensor_name(sub.get()).c_str(),
-                                sub->embedded_filters_enabled);
-                            for (auto&& pb : sub->embedded_filters)
-                            {
-                                if (!pb->visible)
-                                    continue;
-                                if (pb->is_enabled())
-                                    pb->embedded_filter_enable_disable(false);
-                            }
-                        }
-                        if (ImGui::IsItemHovered())
-                        {
-                            RsImGui::CustomTooltip("Disable embedded filters");
-                            window.link_hovered();
-                        }
-                    }
-                    ImGui::PopStyleColor(5);
-                    ImGui::PopFont();
-                }
-                catch (...)
-                {
-                    ImGui::PopStyleColor(5);
-                    ImGui::PopFont();
-                    throw;
-                }
-                });
-
             label = rsutils::string::from() << "Embedded-Filters##" << id;
             if (ImGui::TreeNode(label.c_str()))
             {
@@ -3094,73 +3016,46 @@ namespace rs2
                             int font_size = window.get_font_size();
                             const ImVec2 button_size = { font_size * 2.f, font_size * 1.5f };
 
-                            if (!sub->embedded_filters_enabled)
+                            if (!pb->is_enabled())
                             {
-                                if (!pb->is_enabled())
-                                {
-                                    std::string label = rsutils::string::from()
-                                        << " " << textual_icons::toggle_off << "##" << id << ","
-                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
-                                        << pb->get_name();
+                                std::string label = rsutils::string::from()
+                                    << " " << textual_icons::toggle_off << "##" << id << ","
+                                    << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                    << pb->get_name();
 
-                                    ImGui::PushStyleColor(ImGuiCol_Text, redish);
-                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-                                    RsImGui::RsImButton([&]() {ImGui::ButtonEx(label.c_str(), button_size); }, true);
-                                }
-                                else
+                                ImGui::PushStyleColor(ImGuiCol_Text, redish);
+                                ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
+
+                                if (ImGui::Button(label.c_str(), button_size))
                                 {
-                                    std::string label = rsutils::string::from()
-                                        << " " << textual_icons::toggle_on << "##" << id << ","
-                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
-                                        << pb->get_name();
-                                    ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
-                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-                                    RsImGui::RsImButton([&]() {ImGui::ButtonEx(label.c_str(), button_size); }, true);
+                                    pb->enable(true);
+                                }
+                                if (ImGui::IsItemHovered())
+                                {
+                                    label = rsutils::string::from() << "Enable " << pb->get_name() << " embedded filter";
+                                    RsImGui::CustomTooltip("%s", label.c_str());
+                                    window.link_hovered();
                                 }
                             }
                             else
                             {
-                                if (!pb->is_enabled())
+                                std::string label = rsutils::string::from()
+                                    << " " << textual_icons::toggle_on << "##" << id << ","
+                                    << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                    << pb->get_name();
+                                ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
+                                ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
+
+                                if (ImGui::Button(label.c_str(), button_size))
                                 {
-                                    std::string label = rsutils::string::from()
-                                        << " " << textual_icons::toggle_off << "##" << id << ","
-                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
-                                        << pb->get_name();
-
-                                    ImGui::PushStyleColor(ImGuiCol_Text, redish);
-                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-                                    if (ImGui::Button(label.c_str(), button_size))
-                                    {
-                                        pb->enable(true);
-                                    }
-                                    if (ImGui::IsItemHovered())
-                                    {
-                                        label = rsutils::string::from() << "Enable " << pb->get_name() << " embedded filter";
-                                        RsImGui::CustomTooltip("%s", label.c_str());
-                                        window.link_hovered();
-                                    }
+                                    pb->enable(false);
                                 }
-                                else
+                                if (ImGui::IsItemHovered())
                                 {
-                                    std::string label = rsutils::string::from()
-                                        << " " << textual_icons::toggle_on << "##" << id << ","
-                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
-                                        << pb->get_name();
-                                    ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
-                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-                                    if (ImGui::Button(label.c_str(), button_size))
-                                    {
-                                        pb->enable(false);
-                                    }
-                                    if (ImGui::IsItemHovered())
-                                    {
-                                        label = rsutils::string::from()
-                                            << "Disable " << pb->get_name() << " embedded filter";
-                                        RsImGui::CustomTooltip("%s", label.c_str());
-                                        window.link_hovered();
-                                    }
+                                    label = rsutils::string::from()
+                                        << "Disable " << pb->get_name() << " embedded filter";
+                                    RsImGui::CustomTooltip("%s", label.c_str());
+                                    window.link_hovered();
                                 }
                             }
 

@@ -53,7 +53,4 @@ namespace rs2
         std::map< rs2_option, option_model > _options_id_to_model;
         std::string _name;
     };
-
-    bool restore_embedded_filter(const char* name,
-        std::shared_ptr<rs2::embedded_filter> ef, bool enable);
 }
