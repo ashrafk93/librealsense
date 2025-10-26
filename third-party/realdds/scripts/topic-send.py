@@ -1,13 +1,30 @@
 # License: Apache 2.0. See LICENSE file in root directory.
 # Copyright(c) 2023-4 RealSense, Inc. All Rights Reserved.
 
+"""
+topic-send.py - DDS Topic Message Sender
+
+This script provides a command-line interface for sending messages to DDS topics
+in the RealSense ecosystem. It supports multiple sending modes:
+
+1. Device Control Messages: Send JSON control messages to specific RealSense devices via their topic root
+2. Topic Messages: Send JSON messages to arbitrary DDS topics  
+3. Blob Files: Send binary files as blob messages to topics
+
+Usage Examples:
+- Send control to device: --topic /realsense/D555_<serial_number>/control --message '{"id":"ping"}'
+- Send notification to subscriber: --topic /realsense/D555_<serial_number>/notification --message '{"id":"ping"}'
+- Send to topic: --topic /my/topic --message '{"data":"value"}'
+- Send file as blob: --topic /data/blob --blob myfile.bin
+- Read from file: --topic /realsense/D555_<serial_number>/control --message-file <path_to_file>
+"""
+
 from argparse import ArgumentParser
 from argparse import ArgumentTypeError as ArgumentError  # NOTE: only ArgumentTypeError passes along the original error string
 import sys
 import json
 import os
 
-print("ARGS:", sys.argv)
 args = ArgumentParser()
 args.add_argument( '--debug', action='store_true', help='enable debug mode' )
 args.add_argument( '--quiet', action='store_true', help='no output' )
@@ -35,23 +52,20 @@ else:
 def e( *a, **kw ):
     print( '-E-', *a, **kw )
 
+if args.message and args.message_file:
+    e( '--message and --message-file are mutually exclusive' )
+    sys.exit( 1 )
 
 # Read message from file or stdin if --message-file is specified and --message is not provided
-if not args.message and args.message_file:
+if args.message_file:
     try:
-        if args.message_file == "-":
-            # Read from stdin
-            i( "Reading JSON message from stdin..." )
-            message_content = sys.stdin.read()
-        else:
-            # Read from file
-            if not os.path.isfile( args.message_file ):
-                e( f'Message file does not exist: {args.message_file}' )
-                sys.exit( 1 )
-            i( f"Reading JSON message from file: {args.message_file}" )
-            with open( args.message_file, 'r' ) as f:
-                message_content = f.read()
-        
+        # Read from file
+        if not os.path.isfile( args.message_file ):
+            e( f'Message file does not exist: {args.message_file}' )
+            sys.exit( 1 )
+        i( f"Reading JSON message from file: {args.message_file}" )
+        with open( args.message_file, 'r' ) as f:
+            message_content = f.read()           
         # Parse JSON
         message = json.loads( message_content )
         i( f"Loaded message: {message}" )
@@ -61,16 +75,14 @@ if not args.message and args.message_file:
     except Exception as e:
         e( f'Error reading message file/stdin: {e}' )
         sys.exit( 1 )
-elif args.message:
+
+if args.message:
     # Parse inline JSON message
     try:
         message = json.loads( args.message )
     except json.JSONDecodeError as e:
         e( f'Invalid JSON in --message: {e}' )
         sys.exit( 1 )
-else:
-    # Default message
-    message = {"id":"ping","message":"some message"}
 
 
 import pyrealdds as dds
