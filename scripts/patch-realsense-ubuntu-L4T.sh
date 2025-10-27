@@ -97,7 +97,7 @@ case ${JETSON_L4T_VERSION} in
 		PATCHES_REV="6.0"
 		KERNEL_RELEASE="5.15"
 	;;
-	"38.2")
+	"38.2" | "38.2.1")
 		# 38.2 --> 7.0
 		PATCHES_REV="7.0"
 		KERNEL_RELEASE="6.8"
@@ -180,7 +180,7 @@ echo -e "\e[32mPrepare workspace for kernel build\e[0m"
 if version_lt "$PATCHES_REV" "6.0"; then
 	make ARCH=arm64 mrproper -j$(($(nproc)-1)) && make ARCH=arm64 tegra_defconfig -j$(($(nproc)-1))
 else
-	make ARCH=arm64 mrproper -j$(($(nproc)-1)) 
+	make ARCH=arm64 mrproper -j$(($(nproc)-1))
 	echo -e "\e[32mUpdate the kernel tree to support HID IMU sensors\e[0m"
 	# appending config to defconfig so later .config will be generated with all necessary dependencies
 	echo 'CONFIG_HID_SENSOR_HUB=m' >> ./arch/arm64/configs/defconfig
