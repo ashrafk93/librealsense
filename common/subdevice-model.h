@@ -20,6 +20,7 @@
 
 #include "objects-in-frame.h"
 #include "processing-block-model.h"
+#include "embedded-filter-model.h"
 
 #include "realsense-ui-advanced-mode.h"
 #include "fw-update-helper.h"
@@ -36,7 +37,7 @@ namespace rs2
     bool restore_processing_block(const char* name,
         std::shared_ptr<rs2::processing_block> pb, bool enable = true);
 
-    std::string get_device_sensor_name(subdevice_model* sub);
+    std::string get_post_processing_device_sensor_name(subdevice_model* sub);
 
     class frame_queues
     {
@@ -207,6 +208,9 @@ namespace rs2
         bool post_processing_enabled = true;
         std::vector<std::shared_ptr<processing_block_model>> const_effects;
 
+        std::vector<std::shared_ptr<embedded_filter_model>> embedded_filters;
+        bool embedded_filters_enabled = true;
+
         bool uvmapping_calib_full = false;
         device_model* dev_model;
 
@@ -226,6 +230,8 @@ namespace rs2
         void sort_resolutions(std::vector<std::pair<int, int>>& resolutions) const;
         bool is_ir_calibration_profile() const;
         void set_extrinsics_from_depth_if_needed();
+        bool is_post_processing_enabled_in_config_file() const;
+        void avoid_streaming_on_embedded_filters_not_matching_configuration() const;
         // used in method get_max_resolution per stream
         std::map<rs2_stream, std::vector<std::pair<int, int>>> resolutions_per_stream;
 

@@ -2731,211 +2731,11 @@ namespace rs2
                     }
                 }
 
-                if (sub->post_processing.size() > 0)
-                {
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
-                    const ImVec2 pos = ImGui::GetCursorPos();
+                draw_embedded_filters(sub, windows_width, window, viewer,
+                    error_message, label, draw_later, update_read_only_options);
 
-                    draw_later.push_back([windows_width, &window, sub, pos, &viewer, this]() {
-                        ImGui::SetCursorPos({ windows_width - 41, pos.y - 3 });
-
-                        try
-                        {
-
-                            ImGui::PushFont(window.get_font());
-
-                            ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
-                            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-                            ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-
-                            if (!sub->post_processing_enabled)
-                            {
-                                std::string label = rsutils::string::from()
-                                                 << " " << textual_icons::toggle_off << "##" << id << ","
-                                                 << sub->s->get_info( RS2_CAMERA_INFO_NAME ) << ",post";
-
-                                ImGui::PushStyleColor(ImGuiCol_Text, redish);
-                                ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-                                if (ImGui::Button(label.c_str(), { 30,24 }))
-                                {
-                                    sub->post_processing_enabled = true;
-                                    config_file::instance().set(get_device_sensor_name(sub.get()).c_str(),
-                                        sub->post_processing_enabled);
-                                    for (auto&& pb : sub->post_processing)
-                                    {
-                                        if (!pb->visible)
-                                            continue;
-                                        if (pb->is_enabled())
-                                            pb->processing_block_enable_disable(true);
-                                    }
-                                }
-                                if (ImGui::IsItemHovered())
-                                {
-                                    RsImGui::CustomTooltip("Enable post-processing filters");
-                                    window.link_hovered();
-                                }
-                            }
-                            else
-                            {
-                                std::string label = rsutils::string::from()
-                                                 << " " << textual_icons::toggle_on << "##" << id << ","
-                                                 << sub->s->get_info( RS2_CAMERA_INFO_NAME ) << ",post";
-                                ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
-                                ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-                                if (ImGui::Button(label.c_str(), { 30,24 }))
-                                {
-                                    sub->post_processing_enabled = false;
-                                    config_file::instance().set(get_device_sensor_name(sub.get()).c_str(),
-                                        sub->post_processing_enabled);
-                                    for (auto&& pb : sub->post_processing)
-                                    {
-                                        if (!pb->visible)
-                                            continue;
-                                        if (pb->is_enabled())
-                                            pb->processing_block_enable_disable(false);
-                                    }
-                                }
-                                if (ImGui::IsItemHovered())
-                                {
-                                    RsImGui::CustomTooltip("Disable post-processing filters");
-                                    window.link_hovered();
-                                }
-                            }
-                            ImGui::PopStyleColor(5);
-                            ImGui::PopFont();
-                        }
-                        catch (...)
-                        {
-                            ImGui::PopStyleColor(5);
-                            ImGui::PopFont();
-                            throw;
-                        }
-                    });
-
-                    label = rsutils::string::from() << "Post-Processing##" << id;
-                    if (ImGui::TreeNode(label.c_str()))
-                    {
-                        for (auto&& pb : sub->post_processing)
-                        {
-                            if (!pb->visible) continue;
-
-                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
-
-                            const ImVec2 pos = ImGui::GetCursorPos();
-
-                            draw_later.push_back([windows_width, &window, sub, pos, &viewer, this, pb]() {
-                                ImGui::SetCursorPos({ windows_width - 42, pos.y - 3 });
-
-                                try
-                                {
-                                    ImGui::PushFont(window.get_font());
-
-                                    ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
-                                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
-                                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
-                                    int font_size = window.get_font_size();
-                                    const ImVec2 button_size = { font_size * 2.f, font_size * 1.5f };
-
-                                    if (!sub->post_processing_enabled)
-                                    {
-                                        if (!pb->is_enabled())
-                                        {
-                                            std::string label = rsutils::string::from()
-                                                             << " " << textual_icons::toggle_off << "##" << id << ","
-                                                             << sub->s->get_info( RS2_CAMERA_INFO_NAME ) << ","
-                                                             << pb->get_name();
-
-                                            ImGui::PushStyleColor(ImGuiCol_Text, redish);
-                                            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-                                            RsImGui::RsImButton([&]() {ImGui::ButtonEx(label.c_str(), button_size);}, true);
-                                        }
-                                        else
-                                        {
-                                            std::string label = rsutils::string::from()
-                                                             << " " << textual_icons::toggle_on << "##" << id << ","
-                                                             << sub->s->get_info( RS2_CAMERA_INFO_NAME ) << ","
-                                                             << pb->get_name();
-                                            ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
-                                            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-                                            RsImGui::RsImButton([&]() {ImGui::ButtonEx(label.c_str(), button_size);}, true);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (!pb->is_enabled())
-                                        {
-                                            std::string label = rsutils::string::from()
-                                                             << " " << textual_icons::toggle_off << "##" << id << ","
-                                                             << sub->s->get_info( RS2_CAMERA_INFO_NAME ) << ","
-                                                             << pb->get_name();
-
-                                            ImGui::PushStyleColor(ImGuiCol_Text, redish);
-                                            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
-
-                                            if (ImGui::Button(label.c_str(), button_size))
-                                            {
-                                                pb->enable(true);
-                                                pb->save_to_config_file();
-                                            }
-                                            if (ImGui::IsItemHovered())
-                                            {
-                                                label = rsutils::string::from() << "Enable " << pb->get_name() << " post-processing filter";
-                                                RsImGui::CustomTooltip("%s", label.c_str());
-                                                window.link_hovered();
-                                            }
-                                        }
-                                        else
-                                        {
-                                            std::string label = rsutils::string::from()
-                                                             << " " << textual_icons::toggle_on << "##" << id << ","
-                                                             << sub->s->get_info( RS2_CAMERA_INFO_NAME ) << ","
-                                                             << pb->get_name();
-                                            ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
-                                            ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
-
-                                            if (ImGui::Button(label.c_str(), button_size))
-                                            {
-                                                pb->enable(false);
-                                                pb->save_to_config_file();
-                                            }
-                                            if (ImGui::IsItemHovered())
-                                            {
-                                                label = rsutils::string::from()
-                                                     << "Disable " << pb->get_name() << " post-processing filter";
-                                                RsImGui::CustomTooltip("%s", label.c_str());
-                                                window.link_hovered();
-                                            }
-                                        }
-                                    }
-
-                                    ImGui::PopStyleColor(5);
-                                    ImGui::PopFont();
-                                }
-                                catch (...)
-                                {
-                                    ImGui::PopStyleColor(5);
-                                    ImGui::PopFont();
-                                    throw;
-                                }
-                            });
-
-                            label = rsutils::string::from() << pb->get_name() << "##" << id;
-                            if (ImGui::TreeNode(label.c_str()))
-                            {
-                                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
-                                pb->draw_options( viewer,
-                                                  dev.is< playback >() || update_read_only_options,
-                                                  false,
-                                                  error_message );
-
-                                ImGui::TreePop();
-                            }
-                        }
-                        ImGui::TreePop();
-                    }
-                }
+                draw_processing_blocks(sub, windows_width, window, viewer, 
+                    error_message, label, draw_later, update_read_only_options);
 
                 ImGui::TreePop();
             }
@@ -2969,6 +2769,321 @@ namespace rs2
             //Button line
             const float compenstaion_button = 1.0f;
             ImGui::GetWindowDrawList()->AddLine({ end_screen_pos.x + left_space, end_screen_pos.y - compenstaion_button }, { end_screen_pos.x + left_space + panel_width, end_screen_pos.y - compenstaion_button }, ImColor(header_color));
+        }
+    }
+
+    void device_model::draw_processing_blocks(std::shared_ptr<subdevice_model> sub, float windows_width,
+        ux_window& window, viewer_model& viewer, std::string& error_message, std::string& label,
+        std::vector<std::function<void()>>& draw_later, const bool& update_read_only_options)
+    {
+        if (sub->post_processing.size() > 0)
+        {
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+            const ImVec2 pos = ImGui::GetCursorPos();
+
+            draw_later.push_back([windows_width, &window, sub, pos, &viewer, this]() {
+                ImGui::SetCursorPos({ windows_width - 41, pos.y - 3 });
+
+                try
+                {
+
+                    ImGui::PushFont(window.get_font());
+
+                    ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
+
+                    if (!sub->post_processing_enabled)
+                    {
+                        std::string label = rsutils::string::from()
+                            << " " << textual_icons::toggle_off << "##" << id << ","
+                            << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ",post";
+
+                        ImGui::PushStyleColor(ImGuiCol_Text, redish);
+                        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
+
+                        if (ImGui::Button(label.c_str(), { 30,24 }))
+                        {
+                            sub->post_processing_enabled = true;
+                            config_file::instance().set(get_post_processing_device_sensor_name(sub.get()).c_str(),
+                                sub->post_processing_enabled);
+                            for (auto&& pb : sub->post_processing)
+                            {
+                                if (!pb->visible)
+                                    continue;
+                                if (pb->is_enabled())
+                                    pb->processing_block_enable_disable(true);
+                            }
+                        }
+                        if (ImGui::IsItemHovered())
+                        {
+                            RsImGui::CustomTooltip("Enable post-processing filters");
+                            window.link_hovered();
+                        }
+                    }
+                    else
+                    {
+                        std::string label = rsutils::string::from()
+                            << " " << textual_icons::toggle_on << "##" << id << ","
+                            << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ",post";
+                        ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
+                        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
+
+                        if (ImGui::Button(label.c_str(), { 30,24 }))
+                        {
+                            sub->post_processing_enabled = false;
+                            config_file::instance().set(get_post_processing_device_sensor_name(sub.get()).c_str(),
+                                sub->post_processing_enabled);
+                            for (auto&& pb : sub->post_processing)
+                            {
+                                if (!pb->visible)
+                                    continue;
+                                if (pb->is_enabled())
+                                    pb->processing_block_enable_disable(false);
+                            }
+                        }
+                        if (ImGui::IsItemHovered())
+                        {
+                            RsImGui::CustomTooltip("Disable post-processing filters");
+                            window.link_hovered();
+                        }
+                    }
+                    ImGui::PopStyleColor(5);
+                    ImGui::PopFont();
+                }
+                catch (...)
+                {
+                    ImGui::PopStyleColor(5);
+                    ImGui::PopFont();
+                    throw;
+                }
+                });
+
+            label = rsutils::string::from() << "Post-Processing##" << id;
+            if (ImGui::TreeNode(label.c_str()))
+            {
+                for (auto&& pb : sub->post_processing)
+                {
+                    if (!pb->visible) continue;
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+
+                    const ImVec2 pos = ImGui::GetCursorPos();
+
+                    draw_later.push_back([windows_width, &window, sub, pos, &viewer, this, pb]() {
+                        ImGui::SetCursorPos({ windows_width - 42, pos.y - 3 });
+
+                        try
+                        {
+                            ImGui::PushFont(window.get_font());
+
+                            ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
+                            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
+                            ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
+                            int font_size = window.get_font_size();
+                            const ImVec2 button_size = { font_size * 2.f, font_size * 1.5f };
+
+                            if (!sub->post_processing_enabled)
+                            {
+                                if (!pb->is_enabled())
+                                {
+                                    std::string label = rsutils::string::from()
+                                        << " " << textual_icons::toggle_off << "##" << id << ","
+                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                        << pb->get_name();
+
+                                    ImGui::PushStyleColor(ImGuiCol_Text, redish);
+                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
+                                    RsImGui::RsImButton([&]() {ImGui::ButtonEx(label.c_str(), button_size); }, true);
+                                }
+                                else
+                                {
+                                    std::string label = rsutils::string::from()
+                                        << " " << textual_icons::toggle_on << "##" << id << ","
+                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                        << pb->get_name();
+                                    ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
+                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
+                                    RsImGui::RsImButton([&]() {ImGui::ButtonEx(label.c_str(), button_size); }, true);
+                                }
+                            }
+                            else
+                            {
+                                if (!pb->is_enabled())
+                                {
+                                    std::string label = rsutils::string::from()
+                                        << " " << textual_icons::toggle_off << "##" << id << ","
+                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                        << pb->get_name();
+
+                                    ImGui::PushStyleColor(ImGuiCol_Text, redish);
+                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
+
+                                    if (ImGui::Button(label.c_str(), button_size))
+                                    {
+                                        pb->enable(true);
+                                        pb->save_to_config_file();
+                                    }
+                                    if (ImGui::IsItemHovered())
+                                    {
+                                        label = rsutils::string::from() << "Enable " << pb->get_name() << " post-processing filter";
+                                        RsImGui::CustomTooltip("%s", label.c_str());
+                                        window.link_hovered();
+                                    }
+                                }
+                                else
+                                {
+                                    std::string label = rsutils::string::from()
+                                        << " " << textual_icons::toggle_on << "##" << id << ","
+                                        << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                        << pb->get_name();
+                                    ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
+                                    ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
+
+                                    if (ImGui::Button(label.c_str(), button_size))
+                                    {
+                                        pb->enable(false);
+                                        pb->save_to_config_file();
+                                    }
+                                    if (ImGui::IsItemHovered())
+                                    {
+                                        label = rsutils::string::from()
+                                            << "Disable " << pb->get_name() << " post-processing filter";
+                                        RsImGui::CustomTooltip("%s", label.c_str());
+                                        window.link_hovered();
+                                    }
+                                }
+                            }
+
+                            ImGui::PopStyleColor(5);
+                            ImGui::PopFont();
+                        }
+                        catch (...)
+                        {
+                            ImGui::PopStyleColor(5);
+                            ImGui::PopFont();
+                            throw;
+                        }
+                        });
+
+                    label = rsutils::string::from() << pb->get_name() << "##" << id;
+                    if (ImGui::TreeNode(label.c_str()))
+                    {
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+                        pb->draw_options(viewer,
+                            dev.is< playback >() || update_read_only_options,
+                            false,
+                            error_message);
+
+                        ImGui::TreePop();
+                    }
+                }
+                ImGui::TreePop();
+            }
+        }
+    }
+
+    void device_model::draw_embedded_filters(std::shared_ptr<subdevice_model> sub, float windows_width,
+        ux_window& window, viewer_model& viewer, std::string& error_message, std::string& label,
+        std::vector<std::function<void()>>& draw_later, const bool& update_read_only_options)
+    {
+        if (sub->embedded_filters.size() > 0)
+        {
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+            const ImVec2 pos = ImGui::GetCursorPos();
+
+            label = rsutils::string::from() << "Embedded-Filters##" << id;
+            if (ImGui::TreeNode(label.c_str()))
+            {
+                for (auto&& pb : sub->embedded_filters)
+                {
+                    if (!pb->visible) continue;
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+
+                    const ImVec2 pos = ImGui::GetCursorPos();
+
+                    draw_later.push_back([windows_width, &window, sub, pos, &viewer, this, pb]() {
+                        ImGui::SetCursorPos({ windows_width - 42, pos.y - 3 });
+
+                        try
+                        {
+                            ImGui::PushFont(window.get_font());
+
+                            ImGui::PushStyleColor(ImGuiCol_Button, sensor_bg);
+                            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, sensor_bg);
+                            ImGui::PushStyleColor(ImGuiCol_ButtonActive, sensor_bg);
+                            int font_size = window.get_font_size();
+                            const ImVec2 button_size = { font_size * 2.f, font_size * 1.5f };
+
+                            if (!pb->is_enabled())
+                            {
+                                std::string label = rsutils::string::from()
+                                    << " " << textual_icons::toggle_off << "##" << id << ","
+                                    << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                    << pb->get_name();
+
+                                ImGui::PushStyleColor(ImGuiCol_Text, redish);
+                                ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, redish + 0.1f);
+
+                                if (ImGui::Button(label.c_str(), button_size))
+                                {
+                                    pb->enable(true);
+                                }
+                                if (ImGui::IsItemHovered())
+                                {
+                                    label = rsutils::string::from() << "Enable " << pb->get_name() << " embedded filter";
+                                    RsImGui::CustomTooltip("%s", label.c_str());
+                                    window.link_hovered();
+                                }
+                            }
+                            else
+                            {
+                                std::string label = rsutils::string::from()
+                                    << " " << textual_icons::toggle_on << "##" << id << ","
+                                    << sub->s->get_info(RS2_CAMERA_INFO_NAME) << ","
+                                    << pb->get_name();
+                                ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
+                                ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_blue + 0.1f);
+
+                                if (ImGui::Button(label.c_str(), button_size))
+                                {
+                                    pb->enable(false);
+                                }
+                                if (ImGui::IsItemHovered())
+                                {
+                                    label = rsutils::string::from()
+                                        << "Disable " << pb->get_name() << " embedded filter";
+                                    RsImGui::CustomTooltip("%s", label.c_str());
+                                    window.link_hovered();
+                                }
+                            }
+
+                            ImGui::PopStyleColor(5);
+                            ImGui::PopFont();
+                        }
+                        catch (...)
+                        {
+                            ImGui::PopStyleColor(5);
+                            ImGui::PopFont();
+                            throw;
+                        }
+                        });
+
+                    label = rsutils::string::from() << pb->get_name() << "##" << id;
+                    if (ImGui::TreeNode(label.c_str()))
+                    {
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+                        pb->draw_options(viewer,
+                            dev.is< playback >() || update_read_only_options,
+                            false,
+                            error_message);
+
+                        ImGui::TreePop();
+                    }
+                }
+                ImGui::TreePop();
+            }
         }
     }
 

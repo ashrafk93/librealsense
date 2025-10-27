@@ -18,7 +18,7 @@ namespace rs2
         return res;
     }
 
-    std::string get_device_sensor_name(subdevice_model* sub)
+    std::string get_post_processing_device_sensor_name(subdevice_model* sub)
     {
         std::stringstream ss;
         ss << configurations::viewer::post_processing
@@ -57,39 +57,6 @@ namespace rs2
         }
     }
 
-    // to be moved to processing-block-model
-    bool restore_processing_block(const char* name,
-        std::shared_ptr<rs2::processing_block> pb, bool enable)
-    {
-        for( auto opt : pb->get_supported_option_values() )
-        {
-            std::string key = name;
-            key += ".";
-            key += pb->get_option_name( opt->id );
-            if (config_file::instance().contains(key.c_str()))
-            {
-                float val = config_file::instance().get(key.c_str());
-                try
-                {
-                    auto range = pb->get_option_range( opt->id );
-                    if (val >= range.min && val <= range.max)
-                        pb->set_option( opt->id, val );
-                }
-                catch (...)
-                {
-                }
-            }
-        }
-
-        std::string key = name;
-        key += ".enabled";
-        if (config_file::instance().contains(key.c_str()))
-        {
-            return config_file::instance().get(key.c_str());
-        }
-        return enable;
-    }
-
     subdevice_model::subdevice_model(
         device& dev,
         std::shared_ptr<sensor> s,
@@ -115,21 +82,7 @@ namespace rs2
         restore_processing_block("m420_to_rgb", m420_to_rgb);
         restore_processing_block("y411", y411);
 
-        std::string device_name(dev.get_info(RS2_CAMERA_INFO_NAME));
-        std::string sensor_name(s->get_info(RS2_CAMERA_INFO_NAME));
-
-        std::stringstream ss;
-        ss << configurations::viewer::post_processing
-            << "." << device_name
-            << "." << sensor_name;
-        auto key = ss.str();
-
-        bool const is_rgb_camera = s->is< color_sensor >();
-
-        if (config_file::instance().contains(key.c_str()))
-        {
-            post_processing_enabled = config_file::instance().get(key.c_str());
-        }
+        post_processing_enabled = is_post_processing_enabled_in_config_file();
 
         try
         {
@@ -154,6 +107,8 @@ namespace rs2
                 stereo_baseline = s->get_option(RS2_OPTION_STEREO_BASELINE);
         }
         catch (...) {}
+
+        bool const is_rgb_camera = s->is< color_sensor >();
 
         for (auto&& f : s->get_recommended_filters())
         {
@@ -205,6 +160,16 @@ namespace rs2
             post_processing.push_back(model);
         }
 
+        for (auto&& f : s->query_embedded_filters())
+        {
+            auto shared_filter = std::make_shared<embedded_filter>(f);
+
+            auto model = std::make_shared<embedded_filter_model>(
+                this, shared_filter->get_type(), shared_filter, error_message);
+
+            embedded_filters.push_back(model);
+        }
+
         if (is_rgb_camera)
         {
             for (auto& create_filter : post_processing_filters_list::get())
@@ -252,7 +217,7 @@ namespace rs2
             depth_colorizer->set_option(RS2_OPTION_VISUAL_PRESET, option_value);
         }
 
-        ss.str("");
+        std::stringstream ss;
         ss << "##" << dev.get_info(RS2_CAMERA_INFO_NAME)
             << "/" << s->get_info(RS2_CAMERA_INFO_NAME)
             << "/" << (long long)this;
@@ -437,6 +402,26 @@ namespace rs2
         catch( ... )
         {
         }
+    }
+
+    bool subdevice_model::is_post_processing_enabled_in_config_file() const
+    {
+        bool is_enabled = false;
+
+        std::string device_name(dev.get_info(RS2_CAMERA_INFO_NAME));
+        std::string sensor_name(s->get_info(RS2_CAMERA_INFO_NAME));
+
+        std::stringstream ss;
+        ss << configurations::viewer::post_processing
+            << "." << device_name
+            << "." << sensor_name;
+        auto key = ss.str();
+
+        if (config_file::instance().contains(key.c_str()))
+        {
+            is_enabled = config_file::instance().get(key.c_str());
+        }
+        return is_enabled;
     }
 
     void subdevice_model::sort_resolutions(std::vector<std::pair<int, int>>& resolutions) const
@@ -1545,8 +1530,52 @@ namespace rs2
         return false;
     }
 
+    void subdevice_model::avoid_streaming_on_embedded_filters_not_matching_configuration() const
+    {
+        // check if sensor is depth
+        // check if embedded decimation filter is ON
+        // check if reolution is different from 640 X 360
+        if (s->is<depth_sensor>())
+            {
+            auto current_depth_sensor = s->as<depth_sensor>();
+
+            std::shared_ptr<embedded_filter_model> embedded_decimation = nullptr;
+            for (auto& ef : embedded_filters)
+            {
+                if (ef->get_filter()->get_type() == RS2_EMBEDDED_FILTER_TYPE_DECIMATION)
+                {
+                    embedded_decimation = ef;
+                    break;
+                }
+            }
+            if (embedded_decimation &&
+                embedded_decimation->get_filter()->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED))
+            {
+                // check if resolution is different from 640 X 360
+                int width = 0;
+                int height = 0;
+                if (!ui.is_multiple_resolutions)
+                {
+                    width = res_values[ui.selected_res_id].first;
+                    height = res_values[ui.selected_res_id].second;
+                }
+                else
+                {
+                    auto res_pair = ui.selected_stream_to_res.at(RS2_STREAM_DEPTH);
+                    width = res_pair.first;
+                    height = res_pair.second;
+                }
+                if (width != 640 || height != 360)
+                {
+                    throw std::runtime_error("Cannot start streaming: Embedded Decimation filter to be used only with resolution 640x360.");
+                }
+            }
+        }
+    }
+
     void subdevice_model::play(const std::vector<stream_profile>& profiles, viewer_model& viewer, std::shared_ptr<rs2::asynchronous_syncer> syncer)
     {
+        avoid_streaming_on_embedded_filters_not_matching_configuration();
         set_extrinsics_from_depth_if_needed();
 
         std::stringstream ss;

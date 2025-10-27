@@ -63,6 +63,8 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_LIST_DIR}/dds-model.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/hdr-model.h"
     "${CMAKE_CURRENT_LIST_DIR}/hdr-model.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-model.h"
+    "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-model.cpp"
     )
 
 set(SW_UPDATE_FILES
