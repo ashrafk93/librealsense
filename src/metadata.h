@@ -430,13 +430,13 @@ namespace librealsense
         uint32_t    exposure_roi_bottom;
         uint32_t    preset;
         uint8_t     emitterMode;
-        uint8_t     reserved;
+        uint8_t     embedded_filters;
         uint16_t    ledPower;
     };
 
     REGISTER_MD_TYPE(md_depth_control, md_type::META_DATA_INTEL_DEPTH_CONTROL_ID)
 
-    /**\brief md_depth_control - depth data-related parameters.
+    /**\brief md_l500_depth_control - depth data-related parameters.
      *  Corresponds to FW's STMetaDataIntelDepthControl object*/
         struct md_l500_depth_control
     {

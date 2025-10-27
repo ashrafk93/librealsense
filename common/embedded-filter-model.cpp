@@ -15,8 +15,8 @@ namespace rs2
         const rs2_embedded_filter_type& type,
         std::shared_ptr<rs2::embedded_filter> filter,
         viewer_model& viewer,
-        std::string& error_message, bool enable)
-        : _embedded_filter(filter), _viewer(viewer), _destructing(false), _enabled(enable)
+        std::string& error_message)
+        : _embedded_filter(filter), _viewer(viewer), _destructing(false)
     {
         _name = rs2_embedded_filter_type_to_string(type);
 
@@ -25,6 +25,7 @@ namespace rs2
             << "/" << ((owner) ? (*owner->s).get_info(RS2_CAMERA_INFO_NAME) : "_")
             << "/" << (long long)this;
 
+        // following method also updates the data member "_enabled"
         populate_options(ss.str().c_str(), owner, owner ? &owner->_options_invalidated : nullptr, error_message);
     }
 
