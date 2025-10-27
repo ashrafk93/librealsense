@@ -14,8 +14,9 @@ namespace rs2
         subdevice_model* owner,
         const rs2_embedded_filter_type& type,
         std::shared_ptr<rs2::embedded_filter> filter,
+        viewer_model& viewer,
         std::string& error_message, bool enable)
-        : _embedded_filter(filter), _enabled(enable)
+        : _embedded_filter(filter), _viewer(viewer), _enabled(enable)
     {
         _name = rs2_embedded_filter_type_to_string(type);
 
@@ -26,6 +27,19 @@ namespace rs2
 
         populate_options(ss.str().c_str(), owner, owner ? &owner->_options_invalidated : nullptr, error_message);
     }
+
+
+    embedded_filter_model::~embedded_filter_model()
+    {
+        _destructing = true;
+        try
+        {
+            _embedded_filter->on_options_changed([](const options_list& list) {});
+        }
+        catch (...)
+        {
+        }
+	}
 
     void embedded_filter_model::draw_options( viewer_model & viewer,
                                                bool update_read_only_options,
@@ -62,5 +76,27 @@ namespace rs2
                                                                 error_message );
         }
         _enabled = _embedded_filter->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED);
+
+        try
+        {
+            _embedded_filter->on_options_changed([this](const options_list& list)
+                {
+                    for (auto changed_option : list)
+                    {
+                        auto it = _options_id_to_model.find(changed_option->id);
+                        if (it != _options_id_to_model.end() && !_destructing) // Callback runs in different context, check options_metadata still valid
+                        {
+                            it->second.update_value(changed_option, *_viewer.not_model);
+                            if (it->first == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
+								_enabled = (changed_option->as_integer != 0);
+                        }
+                    }
+                });
+        }
+        catch (const std::exception& e)
+        {
+            if (_viewer.not_model)
+                _viewer.not_model->add_log(e.what(), RS2_LOG_SEVERITY_WARN);
+        }
     }
 }

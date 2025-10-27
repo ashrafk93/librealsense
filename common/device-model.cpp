@@ -2997,7 +2997,7 @@ namespace rs2
             {
                 for (auto&& pb : sub->embedded_filters)
                 {
-                    if (!pb->visible) continue;
+                    if (!pb->_is_visible) continue;
 
                     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
 

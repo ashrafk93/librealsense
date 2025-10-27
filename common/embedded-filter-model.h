@@ -19,9 +19,11 @@ namespace rs2
         embedded_filter_model( subdevice_model* owner,
             const rs2_embedded_filter_type& type,
             std::shared_ptr<rs2::embedded_filter> filter,
+            viewer_model& viewer,
             std::string& error_message,
             bool enabled = true );
-        virtual ~embedded_filter_model() = default;
+
+        virtual ~embedded_filter_model();
 
         const std::string& get_name() const { return _name; }
 
@@ -43,11 +45,13 @@ namespace rs2
         }
         bool is_enabled() const { return _enabled; }
 
-        bool visible = true;
+        bool _is_visible = true;
+		bool _destructing = false;
 
         void embedded_filter_enable_disable(bool actual);
 
     protected:
+        viewer_model& _viewer;
         bool _enabled = true;
         std::shared_ptr<rs2::embedded_filter> _embedded_filter;
         std::map< rs2_option, option_model > _options_id_to_model;

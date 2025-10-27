@@ -189,8 +189,6 @@ struct rs2_sensor : public rs2_options
 
     rs2_sensor& operator=(const rs2_sensor&) = delete;
     rs2_sensor(const rs2_sensor&) = delete;
-
-    rsutils::subscription subscription;
 };
 
 struct rs2_context
@@ -1571,9 +1569,7 @@ void rs2_set_options_changed_callback( rs2_options * options,
 {
     VALIDATE_NOT_NULL( options );
     VALIDATE_NOT_NULL( callback );
-    auto sens = dynamic_cast< rs2_sensor * >( options );
-    VALIDATE_NOT_NULL( sens );
-    sens->subscription = sens->sensor->register_options_changed_callback(
+    options->subscription = options->options->register_options_changed_callback(
         [callback]( options_watcher::options_and_values const & updated_options )
         {
             rs2_options_list * updated_options_list = new rs2_options_list(); // Should be on heap if user will choose to save for later use.
@@ -1602,9 +1598,7 @@ void rs2_set_options_changed_callback_cpp( rs2_options * options,
                                               p->release();
                                           } };
     VALIDATE_NOT_NULL( options );
-    auto sens = dynamic_cast< rs2_sensor * >( options );
-    VALIDATE_NOT_NULL( sens );
-    sens->subscription = sens->sensor->register_options_changed_callback(
+    options->subscription = options->options->register_options_changed_callback(
         [cb]( options_watcher::options_and_values const & updated_options )
         {
             rs2_options_list * updated_options_list = new rs2_options_list(); // Should be on heap if user will choose to save for later use.

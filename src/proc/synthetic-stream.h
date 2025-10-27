@@ -219,6 +219,8 @@ struct rs2_options
     librealsense::options_interface* options;
 
     virtual ~rs2_options() = default;
+
+    rsutils::subscription subscription;
 };
 
 struct rs2_processing_block : public rs2_options

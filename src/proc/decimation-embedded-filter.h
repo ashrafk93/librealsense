@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <src/embedded-filter-interface.h>
 #include "core/extension.h"
 #include <src/core/options-container.h>
 #include <src/core/options-watcher.h>
@@ -14,6 +15,8 @@ class decimation_embedded_filter
 {
 public:
     virtual ~decimation_embedded_filter() = default;
+
+    rsutils::subscription register_options_changed_callback(options_watcher::callback&&) override;
 
 protected:
     options_watcher _options_watcher;
