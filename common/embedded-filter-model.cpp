@@ -16,7 +16,7 @@ namespace rs2
         std::shared_ptr<rs2::embedded_filter> filter,
         viewer_model& viewer,
         std::string& error_message, bool enable)
-        : _embedded_filter(filter), _viewer(viewer), _enabled(enable)
+        : _embedded_filter(filter), _viewer(viewer), _destructing(false), _enabled(enable)
     {
         _name = rs2_embedded_filter_type_to_string(type);
 
@@ -31,7 +31,7 @@ namespace rs2
 
     embedded_filter_model::~embedded_filter_model()
     {
-        _destructing = true;
+        _destructing.store(true);
         try
         {
             _embedded_filter->on_options_changed([](const options_list& list) {});

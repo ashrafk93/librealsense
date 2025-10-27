@@ -46,12 +46,12 @@ namespace rs2
         bool is_enabled() const { return _enabled; }
 
         bool _is_visible = true;
-        std::atomic<bool> _destructing = false;
 
         void embedded_filter_enable_disable(bool actual);
 
     protected:
         viewer_model& _viewer;
+        std::atomic<bool> _destructing;
         bool _enabled = true;
         std::shared_ptr<rs2::embedded_filter> _embedded_filter;
         std::map< rs2_option, option_model > _options_id_to_model;
