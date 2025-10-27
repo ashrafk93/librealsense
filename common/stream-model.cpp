@@ -1018,10 +1018,10 @@ namespace rs2
         std::string pid = this->dev->dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID);
         if (pid == "0B6B")
             add_d585S_metadata_descriptions(descriptions);
-
-        if (this->dev->dev.supports(RS2_CAMERA_INFO_PRODUCT_LINE) &&
-            std::string(this->dev->dev.get_info(RS2_CAMERA_INFO_PRODUCT_LINE)) == "D500")
-            add_d500_metadata_descriptions(descriptions);
+        
+        std::string connection_type =  this->dev->dev.get_info(RS2_CAMERA_INFO_CONNECTION_TYPE);
+        if (connection_type == "DDS")
+            add_dds_metadata_descriptions(descriptions);
 
         for (auto i = 0; i < RS2_FRAME_METADATA_COUNT; i++)
         {
@@ -1324,7 +1324,7 @@ namespace rs2
         return name;
     }
 
-    void stream_model::add_d500_metadata_descriptions(std::map<rs2_frame_metadata_value, std::string>& descriptions) const
+    void stream_model::add_dds_metadata_descriptions(std::map<rs2_frame_metadata_value, std::string>& descriptions) const
     {
         std::vector<std::string> meanings;
 
