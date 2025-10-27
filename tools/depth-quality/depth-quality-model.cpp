@@ -105,8 +105,13 @@ namespace rs2
                 auto dev = _pipe.get_active_profile().get_device();
                 if (dev.is<rs400::advanced_mode>())
                 {
+                    bool dev_is_dds = false;
+                    if( dev.supports( RS2_CAMERA_INFO_CONNECTION_TYPE ) &&
+                        strcmp( dev.get_info( RS2_CAMERA_INFO_CONNECTION_TYPE ), "DDS" ) == 0 )
+                        dev_is_dds = true;
+
                     auto advanced_mode = dev.as<rs400::advanced_mode>();
-                    if (!advanced_mode.is_enabled())
+                    if( !advanced_mode.is_enabled() && !dev_is_dds ) // DDS devices cannot be toggled
                     {
                         window.add_on_load_message("Toggling device into Advanced Mode...");
                         advanced_mode.toggle_advanced_mode(true);
