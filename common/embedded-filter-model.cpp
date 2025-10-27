@@ -84,7 +84,8 @@ namespace rs2
                     for (auto changed_option : list)
                     {
                         auto it = _options_id_to_model.find(changed_option->id);
-                        if (it != _options_id_to_model.end() && !_destructing) // Callback runs in different context, check options_metadata still valid
+                        // Callback runs in different context, checking _options_id_to_model still valid
+                        if (it != _options_id_to_model.end() && !_destructing)
                         {
                             it->second.update_value(changed_option, *_viewer.not_model);
                             if (it->first == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
