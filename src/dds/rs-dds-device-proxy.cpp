@@ -411,10 +411,12 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
         }
     }
 
-    // Call after seneors have been initialized
-    ds_advanced_mode_base::initialize_advanced_mode( this ); // Call even if not enabled, so API calls won't throw
-    device_specific_initialization();
-
+    if( ! dev->device_info().is_recovery() )
+    {
+        // Call after seneors have been initialized
+        ds_advanced_mode_base::initialize_advanced_mode( this );  // Call even if not enabled, so API calls won't throw
+        device_specific_initialization();
+    }
     // Use the default D400 matchers:
     // Depth & IR matched by frame-number, time-stamp-matched to color.
     // Motion streams will not get synced.
