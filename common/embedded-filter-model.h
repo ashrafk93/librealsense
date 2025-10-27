@@ -20,8 +20,7 @@ namespace rs2
             const rs2_embedded_filter_type& type,
             std::shared_ptr<rs2::embedded_filter> filter,
             viewer_model& viewer,
-            std::string& error_message,
-            bool enabled = true );
+            std::string& error_message);
 
         virtual ~embedded_filter_model();
 
