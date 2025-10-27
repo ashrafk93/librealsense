@@ -165,7 +165,7 @@ namespace rs2
             auto shared_filter = std::make_shared<embedded_filter>(f);
 
             auto model = std::make_shared<embedded_filter_model>(
-                this, shared_filter->get_type(), shared_filter, error_message);
+                this, shared_filter->get_type(), shared_filter, viewer, error_message);
 
             embedded_filters.push_back(model);
         }

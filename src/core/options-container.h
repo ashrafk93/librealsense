@@ -69,6 +69,9 @@ public:
 
     std::string const & get_option_name( rs2_option option ) const override;
 
+    virtual rsutils::subscription register_options_changed_callback(options_watcher::callback&& cb) override
+    { return rsutils::subscription(); }
+
 protected:
     std::vector< rs2_option > _ordered_options;
     std::map< rs2_option, std::shared_ptr< option > > _options_by_id;
