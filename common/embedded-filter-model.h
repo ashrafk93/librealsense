@@ -46,7 +46,7 @@ namespace rs2
         bool is_enabled() const { return _enabled; }
 
         bool _is_visible = true;
-        bool _destructing = false;
+        std::atomic<bool> _destructing = false;
 
         void embedded_filter_enable_disable(bool actual);
 
