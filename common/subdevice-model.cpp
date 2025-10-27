@@ -1533,9 +1533,9 @@ namespace rs2
     void subdevice_model::avoid_streaming_on_embedded_filters_not_matching_configuration() const
     {
         // check if sensor is depth
-		// check if embedded decimation filter is ON
+        // check if embedded decimation filter is ON
         // check if reolution is different from 640 X 360
-		if (s->is<depth_sensor>())
+        if (s->is<depth_sensor>())
             {
             auto current_depth_sensor = s->as<depth_sensor>();
 
@@ -1547,7 +1547,7 @@ namespace rs2
                     embedded_decimation = ef;
                     break;
                 }
-			}
+            }
             if (embedded_decimation &&
                 embedded_decimation->get_filter()->get_option(RS2_OPTION_EMBEDDED_FILTER_ENABLED))
             {
@@ -1570,8 +1570,8 @@ namespace rs2
                     throw std::runtime_error("Cannot start streaming: Embedded Decimation filter to be used only with resolution 640x360.");
                 }
             }
-		}
-	}
+        }
+    }
 
     void subdevice_model::play(const std::vector<stream_profile>& profiles, viewer_model& viewer, std::shared_ptr<rs2::asynchronous_syncer> syncer)
     {
