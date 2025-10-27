@@ -39,7 +39,7 @@ namespace rs2
         catch (...)
         {
         }
-	}
+    }
 
     void embedded_filter_model::draw_options( viewer_model & viewer,
                                                bool update_read_only_options,
@@ -88,7 +88,7 @@ namespace rs2
                         {
                             it->second.update_value(changed_option, *_viewer.not_model);
                             if (it->first == RS2_OPTION_EMBEDDED_FILTER_ENABLED)
-								_enabled = (changed_option->as_integer != 0);
+                                _enabled = (changed_option->as_integer != 0);
                         }
                     }
                 });
