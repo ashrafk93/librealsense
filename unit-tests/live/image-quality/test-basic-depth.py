@@ -9,7 +9,7 @@ from rspy import log, test
 import numpy as np
 import cv2
 import time
-from iq_helper import find_roi_location, get_roi_from_frame
+from iq_helper import find_roi_location, get_roi_from_frame, WIDTH, HEIGHT
 
 NUM_FRAMES = 100 # Number of frames to check
 DEPTH_TOLERANCE = 0.05  # Acceptable deviation from expected depth in meters
@@ -33,7 +33,14 @@ try:
 
     # find region of interest (page) and get the transformation matrix
     find_roi_location(pipeline, (4,5,6,7), DEBUG_MODE)  # markers in the lab are 4,5,6,7
-    depth_passes = {}
+
+    # Known pixel positions and expected depth values (in meters)
+    # Using temporary values until setup in lab is completed
+    depth_points = {
+        "cube": ((HEIGHT // 2, WIDTH // 2), 0.53),  # center of A4, cube at 0.45m
+        "background": ((HEIGHT // 2, int(WIDTH * 0.1)), 0.67)  # left edge, background at 0.6m
+    }
+    depth_passes = {name: 0 for name in depth_points}
     for i in range(NUM_FRAMES):
         frames = pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
@@ -43,15 +50,6 @@ try:
 
         depth_image = get_roi_from_frame(depth_frame)
 
-        # Known pixel positions and expected depth values (in meters)
-        # Using temporary values until setup in lab is completed
-        h, w = depth_image.shape
-        depth_points = {
-            "cube":  ((h // 2, w // 2), 0.45), # center of page, cube at 0.45m
-            "background": ((h // 2, int(w * 0.1)), 0.6), # left edge, background at 0.6m
-        }
-        if not depth_passes:
-            depth_passes = {name: 0 for name in depth_points}
         for point_name, ((x, y), expected_depth) in depth_points.items():
             raw_depth = depth_image[y, x]
             depth_value = raw_depth * depth_scale  # Convert to meters
