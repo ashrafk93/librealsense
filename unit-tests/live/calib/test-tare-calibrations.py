@@ -8,7 +8,6 @@ from rspy import test, log
 from test_calibrations_common import calibration_main, get_calibration_device, is_mipi_device
 
 #disabled until we stabilize lab
-#test:donotrun
 
 def tare_calibration_json(tare_json_file, host_assistance):
     tare_json = None

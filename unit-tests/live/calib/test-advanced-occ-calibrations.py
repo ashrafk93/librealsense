@@ -38,7 +38,6 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
     return occ_json
 
 #disabled until we stabilize lab
-#test:donotrun:disabled
 
 def run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=None):
     """Run advanced OCC calibration test with calibration table modifications.
