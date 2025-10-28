@@ -129,6 +129,10 @@ static void on_discovery_stream_header( std::shared_ptr< dds_stream_server > con
     for( auto & opt : stream->options() )
         j_options.push_back( std::move( opt->to_json() ) );
 
+    auto& j_embedded_filters = j_stream_options[topics::notification::stream_options::key::embedded_filters] = json::array();
+    for (auto& ef : stream->embedded_filters())
+        j_embedded_filters.push_back(std::move(ef->to_json()));
+
     if( auto video_stream = std::dynamic_pointer_cast< dds_video_stream_server >( stream ) )
     {
         auto & intrinsics = video_stream->get_intrinsics();
@@ -550,7 +554,7 @@ void dds_device_server::on_query_filter(control_sample const& control, rsutils::
             for (auto const& option : options)
                 values[option->get_name()] = query_option(option);
         };
-	// assigning filter name and stream name in reply, from control message
+    // assigning filter name and stream name in reply, from control message
     auto& filter_name = reply[topics::control::query_filter::key::name];
     filter_name = control.json.nested(topics::control::query_filter::key::name);
     auto& stream_name = reply[topics::control::query_filter::key::stream_name];

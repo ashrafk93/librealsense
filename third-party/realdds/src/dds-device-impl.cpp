@@ -312,7 +312,7 @@ void dds_device::impl::on_query_filter(json const& j, dds_sample const&)
         }
     }
 
-    throw std::runtime_error("Embedded filter '" + filter_name + "' not found");
+    DDS_THROW(runtime_error, "Embedded filter '" + filter_name + "' not found");
 }
 
 
