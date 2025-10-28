@@ -101,3 +101,7 @@ def get_roi_from_frame(frame):
     np_frame = np.asanyarray(frame.get_data())
     warped = cv2.warpPerspective(np_frame, M, (WIDTH, HEIGHT)) # using A4 size for its ratio
     return warped
+
+
+def is_color_close(actual, expected, tolerance):
+    return all(abs(int(a) - int(e)) <= tolerance for a, e in zip(actual, expected))
