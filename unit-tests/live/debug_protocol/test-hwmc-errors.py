@@ -2,6 +2,7 @@
 # Copyright(c) 2024 RealSense, Inc. All Rights Reserved.
 
 # test:device each(D400*)
+# test:device each(D500*)
 
 # This UT tests the HWM error reporting mechanism.
 # When we send HWM command and it is successful we expect the command opcode to be reflected in the first bytes of the reply.
@@ -10,6 +11,7 @@
 
 import pyrealsense2 as rs
 from rspy import devices, log, test, file, repo
+from rspy import tests_wrapper as tw
 
 
 #############################################################################################
@@ -46,6 +48,7 @@ try:
     ctx = rs.context()
     dev = ctx.query_devices()[0]
     product_line = dev.get_info(rs.camera_info.product_line)
+    tw.start_wrapper(dev)
 except:
     test.unexpected_exception()
 test.finish()
@@ -100,5 +103,5 @@ except:
     test.unexpected_exception()
 test.finish()
 
-
+tw.stop_wrapper(dev)
 test.print_results_and_exit()
