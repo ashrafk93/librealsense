@@ -285,78 +285,78 @@ namespace librealsense
         auto md_prop_offset = offsetof(metadata_mipi_rgb_raw, rgb_mode);
 
         color_ep.register_metadata(RS2_FRAME_METADATA_SENSOR_TIMESTAMP,
-                                       make_attribute_parser(&md_mipi_rgb_mode::hw_timestamp,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::hw_timestamp,
                                                              md_mipi_rgb_control_attributes::hw_timestamp_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_BRIGHTNESS,
-                                       make_attribute_parser(&md_mipi_rgb_mode::brightness,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::brightness,
                                                              md_mipi_rgb_control_attributes::brightness_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_CONTRAST,
-                                       make_attribute_parser(&md_mipi_rgb_mode::contrast,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::contrast,
                                                              md_mipi_rgb_control_attributes::contrast_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_SATURATION,
-                                       make_attribute_parser(&md_mipi_rgb_mode::saturation,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::saturation,
                                                              md_mipi_rgb_control_attributes::saturation_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_SHARPNESS,
-                                       make_attribute_parser(&md_mipi_rgb_mode::sharpness,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::sharpness,
                                                              md_mipi_rgb_control_attributes::sharpness_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_AUTO_WHITE_BALANCE_TEMPERATURE,
-                                       make_attribute_parser(&md_mipi_rgb_mode::auto_white_balance_temp,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::auto_white_balance_temp,
                                                              md_mipi_rgb_control_attributes::auto_white_balance_temp_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_GAMMA,
-                                       make_attribute_parser(&md_mipi_rgb_mode::gamma,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::gamma,
                                                              md_mipi_rgb_control_attributes::gamma_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE,
-                                       make_attribute_parser(&md_mipi_rgb_mode::manual_exposure,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::manual_exposure,
                                                              md_mipi_rgb_control_attributes::manual_exposure_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_MANUAL_WHITE_BALANCE,
-                                       make_attribute_parser(&md_mipi_rgb_mode::manual_white_balance,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::manual_white_balance,
                                                              md_mipi_rgb_control_attributes::manual_white_balance_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_AUTO_EXPOSURE,
-                                       make_attribute_parser(&md_mipi_rgb_mode::auto_exposure_mode,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::auto_exposure_mode,
                                                              md_mipi_rgb_control_attributes::auto_exposure_mode_attribute,
-                                                             md_prop_offset,
+                                                             md_prop_offset, _fw_version,
                                                              [](rs2_metadata_type param) { return (param != 1); })); // OFF value via UVC is 1 (ON is 8)
         color_ep.register_metadata(RS2_FRAME_METADATA_GAIN_LEVEL,
-                                       make_attribute_parser(&md_mipi_rgb_mode::gain,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::gain,
                                                              md_mipi_rgb_control_attributes::gain_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_BACKLIGHT_COMPENSATION,
-                                       make_attribute_parser(&md_mipi_rgb_mode::backlight_compensation,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::backlight_compensation,
                                                              md_mipi_rgb_control_attributes::backlight_compensation_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_HUE,
-                                       make_attribute_parser(&md_mipi_rgb_mode::hue,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::hue,
                                                              md_mipi_rgb_control_attributes::hue_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_POWER_LINE_FREQUENCY,
-                                       make_attribute_parser(&md_mipi_rgb_mode::power_line_frequency,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::power_line_frequency,
                                                              md_mipi_rgb_control_attributes::power_line_frequency_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_LOW_LIGHT_COMPENSATION,
-                                       make_attribute_parser(&md_mipi_rgb_mode::low_light_compensation,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::low_light_compensation,
                                                              md_mipi_rgb_control_attributes::low_light_compensation_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_INPUT_WIDTH,
-                                       make_attribute_parser(&md_mipi_rgb_mode::input_width,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::input_width,
                                                              md_mipi_rgb_control_attributes::input_width_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_INPUT_HEIGHT,
-                                       make_attribute_parser(&md_mipi_rgb_mode::input_height,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::input_height,
                                                              md_mipi_rgb_control_attributes::input_height_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
         color_ep.register_metadata(RS2_FRAME_METADATA_CRC,
-                                       make_attribute_parser(&md_mipi_rgb_mode::crc,
+                                       make_mipi_color_attribute_parser(&md_mipi_rgb_mode::crc,
                                                              md_mipi_rgb_control_attributes::crc_attribute,
-                                                             md_prop_offset));
+                                                             md_prop_offset, _fw_version));
     }
     
     void d400_color::register_stream_to_extrinsic_group(const stream_interface& stream, uint32_t group_index)

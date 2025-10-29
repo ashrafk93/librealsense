@@ -44,7 +44,6 @@ namespace librealsense
         META_DATA_INTEL_CONFIGURATION_ID        = 0x80000002,
         META_DATA_INTEL_STAT_ID                 = 0x80000003,
         META_DATA_INTEL_FISH_EYE_CONTROL_ID     = 0x80000004,
-        META_DATA_MIPI_INTEL_RGB_ID             = 0x80000005, // D457 - added as w/a for a fw bug (which sends META_DATA_INTEL_RGB_CONTROL_ID even for mipi rgb frames)
         META_DATA_INTEL_RGB_CONTROL_ID          = 0x80000005,
         META_DATA_INTEl_FE_FOV_MODEL_ID         = 0x80000006,
         META_DATA_INTEl_FE_CAMERA_EXTRINSICS_ID = 0x80000007,
@@ -60,7 +59,7 @@ namespace librealsense
         META_DATA_INTEL_OCCUPANCY_ID            = 0x80000016,
         META_DATA_INTEL_POINT_CLOUD_ID          = 0x80000017,
         META_DATA_MIPI_INTEL_DEPTH_ID           = 0x80010000,
-        //META_DATA_MIPI_INTEL_RGB_ID             = 0x80010001, // D457 - to be restored after the FW bug is resolved
+        META_DATA_MIPI_INTEL_RGB_ID             = 0x80010001,
     };
 
     static const std::map<md_type, std::string> md_type_desc =
