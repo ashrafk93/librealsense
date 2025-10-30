@@ -197,8 +197,8 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
         [&]( std::shared_ptr< realdds::dds_stream > const & stream )
         {
             auto & sensor = sensor_name_to_info[stream->sensor_name()];
-            if( stream->type_string() == "depth"
-                || stream->type_string() == "ir" )
+            if( strcmp( stream->type_string(), "depth" ) == 0 
+                || strcmp( stream->type_string(), "ir" ) == 0 )
             {
                 // If there's depth or infrared, it is a depth sensor regardless of what else is in there
                 // E.g., the D405 has a color stream in the depth sensor
@@ -206,11 +206,11 @@ dds_device_proxy::dds_device_proxy( std::shared_ptr< const device_info > const &
             }
             else if( RS2_STREAM_ANY == sensor.type )
             {
-                if( stream->type_string() == "color" )
+                if( strcmp( stream->type_string(), "color" ) == 0 )
                 {
                     sensor.type = RS2_STREAM_COLOR;
                 }
-                else if( stream->type_string() == "motion" )
+                else if( strcmp( stream->type_string(), "motion" ) == 0 )
                 {
                     sensor.type = RS2_STREAM_MOTION;
                 }
