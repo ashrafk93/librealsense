@@ -281,7 +281,7 @@ namespace librealsense
             float3 trans_vector = table->translation_rect;
             
             float3x3 rect_rot_mat = table->rgb_coefficients_table.rotation_matrix;
-            float trans_scale = 0.001f; // Convert units from mm to meter. Extrinsic of color is referenced to the Depth Sensor CS
+            float trans_scale = -0.001f; // Convert units from mm to meter. Extrinsic of color is referenced to the Depth Sensor CS
 
             trans_vector.x *= trans_scale;
             trans_vector.y *= trans_scale;
