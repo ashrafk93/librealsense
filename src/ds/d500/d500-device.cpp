@@ -441,7 +441,7 @@ namespace librealsense
             {
                 rs2_extrinsics ext = identity_matrix();
                 auto table = check_calib<d500_coefficients_table>(*_coefficients_table_raw);
-                ext.translation[0] = 0.001f * table->baseline; // mm to meters
+                ext.translation[0] = -0.001f * table->baseline; // mm to meters
                 return ext;
             });
 
