@@ -242,7 +242,7 @@ namespace librealsense
                 expected_type = md_type_trait<S>::type;
             }
 
-			// checking type and size, with updated expected type
+            // checking type and size, with updated expected type
             if (s->header.md_type_id != expected_type)
             {
                 std::string type
