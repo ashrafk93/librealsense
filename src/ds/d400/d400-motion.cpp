@@ -140,14 +140,14 @@ namespace librealsense
         initialize_fisheye_sensor( dev_info->get_context(), dev_info->get_group() );
 
         // Try to add HID endpoint
-        auto hid_ep = create_hid_device( dev_info->get_context(), dev_info->get_group().hid_devices );
-        if (hid_ep)
-        {
-            _motion_module_device_idx = static_cast<uint8_t>(add_sensor(hid_ep));
+        // auto hid_ep = create_hid_device( dev_info->get_context(), dev_info->get_group().hid_devices );
+        // if (hid_ep)
+        // {
+        //     _motion_module_device_idx = static_cast<uint8_t>(add_sensor(hid_ep));
 
-            // HID metadata attributes
-            hid_ep->get_raw_sensor()->register_metadata(RS2_FRAME_METADATA_FRAME_TIMESTAMP, make_hid_header_parser(&hid_header::timestamp));
-        }
+        //     // HID metadata attributes
+        //     hid_ep->get_raw_sensor()->register_metadata(RS2_FRAME_METADATA_FRAME_TIMESTAMP, make_hid_header_parser(&hid_header::timestamp));
+        // }
         //for FW >=5.16 the scale factor changes to 1000.0 since FW sends 32bit
         if (_fw_version >= firmware_version( 5, 16, 0, 0))
             get_raw_motion_sensor()->set_gyro_scale_factor( 10000.0 );
