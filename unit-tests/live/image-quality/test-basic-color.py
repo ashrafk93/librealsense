@@ -78,7 +78,7 @@ def run_test(resolution, fps):
     cfg = rs.config()
     cfg.enable_stream(rs.stream.color, resolution[0], resolution[1], rs.format.bgr8, fps)
     if not cfg.can_resolve(pipeline):
-        log.w(f"Configuration {resolution[0]}x{resolution[1]}@{fps}fps is not supported by the device")
+        log.i(f"Configuration {resolution[0]}x{resolution[1]}@{fps}fps is not supported by the device")
         return
     pipeline_profile = pipeline.start(cfg)
     for i in range(60):  # skip initial frames
@@ -128,16 +128,15 @@ def run_test(resolution, fps):
         raise e
     finally:
         cv2.destroyAllWindows()
-
-    pipeline.stop()
-    test.finish()
+        pipeline.stop()
+        test.finish()
 
 
 log.d("context:", test.context)
-if "nightly" not in test.context:
-    configurations = [((1280, 720), 30)]
-else:
-    configurations = [
+
+configurations = [((1280, 720), 30)]
+if "nightly" in test.context:
+    configurations += [
         ((640,480), 15),
         ((640,480), 30),
         ((640,480), 60),

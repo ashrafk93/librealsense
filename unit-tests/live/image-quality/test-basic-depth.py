@@ -16,6 +16,8 @@ DEPTH_TOLERANCE = 0.05  # Acceptable deviation from expected depth in meters
 FRAMES_PASS_THRESHOLD =0.8 # Percentage of frames that needs to pass
 DEBUG_MODE = False
 
+DISTANCE_FROM_CUBE = 0.53
+DISTANCE_FROM_BACKGROUND = 0.67
 dev, ctx = test.find_first_device_or_exit()
 
 def run_test(resolution, fps):
@@ -27,7 +29,7 @@ def run_test(resolution, fps):
         cfg.enable_stream(rs.stream.depth, resolution[0], resolution[1], rs.format.z16, fps)
         cfg.enable_stream(rs.stream.infrared, 1, 640, 480, rs.format.y8, 30)  # needed for finding the ArUco markers
         if not cfg.can_resolve(pipeline):
-            log.w(f"Configuration {resolution[0]}x{resolution[1]} @ {fps}fps is not supported by the device")
+            log.i(f"Configuration {resolution[0]}x{resolution[1]} @ {fps}fps is not supported by the device")
             return
         profile = pipeline.start(cfg)
         time.sleep(2)
@@ -41,8 +43,8 @@ def run_test(resolution, fps):
         # Known pixel positions and expected depth values (in meters)
         # Using temporary values until setup in lab is completed
         depth_points = {
-            "cube": ((HEIGHT // 2, WIDTH // 2), 0.53),  # center of A4, cube at 0.45m
-            "background": ((HEIGHT // 2, int(WIDTH * 0.1)), 0.67)  # left edge, background at 0.6m
+            "cube": ((HEIGHT // 2, WIDTH // 2), DISTANCE_FROM_CUBE),  # cube expected to be at the center of page
+            "background": ((HEIGHT // 2, int(WIDTH * 0.1)), DISTANCE_FROM_BACKGROUND)  # left edge, background
         }
         depth_passes = {name: 0 for name in depth_points}
         for i in range(NUM_FRAMES):
@@ -88,16 +90,15 @@ def run_test(resolution, fps):
         raise e
     finally:
         cv2.destroyAllWindows()
-
-    pipeline.stop()
-    test.finish()
+        pipeline.stop()
+        test.finish()
 
 
 log.d("context:", test.context)
-if "nightly" not in test.context:
-    configurations = [((1280, 720), 30)]
-else:
-    configurations = [
+
+configurations = [((1280, 720), 30)]
+if "nightly" in test.context:
+    configurations += [
         ((640,480), 15),
         ((640,480), 30),
         ((640,480), 60),

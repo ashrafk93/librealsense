@@ -33,8 +33,9 @@ R = 20  # radius area around the center to sample depth from (in pixels)
 # list of color names in insertion order -> used left->right, top->bottom
 color_names = list(expected_colors.keys())
 
-# we are given a 3x3 grid, we split it using 2 vertical and 2 horizontal separators
-# we also calculate the center of each grid cell for sampling from it for the test
+# since this is a 3x3 grid, we have separators at 0, 1/3, 2/3, 1 of width and height
+# to calculate the centers, we take the middle of each cell - between the separators
+# instead of taking exact center, we offset a bit to the general center to avoid sampling out of the area
 xs = [1.5 * WIDTH / 6.0, WIDTH / 2.0, 4.5 * WIDTH / 6.0]
 ys = [1.5 * HEIGHT / 6.0, HEIGHT / 2.0, 4.5 * HEIGHT / 6.0]
 centers = [(x, y) for y in ys for x in xs]
@@ -178,9 +179,8 @@ def run_test(depth_resolution, depth_fps, color_resolution, color_fps):
         test.unexpected_exception()
     finally:
         cv2.destroyAllWindows()
-
-    pipeline.stop()
-    test.finish()
+        pipeline.stop()
+        test.finish()
 
 log.d("context:", test.context)
 if "nightly" not in test.context:
