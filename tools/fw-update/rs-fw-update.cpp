@@ -45,12 +45,6 @@ std::vector<uint8_t> read_fw_file(std::string file_path)
     std::vector<uint8_t> rv;
 
     std::ifstream file(file_path, std::ios::in | std::ios::binary | std::ios::ate);
-    auto file_deleter = std::unique_ptr< std::ifstream, void (*)(std::ifstream*) >(&file,
-        [](std::ifstream* file)
-        {
-            if (file)
-                file->close();
-        });
     if (file.is_open())
     {
         rv.resize(file.tellg());
@@ -175,33 +169,35 @@ void waiting_for_device_to_reconnect(rs2::context& ctx, rs2::cli::value<std::str
 
 }
 
+bool is_fw_compatible(const rs2::device& dev, const std::vector< uint8_t >& fw_image)
+{
+    auto upd = dev.as<rs2::updatable>();
+    if ( !upd )
+    {
+        throw std::runtime_error("Device could not be used as updatable device");
+    }
+    // checking compatibility bewtween firmware and device
+    if ( !upd.check_firmware_compatibility( fw_image ) )
+    {
+        std::stringstream ss;
+        ss << "This firmware version is not compatible with ";
+        ss << dev.get_info( RS2_CAMERA_INFO_NAME ) << std::endl;
+        std::cout << std::endl << ss.str() << std::endl;
+        return false;
+    }
+    return true;
+}
+
 int write_fw_to_mipi_device(rs2::context& ctx, rs2::cli::value<std::string>& serial_number_arg, const rs2::device& dev, const std::vector< uint8_t >& fw_image)
 {
     // Write firmware to appropriate file descriptor
     std::cout << std::endl << "Update can take up to 2 minutes" << std::endl;
     std::ofstream fw_path_in_device( dev.get_info( RS2_CAMERA_INFO_DFU_DEVICE_PATH ), std::ios::binary );
-    auto file_deleter = std::unique_ptr< std::ofstream, void ( * )( std::ofstream * ) >( &fw_path_in_device,
-                                                                                         []( std::ofstream * file )
-                                                                                         {
-                                                                                             if( file )
-                                                                                                 file->close();
-                                                                                         } );
+
     if( fw_path_in_device )
     {
-        auto upd = dev.as<rs2::updatable>();
-        if ( !upd )
-        {
-            throw std::runtime_error("Device could not be used as updatable device");
-        }
-        // checking compatibility bewtween firmware and device
-        if( !upd.check_firmware_compatibility( fw_image ) )
-        {
-            std::stringstream ss;
-            ss << "This firmware version is not compatible with ";
-            ss << dev.get_info( RS2_CAMERA_INFO_NAME ) << std::endl;
-            std::cout << std::endl << ss.str() << std::endl;
+        if (!is_fw_compatible(dev, fw_image))
             return EXIT_FAILURE;
-        }
 
         bool burn_done = false;
         std::thread show_progress_thread(
@@ -347,7 +343,9 @@ try
             ctx.set_devices_changed_callback([&](rs2::event_information& info) {
                 for (auto&& d : info.get_new_devices())
                 {
-                    if (d.is< rs2::update_device >())
+                    // assuming that if there are no sensors we are in recovery mode - not checking using is<update_device>
+                    // because DDS devices always return true
+                    if (d.query_sensors().size() == 0) 
                         continue;
                     auto recovery_sn = d.get_info(RS2_CAMERA_INFO_FIRMWARE_UPDATE_ID);
                     if (recovery_sn == update_serial_number)
@@ -363,6 +361,10 @@ try
                 });
             std::cout << std::endl << "Recovering device: " << std::endl;
             print_device_info(recovery_device);
+
+            if (!is_fw_compatible(recovery_device, fw_image))
+                return EXIT_FAILURE;
+
             update(recovery_device, fw_image);
             std::cout << "Waiting for new device..." << std::endl;
             if (!d457_recovery_device)
@@ -486,12 +488,6 @@ try
             {
                 auto temp = backup_arg.getValue();
                 std::ofstream file(temp.c_str(), std::ios::binary);
-                auto file_deleter = std::unique_ptr< std::ofstream, void (*)(std::ofstream*) >(&file,
-                    [](std::ofstream* file)
-                    {
-                        if (file)
-                            file->close();
-                    });
                 try
                 {
                     file.write((const char*)flash.data(), flash.size());
@@ -543,22 +539,10 @@ try
             }
             else
             {
-                auto upd = d.as<rs2::updatable>();
-
-                if ( !upd )
-                {
-                    throw std::runtime_error("Device could not be used as updatable device");
-                }
-                // checking compatibility bewtween firmware and device
-                if( !upd.check_firmware_compatibility( fw_image ) )
-                {
-                    std::stringstream ss;
-                    ss << "This firmware version is not compatible with ";
-                    ss << d.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
-                    std::cout << std::endl << ss.str() << std::endl;
+                if (!is_fw_compatible(d, fw_image))
                     return EXIT_FAILURE;
-                }
 
+                auto upd = d.as<rs2::updatable>();
                 upd.enter_update_state();
 
                 // Some devices may immediately get in an update state?
