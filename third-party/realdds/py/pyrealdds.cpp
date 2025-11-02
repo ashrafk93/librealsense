@@ -951,6 +951,28 @@ PYBIND11_MODULE(NAME, m) {
                   return os.str();
               } );
 
+    using realdds::dds_embedded_filter;
+    py::class_< dds_embedded_filter, std::shared_ptr< dds_embedded_filter > > embedded_filter_base(m, "embedded_filter");
+    embedded_filter_base //
+        .def_static("from_json", &dds_embedded_filter::from_json)
+        .def("init", &dds_embedded_filter::init)
+        .def("init_options", &dds_embedded_filter::init_options)
+        .def("set_options", &dds_embedded_filter::set_options)
+        .def("to_json", &dds_embedded_filter::to_json)
+        .def("get_name", &dds_embedded_filter::get_name);
+
+    using realdds::dds_decimation_filter;
+    py::class_< dds_decimation_filter, dds_embedded_filter, std::shared_ptr< dds_decimation_filter > > decimation_embedded_filter(m, "decimation_embedded_filter");
+    decimation_embedded_filter //
+        .def_static("from_json", &dds_decimation_filter::from_json)
+        .def(py::init<>());
+
+    using realdds::dds_temporal_filter;
+    py::class_< dds_temporal_filter, dds_embedded_filter, std::shared_ptr< dds_temporal_filter > > temporal_embedded_filter(m, "temporal_embedded_filter");
+    temporal_embedded_filter //
+        .def_static("from_json", &dds_temporal_filter::from_json)
+        .def(py::init<>());
+
     using realdds::dds_video_encoding;
     py::class_< dds_video_encoding > video_encoding( m, "video_encoding" );
     video_encoding  //
@@ -1012,6 +1034,7 @@ PYBIND11_MODULE(NAME, m) {
         .def( "enable_metadata", &dds_stream_base::enable_metadata )
         .def( "init_profiles", &dds_stream_base::init_profiles )
         .def( "init_options", &dds_stream_base::init_options )
+        .def( "init_embedded_filters", &dds_stream_base::init_embedded_filters)
         .def( "default_profile_index", &dds_stream_base::default_profile_index )
         .def( "default_profile", &dds_stream_base::default_profile )
         .def( "options", &dds_stream_base::options )
@@ -1247,6 +1270,8 @@ PYBIND11_MODULE(NAME, m) {
               } )
         .def( "set_option_value", &dds_device::set_option_value )
         .def( "query_option_value", &dds_device::query_option_value )
+        .def( "set_filter_value", &dds_device::set_embedded_filter)
+        .def( "query_filter_value", &dds_device::query_embedded_filter)
         .def(
             "send_control",
             []( dds_device & self, json const & j, bool wait_for_reply )

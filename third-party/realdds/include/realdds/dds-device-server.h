@@ -114,6 +114,7 @@ private:
     void on_set_option( control_sample const &, rsutils::json & reply );
     void on_query_option( control_sample const &, rsutils::json & reply );
     void on_query_options( control_sample const &, rsutils::json & reply );
+    void on_query_filter(control_sample const&, rsutils::json& reply);
 
     rsutils::json query_option( std::shared_ptr< dds_option > const & ) const;
 
