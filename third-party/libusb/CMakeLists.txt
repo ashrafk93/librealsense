@@ -12,10 +12,10 @@ if(WIN32)
         libusb/os/windows_common.c
         libusb/os/windows_usbdk.c)
 
-elseif(OB_BUILD_ANDROID)
+elseif(ANDROID)
     list(APPEND LIBUSB_C libusb/os/linux_usbfs.c libusb/os/events_posix.c libusb/os/threads_posix.c
          libusb/os/linux_netlink.c)
-elseif(OB_BUILD_MACOS)
+elseif(APPLE)
     list(APPEND LIBUSB_C libusb/os/darwin_usb.c libusb/os/events_posix.c libusb/os/threads_posix.c)
 else()
     list(APPEND LIBUSB_C libusb/os/linux_usbfs.c libusb/os/events_posix.c libusb/os/threads_posix.c
@@ -30,14 +30,14 @@ target_include_directories(libusb_static PUBLIC
     $<INSTALL_INTERFACE:include/libusb>)
 target_include_directories(libusb_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libusb/os)
 
-if(OB_BUILD_LINUX)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
     target_include_directories(libusb_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/linux)
-elseif(OB_BUILD_MACOS)
+elseif(APPLE)
     target_include_directories(libusb_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Xcode)
     target_link_libraries(libusb_static "-framework CoreFoundation -framework IOKit -framework Security")
-elseif(OB_BUILD_ANDROID)
+elseif(ANDROID)
     target_include_directories(libusb_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/android)
-else(OB_BUILD_WIN32)
+elseif(WIN32)
     target_include_directories(libusb_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/msvc)
     target_include_directories(libusb_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt)
     foreach(

@@ -1,21 +1,10 @@
 if (NOT TARGET usb)
-    # Check if local libusb exists first
+    # Check if local libusb exists first and we're on macOS
     set(LOCAL_LIBUSB_DIR "${CMAKE_SOURCE_DIR}/third-party/libusb")
     
-    if(EXISTS "${LOCAL_LIBUSB_DIR}/CMakeLists.txt")
-        # Use local libusb from third-party/libusb
-        message(STATUS "Using local libusb from third-party/libusb")
-        
-        # Set platform flags for the local libusb build
-        if(APPLE)
-            set(OB_BUILD_MACOS ON CACHE BOOL "Build for macOS" FORCE)
-        elseif(WIN32)
-            set(OB_BUILD_WIN32 ON CACHE BOOL "Build for Windows" FORCE)
-        elseif(ANDROID)
-            set(OB_BUILD_ANDROID ON CACHE BOOL "Build for Android" FORCE)
-        else()
-            set(OB_BUILD_LINUX ON CACHE BOOL "Build for Linux" FORCE)
-        endif()
+    if(APPLE AND EXISTS "${LOCAL_LIBUSB_DIR}/CMakeLists.txt")
+        # Use local libusb from third-party/libusb only on macOS
+        message(STATUS "Using local libusb from third-party/libusb on macOS")
         
         # Add libusb as subdirectory
         add_subdirectory(${LOCAL_LIBUSB_DIR} ${CMAKE_BINARY_DIR}/third-party/libusb)
@@ -34,7 +23,7 @@ if (NOT TARGET usb)
         set(USE_LOCAL_USB ON)
         
     else()
-        # Fallback to system or external libusb
+        # Use system libusb for all other platforms
         find_library(LIBUSB_LIB usb-1.0)
         find_path(LIBUSB_INC libusb.h HINTS PATH_SUFFIXES libusb-1.0)
         include(FindPackageHandleStandardArgs)
