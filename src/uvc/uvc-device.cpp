@@ -446,13 +446,11 @@ namespace librealsense
                 throw std::runtime_error("Failed to find supported format!");
             }
 
-            #ifdef __APPLE__
             auto inf = _usb_device->get_interface(interface_number);
             if (inf == nullptr)
                 throw std::runtime_error("can't find UVC streaming interface of device: " + _usb_device->get_info().id);
             auto _read_endpoint = inf->first_endpoint(platform::RS2_USB_ENDPOINT_DIRECTION_READ);
             _messenger->reset_endpoint(_read_endpoint, 5000);
-            #endif
 
             auto ctrl = std::make_shared<uvc_stream_ctrl_t>();
             auto ret = get_stream_ctrl_format_size(selected_format, ctrl);
