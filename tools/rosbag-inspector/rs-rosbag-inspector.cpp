@@ -101,7 +101,11 @@ private:
 
         ImGui::CreateContext();
         ImGui_ImplGlfw_InitForOpenGL(_window, true);
+#ifdef __APPLE__
+        ImGui_ImplOpenGL3_Init("#version 120");
+#else
         ImGui_ImplOpenGL3_Init();
+#endif
 
         glfwSetScrollCallback(_window, [](GLFWwindow * w, double xoffset, double yoffset)
         {
