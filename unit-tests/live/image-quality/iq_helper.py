@@ -7,7 +7,7 @@ import cv2
 import time
 import pyrealsense2 as rs
 
-
+# targets are available on the Wiki page: https://rsconf.realsenseai.com/display/RealSense/Image+Quality+Tests
 # standard size to display / process the target
 WIDTH = 1280
 HEIGHT = 720

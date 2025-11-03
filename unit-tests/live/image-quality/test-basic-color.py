@@ -135,6 +135,7 @@ def run_test(resolution, fps):
 log.d("context:", test.context)
 
 configurations = [((1280, 720), 30)]
+# on nightly we check additional arbitrary configurations
 if "nightly" in test.context:
     configurations += [
         ((640,480), 15),
