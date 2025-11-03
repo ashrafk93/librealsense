@@ -1,13 +1,13 @@
 if (NOT TARGET usb)
     # Check if local libusb exists first and we're on macOS
-    set(LOCAL_LIBUSB_DIR "${CMAKE_SOURCE_DIR}/third-party/libusb")
+    set(LOCAL_LIBUSB_DIR "${CMAKE_SOURCE_DIR}/third-party/libusb-rs")
     
     if(APPLE AND EXISTS "${LOCAL_LIBUSB_DIR}/CMakeLists.txt")
         # Use local libusb from third-party/libusb only on macOS
         message(STATUS "Using local libusb from third-party/libusb on macOS")
         
         # Add libusb as subdirectory
-        add_subdirectory(${LOCAL_LIBUSB_DIR} ${CMAKE_BINARY_DIR}/third-party/libusb)
+        add_subdirectory(${LOCAL_LIBUSB_DIR} ${CMAKE_BINARY_DIR}/third-party/libusb-rs)
         
         # Create interface target that wraps the local libusb_static
         add_library(usb INTERFACE)
