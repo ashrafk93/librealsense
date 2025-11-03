@@ -7,7 +7,7 @@ import pyrealsense2 as rs
 from rspy import log, test
 import numpy as np
 import cv2
-from iq_helper import find_roi_location, get_roi_from_frame, WIDTH, HEIGHT
+from iq_helper import find_roi_location, get_roi_from_frame, is_color_close, WIDTH, HEIGHT
 
 NUM_FRAMES = 100 # Number of frames to check
 COLOR_TOLERANCE = 60 # Acceptable per-channel deviation in RGB values
@@ -36,9 +36,6 @@ ys = [1.5 * HEIGHT / 6.0, HEIGHT / 2.0, 4.5 * HEIGHT / 6.0]
 centers = [(x, y) for y in ys for x in xs]
 
 dev, ctx = test.find_first_device_or_exit()
-
-def is_color_close(actual, expected, tolerance):
-    return all(abs(int(a) - int(e)) <= tolerance for a, e in zip(actual, expected))
 
 def draw_debug(frame_bgr, a4_page_bgr):
     """
@@ -74,22 +71,15 @@ def draw_debug(frame_bgr, a4_page_bgr):
     return np.hstack([left, right])
 
 
-def is_cfg_supported(resolution, fps):
-    color_sensor = dev.first_color_sensor()
-    for p in color_sensor.get_stream_profiles():
-        if p.stream_type() == rs.stream.color and p.format() == rs.format.bgr8:
-            v = p.as_video_stream_profile()
-            if (v.width(), v.height()) == resolution and v.fps() == fps:
-                return True
-    return False
-
-
 def run_test(resolution, fps):
     test.start("Basic Color Image Quality Test:", f"{resolution[0]}x{resolution[1]} @ {fps}fps")
     color_match_count = {color: 0 for color in expected_colors.keys()}
     pipeline = rs.pipeline(ctx)
     cfg = rs.config()
     cfg.enable_stream(rs.stream.color, resolution[0], resolution[1], rs.format.bgr8, fps)
+    if not cfg.can_resolve(pipeline):
+        log.i(f"Configuration {resolution[0]}x{resolution[1]}@{fps}fps is not supported by the device")
+        return
     pipeline_profile = pipeline.start(cfg)
     for i in range(60):  # skip initial frames
         pipeline.wait_for_frames()
@@ -138,16 +128,16 @@ def run_test(resolution, fps):
         raise e
     finally:
         cv2.destroyAllWindows()
-
-    pipeline.stop()
-    test.finish()
+        pipeline.stop()
+        test.finish()
 
 
 log.d("context:", test.context)
-if "nightly" not in test.context:
-    configurations = [((1280, 720), 30)]
-else:
-    configurations = [
+
+configurations = [((1280, 720), 30)]
+# on nightly we check additional arbitrary configurations
+if "nightly" in test.context:
+    configurations += [
         ((640,480), 15),
         ((640,480), 30),
         ((640,480), 60),
@@ -159,8 +149,7 @@ else:
         ((1280,720), 15),
     ]
 
-for cfg in configurations:
-    if is_cfg_supported(*cfg):
-        run_test(*cfg)
+for resolution, fps in configurations:
+    run_test(resolution, fps)
 
 test.print_results_and_exit()

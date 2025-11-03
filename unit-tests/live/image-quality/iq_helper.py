@@ -7,7 +7,7 @@ import cv2
 import time
 import pyrealsense2 as rs
 
-
+# targets are available on the Wiki page: https://rsconf.realsenseai.com/display/RealSense/Image+Quality+Tests
 # standard size to display / process the target
 WIDTH = 1280
 HEIGHT = 720
@@ -101,3 +101,7 @@ def get_roi_from_frame(frame):
     np_frame = np.asanyarray(frame.get_data())
     warped = cv2.warpPerspective(np_frame, M, (WIDTH, HEIGHT)) # using A4 size for its ratio
     return warped
+
+
+def is_color_close(actual, expected, tolerance):
+    return all(abs(int(a) - int(e)) <= tolerance for a, e in zip(actual, expected))
