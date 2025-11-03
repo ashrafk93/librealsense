@@ -52,7 +52,11 @@ int main(int argc, char * argv[]) try
     ImGui::CreateContext();
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(app, false);
+#ifdef __APPLE__
+    ImGui_ImplOpenGL3_Init("#version 120");
+#else
     ImGui_ImplOpenGL3_Init();
+#endif
     rs2::colorizer c;                     // Helper to colorize depth images
     texture depth_image, color_image;     // Helpers for renderig images
 
