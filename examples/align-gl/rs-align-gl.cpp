@@ -56,11 +56,7 @@ int main(int argc, char * argv[]) try
     ImGui::CreateContext();
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(app, false);
-#ifdef __APPLE__
-    ImGui_ImplOpenGL3_Init("#version 120");
-#else
     ImGui_ImplOpenGL3_Init();
-#endif
 
     // Once we have a window, initialize GL module
     // Pass our window to enable sharing of textures between processed frames and the window

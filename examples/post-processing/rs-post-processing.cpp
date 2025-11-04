@@ -59,11 +59,7 @@ int main(int argc, char * argv[]) try
     ImGui::CreateContext();
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(app, false);
-#ifdef __APPLE__
-    ImGui_ImplOpenGL3_Init("#version 120");
-#else
     ImGui_ImplOpenGL3_Init();
-#endif
 
     // Construct objects to manage view state
     glfw_state original_view_orientation{};

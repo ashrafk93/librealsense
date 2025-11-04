@@ -110,11 +110,7 @@ int main() try
     ImGui::CreateContext();
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(app, false);
-#ifdef __APPLE__
-    ImGui_ImplOpenGL3_Init("#version 120");
-#else
     ImGui_ImplOpenGL3_Init();
-#endif
 
     // init hdr_widgets object
     // hdr_widgets holds the sliders, the text boxes and the frames_map
