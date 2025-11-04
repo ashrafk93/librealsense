@@ -526,7 +526,7 @@ namespace rs2
             ImGui::SameLine();
         }
         
-        label = rsutils::string::from() << textual_icons::metadata << "##Metadata" << profile.unique_id();
+        label = rsutils::string::from() << textual_icons::list_ul << "##Metadata" << profile.unique_id();
         if (show_metadata)
         {
             ImGui::PushStyleColor(ImGuiCol_Text, light_blue);
@@ -589,7 +589,7 @@ namespace rs2
 
         if (RS2_STREAM_OCCUPANCY == profile.stream_type() && _normalized_zoom.w == 1) // hide polygons button when zooming in
         {
-            label = rsutils::string::from() << textual_icons::polygon << "##Safety zones";
+            label = rsutils::string::from() << textual_icons::draw_polygon << "##Safety zones";
             if (show_safety_zones_2d)
             {
                 ImGui::PushStyleColor(ImGuiCol_Text, light_blue);

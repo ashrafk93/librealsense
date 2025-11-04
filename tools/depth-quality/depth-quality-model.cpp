@@ -182,7 +182,9 @@ namespace rs2
             if (!_roi_located.eval())
             {
                 draw_notification(win, viewer_rect, 450,
-                    u8"\n   \uf1b2  Please point the camera to a flat Wall / Surface!",
+                    std::string(rsutils::string::from()
+                        << "\n   " << textual_icons::cube
+                        << "  Please point the camera to a flat Wall / Surface!"),
                     "");
                 return false;
             }
@@ -214,7 +216,9 @@ namespace rs2
             if (_skew_right.eval())
             {
                 draw_notification(win, viewer_rect, 400,
-                    u8"\n          \uf061  Rotate the camera slightly Right",
+                    std::string(rsutils::string::from()
+                        << "\n          " << textual_icons::arrow_right
+                        << "  Rotate the camera slightly Right"),
                     orientation_instruction);
                 return false;
             }
@@ -222,15 +226,20 @@ namespace rs2
             if (_skew_left.eval())
             {
                 draw_notification(win, viewer_rect, 400,
-                    u8"\n           \uf060  Rotate the camera slightly Left",
+                    std::string(rsutils::string::from()
+                        << "\n          " << textual_icons::arrow_left
+                        << "  Rotate the camera slightly Left"),
                     orientation_instruction);
                 return false;
             }
 
             if (_skew_up.eval())
             {
+
                 draw_notification(win, viewer_rect, 400,
-                    u8"\n            \uf062  Rotate the camera slightly Up",
+                    std::string(rsutils::string::from() 
+                        << "\n            " << textual_icons::arrow_up 
+                        << "  Rotate the camera slightly Up"),
                     orientation_instruction);
                 return false;
             }
@@ -238,7 +247,9 @@ namespace rs2
             if (_skew_down.eval())
             {
                 draw_notification(win, viewer_rect, 400,
-                    u8"\n          \uf063  Rotate the camera slightly Down",
+                    std::string(rsutils::string::from()
+                        << "\n            " << textual_icons::arrow_down
+                        << "  Rotate the camera slightly Down"),
                     orientation_instruction);
                 return false;
             }
@@ -246,7 +257,9 @@ namespace rs2
             if (_too_close.eval())
             {
                 draw_notification(win, viewer_rect, 400,
-                    u8"\n          \uf0b2  Move the camera further Away",
+                    std::string(rsutils::string::from()
+                        << "\n            " << textual_icons::up_down_left_right
+                        << "  Move the camera further Away"),
                     distance_instruction);
                 distance = true;
                 return true; // Show metrics even when too close/far
@@ -255,7 +268,9 @@ namespace rs2
             if (_too_far.eval())
             {
                 draw_notification(win, viewer_rect, 400,
-                    u8"\n        \uf066  Move the camera Closer to the wall",
+                    std::string(rsutils::string::from()
+                        << "\n            " << textual_icons::compress
+                        << "  Move the camera Closer to the wall"),
                     distance_instruction);
                 distance = true;
                 return true;
@@ -296,10 +311,6 @@ namespace rs2
 
             ImGui::PushStyleColor(ImGuiCol_Text,
                 blend(light_grey, any_guide ? 1.f : fade_factor));
-
-            //ImGui::PushFont(win.get_large_font());
-            //ImGui::Text(u8"\uf1e5 ");
-            //ImGui::PopFont();
 
             ImGui::PopStyleColor();
             ImGui::PushStyleColor(ImGuiCol_Text,
@@ -419,7 +430,7 @@ namespace rs2
                                     ImGui::SetCursorPos({ pos.x + 57, pos.y + bar_spacing * (i - j) + 14 });
                                     ImGui::PushStyleColor(ImGuiCol_Text,
                                         blend(blend(light_grey, alpha), distance_guide ? 1.f : fade_factor));
-                                    ImGui::Text(u8"\uf106");
+                                    ImGui::Text(textual_icons::angle_right);
                                     ImGui::PopStyleColor();
                                 }
                             }
@@ -434,7 +445,7 @@ namespace rs2
                                     ImGui::SetCursorPos({ pos.x + 57, pos.y + bar_spacing * (i + j) + 14 });
                                     ImGui::PushStyleColor(ImGuiCol_Text,
                                         blend(blend(light_grey, alpha), distance_guide ? 1.f : fade_factor));
-                                    ImGui::Text(u8"\uf107");
+                                    ImGui::Text(textual_icons::angle_left);
                                     ImGui::PopStyleColor();
                                 }
                             }
@@ -809,14 +820,14 @@ namespace rs2
                         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, white);
                         if (_metrics_model.is_recording())
                         {
-                            if (ImGui::Button(u8"\uf0c7 Stop_record", { 140, 25 }))
+                            if (ImGui::Button(textual_icons::save, { 140, 25 }))
                             {
                                 _metrics_model.stop_record(_device_model.get());
                             }
                         }
                         else
                         {
-                            if (ImGui::Button(u8"\uf0c7 Start_record", { 140, 25 }))
+                            if (ImGui::Button(textual_icons::save, { 140, 25 }))
                             {
                                 if (_use_limit_capture)
                                 {
@@ -1229,7 +1240,7 @@ namespace rs2
                 auto col0 = ImGui::GetCursorPos();
                 ImGui::SetCursorPosX(left_x);
                 ImGui::PushFont(win.get_large_font());
-                ImGui::Text(u8"\uf102");
+                ImGui::Text(textual_icons::angle_double_up);
                 if (ImGui::IsItemHovered())
                 {
                     RsImGui::CustomTooltip("This metric shows positive trend");
@@ -1245,7 +1256,7 @@ namespace rs2
                 auto col0 = ImGui::GetCursorPos();
                 ImGui::SetCursorPosX(left_x);
                 ImGui::PushFont(win.get_large_font());
-                ImGui::Text(u8"\uf103");
+                ImGui::Text(textual_icons::angle_double_down);
                 if (ImGui::IsItemHovered())
                 {
                     RsImGui::CustomTooltip("This metric shows negative trend");

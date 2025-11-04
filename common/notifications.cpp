@@ -424,7 +424,7 @@ namespace rs2
                 ImGui::PushStyleColor(ImGuiCol_Button, transparent);
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, transparent);
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, transparent);
-                string id = rsutils::string::from() << textual_icons::dotdotdot << "##" << index;
+                string id = rsutils::string::from() << textual_icons::ellipsis_h << "##" << index;
                 if (ImGui::Button(id.c_str()))
                 {
                     selected = shared_from_this();
@@ -871,7 +871,7 @@ namespace rs2
 
             ImGui::SetCursorScreenPos({ float(x + 10), float(y + 35) });
             ImGui::PushFont(win.get_large_font());
-            std::string txt = rsutils::string::from() << textual_icons::throphy;
+            std::string txt = rsutils::string::from() << textual_icons::trophy;
             ImGui::Text("%s", txt.c_str());
             ImGui::PopFont();
 
@@ -1151,7 +1151,7 @@ namespace rs2
 
         ImGui::SetCursorScreenPos({ float(x + 10), float(y + 35) });
         ImGui::PushFont(win.get_large_font());
-        std::string txt = rsutils::string::from() << textual_icons::throphy;
+        std::string txt = rsutils::string::from() << textual_icons::trophy;
         ImGui::Text("%s", txt.c_str());
         ImGui::PopFont();
 

@@ -355,7 +355,7 @@ namespace rs2
 
         ImGui::SetCursorScreenPos({ float(x + 10), float(y + 35) });
         ImGui::PushFont(win.get_large_font());
-        std::string txt = rsutils::string::from() << textual_icons::throphy;
+        std::string txt = rsutils::string::from() << textual_icons::trophy;
         ImGui::Text("%s", txt.c_str());
         ImGui::PopFont();
 

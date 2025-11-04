@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <rsutils/string/string-utilities.h>
 #include <realsense_imgui.h>
+#include "textual-icons.h"
 
 #define TEXT_BUFF_SIZE 1024
 
@@ -20,7 +21,8 @@ bool* draw_edit_button(const char* id, T val, std::string*& val_str)
     ImGui::SetCursorPosX(268);
     if (!edit_mode[id])
     {
-        std::string edit_id = rsutils::string::from() << u8"\uf044##" << id;
+        std::string edit_id = rsutils::string::from() 
+            << rs2::textual_icons::edit << "##" << id;
         ImGui::PushStyleColor(ImGuiCol_Text,  { 0.8f, 0.8f, 0.8f, 1.f });
         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, { 0.8f, 0.8f, 0.8f, 1.f } );
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 1.f,1.f,1.f,0.f });
@@ -38,7 +40,8 @@ bool* draw_edit_button(const char* id, T val, std::string*& val_str)
     }
     else
     {
-        std::string edit_id = rsutils::string::from() << u8"\uf044##" << id;
+        std::string edit_id = rsutils::string::from()   
+            << rs2::textual_icons::edit << "##" << id;
         ImGui::PushStyleColor(ImGuiCol_Text,  { 0.8f, 0.8f, 1.f, 1.f });
         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg,  { 0.8f, 0.8f, 1.f, 1.f });
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 1.f,1.f,1.f,0.f });

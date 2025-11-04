@@ -297,7 +297,7 @@ namespace rs2
         ImGui::PushFont(font);
         if (dropdown)
         {
-            clicked = clicked || ImGui::Button(u8"\uf078", { font_size, 55 } );
+            clicked = clicked || ImGui::Button(textual_icons::chevron_down, { font_size, 55 } );
             hovered = hovered || ImGui::IsItemHovered();
         }
 
@@ -462,7 +462,7 @@ namespace rs2
         bool default_view = (pos - float3{ 0.f, 0.f, -1.f }).length() < 0.001f &&
                             (target - float3{ 0.f, 0.f, 0.f }).length() < 0.001f;
         bool active = false;
-        if (big_button(&active, win, 5 + left, 0, u8"\uf01e", "Reset", false, !default_view, "Reset 3D viewport to initial state"))
+        if (big_button(&active, win, 5 + left, 0, textual_icons::rotate, "Reset", false, !default_view, "Reset 3D viewport to initial state"))
         {
             reset_camera();
         }
@@ -497,8 +497,7 @@ namespace rs2
         // ------------ Depth Selection --------------
 
         const auto source_selection_popup = "Source Selection";
-
-        if (big_button(&select_3d_source, win, left, 0, u8"\uf1b2",
+        if (big_button(&select_3d_source, win, left, 0, textual_icons::cube,
                        "Source", true,
                        has_stream,
                        "List of available 3D data sources"))
@@ -553,7 +552,7 @@ namespace rs2
         ImVec4 text_color = light_grey * (1.f - t) + light_blue * t;
 
         const auto tex_selection_popup = "Tex Selection";
-        if (big_button(&select_tex_source, win, left, 0, u8"\uf576",
+        if (big_button(&select_tex_source, win, left, 0, textual_icons::palette,
                        "Texture", true,
                        has_stream,
                        "List of available texture sources", text_color))
@@ -591,7 +590,7 @@ namespace rs2
 
         // ------------ Shader Selection --------------
         const auto shader_selection_popup = "Shading Selection";
-        if (big_button(&select_shader_source, win, left, 0, u8"\uf5aa",
+        if (big_button(&select_shader_source, win, left, 0, textual_icons::adjust,
                        "Shading", true, true,
                        "List of available shading modes"))
         {
@@ -643,7 +642,7 @@ namespace rs2
         if (_measurements.is_enabled())
         {
             bool active = true;
-            if (big_button(&active, win, 5 + left, 0, textual_icons::measure, "Measure", false, glsl_available, measure_tooltip.c_str()))
+            if (big_button(&active, win, 5 + left, 0, textual_icons::ruler, "Measure", false, glsl_available, measure_tooltip.c_str()))
             {
                 _measurements.disable();
             }
@@ -651,7 +650,7 @@ namespace rs2
         else
         {
             bool active = false;
-            if (big_button(&active, win, 5 + left, 0, textual_icons::measure, "Measure", false, glsl_available, measure_tooltip.c_str()))
+            if (big_button(&active, win, 5 + left, 0, textual_icons::ruler, "Measure", false, glsl_available, measure_tooltip.c_str()))
             {
                 _measurements.enable();
             }
@@ -664,7 +663,7 @@ namespace rs2
         set_export_popup(large_font, font, stream_rect, error_message, temp_cfg);
 
         active = false;
-        if (big_button(&active, win, 5 + left, 0, textual_icons::floppy, "Export", false, last_points, "Export 3D model to 3rd-party application"))
+        if (big_button(&active, win, 5 + left, 0, textual_icons::save, "Export", false, last_points, "Export 3D model to 3rd-party application"))
         {
             _measurements.disable();
             temp_cfg = config_file::instance();
@@ -725,7 +724,7 @@ namespace rs2
             if (show_safety_zones_3d)
             {
                 bool active = true;
-                if (big_button(&active, win, left, 0, textual_icons::polygon,
+                if (big_button(&active, win, left, 0, textual_icons::draw_polygon,
                     "S. Zones", false, true,
                     "Show/hide Safety Zones"))
                 {
@@ -736,7 +735,7 @@ namespace rs2
             else
             {
                 bool active = false;
-                if (big_button(&active, win, left, 0, textual_icons::polygon,
+                if (big_button(&active, win, left, 0, textual_icons::draw_polygon,
                     "S. Zones", false, true,
                     "Show/hide Safety Zones"))
                 {
@@ -2425,7 +2424,7 @@ namespace rs2
         ImGui::PushStyleColor(ImGuiCol_Text, !settings_open ? light_grey : light_blue);
         ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, !settings_open ? light_grey : light_blue);
 
-        if (ImGui::Button(u8"\uf013", { panel_y,panel_y }))
+        if (ImGui::Button(textual_icons::cog, { panel_y,panel_y }))
         {
             ImGui::OpenPopup("More Options");
         }
@@ -2443,7 +2442,7 @@ namespace rs2
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_color);
             ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
             ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, light_red);
-            if (ImGui::Button(textual_icons::exit, { panel_y,panel_y }))
+            if (ImGui::Button(textual_icons::power_off, { panel_y,panel_y }))
             {
                 exit(0);
             }
@@ -2713,7 +2712,10 @@ namespace rs2
                     if (gpu_processing && !gpu_rendering)
                     {
                         ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-                        ImGui::Text(u8"\uf071 Using GLSL for processing but not for rendering can reduce CPU utilisation, but is likely to hurt overall performance!");
+                        std::string excl_icon_str = std::string(rsutils::string::from()
+                            << textual_icons::exclamation_triangle
+                            << " Using GLSL for processing but not for rendering can reduce CPU utilisation, but is likely to hurt overall performance!");
+                        ImGui::Text(excl_icon_str.c_str());
                         ImGui::PopStyleColor();
                     }
 #endif
@@ -2967,7 +2969,11 @@ namespace rs2
                         }
                     }
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 0.8f));
-                    ImGui::Text(u8"\uf071 DDS changes will take effect only after restarting the application ");
+                    
+                    std::string excl_icon_str = std::string(rsutils::string::from() 
+                        << textual_icons::exclamation_triangle 
+                        << " DDS changes will take effect only after restarting the application");
+                    ImGui::Text(excl_icon_str.c_str());
                     ImGui::PopStyleColor();
 
                 }
@@ -3042,7 +3048,10 @@ namespace rs2
                 if (reload_required)
                 {
                     ImGui::PushStyleColor(ImGuiCol_Text, light_grey);
-                    ImGui::Text(u8"\uf071 The application will be restarted in order for new settings to take effect");
+                    std::string excl_icon_str = std::string(rsutils::string::from()
+                        << textual_icons::exclamation_triangle
+                        << " The application will be restarted in order for new settings to take effect");
+                    ImGui::Text(excl_icon_str.c_str());
                     ImGui::PopStyleColor();
                 }
 

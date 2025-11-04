@@ -286,7 +286,8 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
 
         ImGui::SetCursorPosX(w / 2 - 260 / 2);
-        if (ImGui::Button(u8"\uF07C Load...", ImVec2(70, 30)))
+        std::string load_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Load...");
+        if (ImGui::Button(load_str.c_str(), ImVec2(70, 30)))
         {
             try
             {
@@ -338,7 +339,8 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
             RsImGui::CustomTooltip("%s", "Load calibration from file");
         }
         ImGui::SameLine();
-        if (ImGui::Button(u8"\uF0C7 Save As...", ImVec2(100, 30)))
+        std::string save_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Save As...");
+        if (ImGui::Button(save_str.c_str(), ImVec2(100, 30)))
         {
             try
             {
@@ -396,7 +398,8 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
         ImGui::SameLine();
         if (_accept)
         {
-            if (ImGui::Button(u8"\uF275 Restore Factory", ImVec2(120, 30)))
+            std::string restore_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Restore Factory");
+            if (ImGui::Button(restore_str.c_str(), ImVec2(120, 30)))
             {
                 try
                 {
@@ -430,7 +433,8 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
             ImGui::PushStyleColor(ImGuiCol_Text, grey);
             ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, grey);
 
-            ImGui::Button(u8"\uF275 Restore Factory", ImVec2(120, 30));
+            std::string restore_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Restore Factory");
+            ImGui::Button(restore_str.c_str(), ImVec2(120, 30));
             if (ImGui::IsItemHovered())
             {
                 RsImGui::CustomTooltip("%s", "Write selected calibration table to the device. For advanced users");
@@ -549,7 +553,8 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
         auto streams = depth_sensor.get_active_streams();
         if (_accept && streams.size())
         {
-            if (ImGui::Button(u8"\uF2DB  Write Table", ImVec2(120, 25)))
+            std::string write_str = std::string(rsutils::string::from() << textual_icons::microchip << " Write Table");
+            if (ImGui::Button(write_str.c_str(), ImVec2(120, 25)))
             {
                 try
                 {
@@ -580,7 +585,8 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
             ImGui::PushStyleColor(ImGuiCol_Text, grey);
             ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, grey);
 
-            ImGui::Button(u8"\uF2DB  Write Table", ImVec2(120, 25));
+            std::string write_str = std::string(rsutils::string::from() << textual_icons::microchip << " Write Table");
+            ImGui::Button(write_str.c_str(), ImVec2(120, 25));
             if (ImGui::IsItemHovered())
             {
                 RsImGui::CustomTooltip("%s", "Write selected calibration table to the device. Requires \"Stereo Module\" stream to be on.For advanced users");
@@ -656,7 +662,8 @@ void calibration_model::d500_update( ux_window & window, std::string & error_mes
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
 
         ImGui::SetCursorPosX(w / 2 - 260 / 2);
-        if (ImGui::Button(u8"\uF07C Load...", ImVec2(70, 30)))
+        std::string load_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Load...");
+        if (ImGui::Button(load_str.c_str(), ImVec2(70, 30)))
         {
             try
             {
@@ -716,7 +723,8 @@ void calibration_model::d500_update( ux_window & window, std::string & error_mes
             RsImGui::CustomTooltip("%s", "Load calibration from file");
         }
         ImGui::SameLine();
-        if (ImGui::Button(u8"\uF0C7 Save As...", ImVec2(100, 30)))
+        std::string save_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Save As...");
+        if (ImGui::Button(save_str.c_str(), ImVec2(100, 30)))
         {
             try
             {
@@ -775,7 +783,8 @@ void calibration_model::d500_update( ux_window & window, std::string & error_mes
         ImGui::SameLine();
         if (_accept)
         {
-            if (ImGui::Button(u8"\uF275 Restore Factory", ImVec2(120, 30)))
+            std::string restore_str = std::string(rsutils::string::from() << textual_icons::industry << " Restore Factory");
+            if (ImGui::Button(restore_str.c_str(), ImVec2(120, 30)))
             {
                 try
                 {
@@ -809,7 +818,8 @@ void calibration_model::d500_update( ux_window & window, std::string & error_mes
             ImGui::PushStyleColor(ImGuiCol_Text, grey);
             ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, grey);
 
-            ImGui::Button(u8"\uF275 Restore Factory", ImVec2(120, 30));
+            std::string restore_str = std::string(rsutils::string::from() << textual_icons::industry << " Restore Factory");
+            ImGui::Button(restore_str.c_str(), ImVec2(120, 30));
             if (ImGui::IsItemHovered())
             {
                 RsImGui::CustomTooltip("%s", "Write selected calibration table to the device. For advanced users");
@@ -899,7 +909,8 @@ void calibration_model::d500_update( ux_window & window, std::string & error_mes
 
         if (_accept)
         {
-            if (ImGui::Button(u8"\uF2DB  Write Table", ImVec2(120, 25)))
+            std::string write_str = std::string(rsutils::string::from() << textual_icons::microchip << " Write Table");
+            if (ImGui::Button(write_str.c_str(), ImVec2(120, 25)))
             {
                 try
                 {
@@ -930,7 +941,8 @@ void calibration_model::d500_update( ux_window & window, std::string & error_mes
             ImGui::PushStyleColor(ImGuiCol_Text, grey);
             ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, grey);
 
-            ImGui::Button(u8"\uF2DB  Write Table", ImVec2(120, 25));
+            std::string write_str = std::string(rsutils::string::from() << textual_icons::microchip << " Write Table");
+            ImGui::Button(write_str.c_str(), ImVec2(120, 25));
             if (ImGui::IsItemHovered())
             {
                 RsImGui::CustomTooltip("%s", "Write selected calibration table to the device. For advanced users");
