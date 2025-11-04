@@ -96,10 +96,12 @@ namespace rs2
 
     struct textual_icon
     {
-        explicit constexpr textual_icon(const char(&unicode_icon)[4]) :
-            _icon{ unicode_icon[0], unicode_icon[1], unicode_icon[2], unicode_icon[3] }
+        template<typename CharT, std::size_t N>
+        explicit constexpr textual_icon(const CharT(&unicode_icon)[N])
+            : _icon{ unicode_icon[0], unicode_icon[1], unicode_icon[2], unicode_icon[3], '\0' }
         {
         }
+
         operator const char* () const
         {
             return _icon.data();
