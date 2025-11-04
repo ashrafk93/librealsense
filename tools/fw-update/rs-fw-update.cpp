@@ -547,7 +547,7 @@ try
                 upd.enter_update_state();
 
                 // Some devices may immediately get in an update state?
-                if (d.is_in_recovery_mode())
+                if (d.is< rs2::update_device >())
                 {
                     new_fw_update_device = d;
                 }
