@@ -32,7 +32,6 @@ int main(int argc, char * argv[]) try
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(app, false);
     ImGui_ImplOpenGL3_Init();
-
     rs2::colorizer c;                     // Helper to colorize depth images
     texture renderer;                     // Helper for renderig images
 
