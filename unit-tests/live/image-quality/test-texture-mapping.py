@@ -79,10 +79,6 @@ dev, ctx = test.find_first_device_or_exit()
 
 def run_test(depth_resolution, depth_fps, color_resolution, color_fps):
     try:
-        test.start("Texture Mapping Test",
-                   f"Color: {color_resolution[0]}x{color_resolution[1]}@{color_fps}fps, "
-                   f"Depth: {depth_resolution[0]}x{depth_resolution[1]}@{depth_fps}fps")
-
         pipeline = rs.pipeline(ctx)
         cfg = rs.config()
         cfg.enable_stream(rs.stream.depth, depth_resolution[0], depth_resolution[1], rs.format.z16, depth_fps)
@@ -195,7 +191,11 @@ color_configs = depth_configs
 
 for depth_cfg in depth_configs:
     for color_cfg in color_configs:
+        test.start("Texture Mapping Test",
+                   f"Color: {color_cfg[0][0]}x{color_cfg[0][1]}@{color_cfg[1]}fps | "
+                   f"Depth: {depth_cfg[0][0]}x{depth_cfg[0][1]}@{depth_cfg[1]}fps")
         run_test(*depth_cfg, *color_cfg)
+        test.finish()
 
 
 test.print_results_and_exit()

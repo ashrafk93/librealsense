@@ -21,7 +21,6 @@ DISTANCE_FROM_BACKGROUND = 0.67
 dev, ctx = test.find_first_device_or_exit()
 
 def run_test(resolution, fps):
-    test.start("Basic Depth Image Quality Test", f"{resolution[0]}x{resolution[1]} @ {fps}fps")
 
     try:
         pipeline = rs.pipeline(ctx)
@@ -91,7 +90,6 @@ def run_test(resolution, fps):
     finally:
         cv2.destroyAllWindows()
         pipeline.stop()
-        test.finish()
 
 
 log.d("context:", test.context)
@@ -112,6 +110,8 @@ if "nightly" in test.context:
     ]
 
 for resolution, fps in configurations:
+    test.start("Basic Depth Image Quality Test", f"{resolution[0]}x{resolution[1]} @ {fps}fps")
     run_test(resolution, fps)
+    test.finish()
 
 test.print_results_and_exit()
