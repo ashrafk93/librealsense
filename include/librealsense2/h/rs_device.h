@@ -87,6 +87,12 @@ int rs2_supports_device_info(const rs2_device* device, rs2_camera_info info, rs2
 void rs2_hardware_reset(const rs2_device * device, rs2_error ** error);
 
 /**
+* Check if a camera is in recovery mode
+* \param[in]  device    The RealSense device to check
+* \param[out] error     If non-null, receives any error that occurs during this call, otherwise, errors are ignored*/
+int rs2_is_in_recovery_mode(const rs2_device* device, rs2_error** error);
+
+/**
 * Build debug_protocol raw data command from opcode, parameters and data.
 * The result can be used as raw_data_to_send parameter in send_and_receive_raw_data
 * \param[in]  device                    RealSense device to send data to

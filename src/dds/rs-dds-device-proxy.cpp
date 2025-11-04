@@ -659,6 +659,11 @@ void dds_device_proxy::hardware_reset()
     _dds_dev->send_control( control, &reply );
 }
 
+bool dds_device_proxy::is_in_recovery_mode() const
+{
+    return _dds_dev->device_info().is_recovery();
+}
+
 std::string dds_device_proxy::get_opcode_string(int opcode) const
 {
     std::string product_line = get_info(RS2_CAMERA_INFO_PRODUCT_LINE);

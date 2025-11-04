@@ -82,6 +82,8 @@ public:
 
     void hardware_reset() override;
 
+    bool is_in_recovery_mode() const override;
+
     // calibration_change_device
 public:
     void register_calibration_change_callback( rs2_calibration_change_callback_sptr callback ) override

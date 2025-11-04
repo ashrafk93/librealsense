@@ -318,7 +318,7 @@ try
 
         for (auto&& d : devs)
         {
-            if (!d.is< rs2::update_device >())
+            if (!d.is_in_recovery_mode())
                 continue;
             auto sn = d.get_info(RS2_CAMERA_INFO_FIRMWARE_UPDATE_ID);
             if (!selected_serial_number.empty() && sn != selected_serial_number)
@@ -343,9 +343,7 @@ try
             ctx.set_devices_changed_callback([&](rs2::event_information& info) {
                 for (auto&& d : info.get_new_devices())
                 {
-                    // assuming that if there are no sensors we are in recovery mode - not checking using is<update_device>
-                    // because DDS devices always return true
-                    if (d.query_sensors().size() == 0) 
+                    if (d.is_in_recovery_mode()) 
                         continue;
                     auto recovery_sn = d.get_info(RS2_CAMERA_INFO_FIRMWARE_UPDATE_ID);
                     if (recovery_sn == update_serial_number)
@@ -361,8 +359,11 @@ try
                 });
             std::cout << std::endl << "Recovering device: " << std::endl;
             print_device_info(recovery_device);
-
-            if (!is_fw_compatible(recovery_device, fw_image))
+            
+            std::string camera_name = recovery_device.get_info(RS2_CAMERA_INFO_NAME);
+            // on D555 check FW compatibility also sends FW to the device
+            if (camera_name.find("D555") != std::string::npos &&
+                (!is_fw_compatible(recovery_device, fw_image)))
                 return EXIT_FAILURE;
 
             update(recovery_device, fw_image);
@@ -406,7 +407,7 @@ try
             for (auto&& d : info.get_new_devices())
             {
                 std::lock_guard<std::mutex> lk(mutex);
-                if (d.is<rs2::update_device>() && (d.get_info(RS2_CAMERA_INFO_FIRMWARE_UPDATE_ID) == update_serial_number))
+                if (d.is_in_recovery_mode() && (d.get_info(RS2_CAMERA_INFO_FIRMWARE_UPDATE_ID) == update_serial_number))
                     new_fw_update_device = d;
                 else
                     new_device = d;
@@ -426,7 +427,7 @@ try
     if (devs.size() == 1)
     {
         auto dev = devs[0];
-        if (dev.is< rs2::update_device >() && !dev.is< rs2::updatable >())
+        if (dev.is_in_recovery_mode() && !dev.is< rs2::updatable >())
         {
             std::cout << std::endl << "Device is in recovery mode, use -r to recover" << std::endl << std::endl;
             return EXIT_FAILURE;
@@ -546,7 +547,7 @@ try
                 upd.enter_update_state();
 
                 // Some devices may immediately get in an update state?
-                if (d.is< rs2::update_device >())
+                if (d.is_in_recovery_mode())
                 {
                     new_fw_update_device = d;
                 }

@@ -59,6 +59,8 @@ public:
 
     virtual bool is_valid() const = 0;
 
+    virtual bool is_in_recovery_mode() const = 0;
+
     virtual std::vector< tagged_profile > get_profiles_tags() const = 0;
 
     using stream_profiles = std::vector< std::shared_ptr< stream_profile_interface > >;

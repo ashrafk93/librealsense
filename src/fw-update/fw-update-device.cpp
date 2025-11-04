@@ -398,6 +398,11 @@ namespace librealsense
         return true;
     }
 
+    bool update_device::is_in_recovery_mode() const
+    {
+        return true;
+    }
+
     std::vector<tagged_profile> update_device::get_profiles_tags() const
     {
         return std::vector<tagged_profile>();

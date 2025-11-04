@@ -133,6 +133,8 @@ namespace librealsense
 
         virtual bool is_valid() const override;
 
+        virtual bool is_in_recovery_mode() const override;
+
         virtual std::vector<tagged_profile> get_profiles_tags() const override;
 
         virtual void tag_profiles(stream_profiles profiles) const override;
