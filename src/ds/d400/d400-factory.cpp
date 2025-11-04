@@ -812,9 +812,11 @@ namespace librealsense
                   dev_info, d400_device::_hw_monitor, get_firmware_logs_command(), get_flash_logs_command() )
         {
             check_and_restore_rgb_stream_extrinsic();
+#if !defined(__APPLE__) // Motion sensors not supported on macOS
             if( _fw_version >= firmware_version( 5, 16, 0, 0 ) )
                 register_feature(
                     std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
+#endif
         }
 
 
@@ -1147,9 +1149,11 @@ namespace librealsense
                   dev_info, d400_device::_hw_monitor, get_firmware_logs_command(), get_flash_logs_command() )
             , ds_thermal_tracking( d400_device::_thermal_monitor )
         {
+#if !defined(__APPLE__) // Motion sensors not supported on macOS
             if( _fw_version >= firmware_version( 5, 16, 0, 0 ) )
                 register_feature(
                     std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
+#endif
         }
 
         std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
