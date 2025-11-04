@@ -72,7 +72,6 @@ def draw_debug(frame_bgr, a4_page_bgr):
 
 
 def run_test(resolution, fps):
-    test.start("Basic Color Image Quality Test:", f"{resolution[0]}x{resolution[1]} @ {fps}fps")
     color_match_count = {color: 0 for color in expected_colors.keys()}
     pipeline = rs.pipeline(ctx)
     cfg = rs.config()
@@ -129,7 +128,6 @@ def run_test(resolution, fps):
     finally:
         cv2.destroyAllWindows()
         pipeline.stop()
-        test.finish()
 
 
 log.d("context:", test.context)
@@ -150,6 +148,8 @@ if "nightly" in test.context:
     ]
 
 for resolution, fps in configurations:
+    test.start("Basic Color Image Quality Test:", f"{resolution[0]}x{resolution[1]} @ {fps}fps")
     run_test(resolution, fps)
+    test.finish()
 
 test.print_results_and_exit()
