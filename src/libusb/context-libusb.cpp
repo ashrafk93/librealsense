@@ -10,21 +10,47 @@ namespace librealsense
     {       
         usb_context::usb_context() : _ctx(NULL), _list(NULL), _count(0)
         {
-            auto sts = libusb_init(&_ctx);
-            if(sts != LIBUSB_SUCCESS)
-            {
-                LOG_ERROR("libusb_init failed");
+            LOG_INFO("Attempting libusb_init...");
+            try {
+                auto sts = libusb_init(&_ctx);
+                LOG_INFO("libusb_init returned status: " << sts);
+                if(sts != LIBUSB_SUCCESS)
+                {
+                    LOG_ERROR("libusb_init failed with status: " << sts);
+                    _ctx = nullptr;
+                    _list = nullptr;
+                    _count = 0;
+                }
+                else
+                {
+                    LOG_INFO("libusb_init succeeded, getting device list...");
+                    _count = libusb_get_device_list(_ctx, &_list);
+                    LOG_INFO("Found " << _count << " USB devices");
+                }
             }
-            _count = libusb_get_device_list(_ctx, &_list);
+            catch(const std::exception& e) {
+                LOG_ERROR("Exception during libusb_init: " << e.what());
+                _ctx = nullptr;
+                _list = nullptr;
+                _count = 0;
+            }
+            catch(...) {
+                LOG_ERROR("Unknown exception during libusb_init");
+                _ctx = nullptr;
+                _list = nullptr;
+                _count = 0;
+            }
         }
         
         usb_context::~usb_context()
         {
-            libusb_free_device_list(_list, true);
+            if (_list)
+                libusb_free_device_list(_list, true);
             assert(_handler_requests == 0); // we need the last libusb_close to trigger an event to stop the event thread
             if (_event_handler.joinable())
                 _event_handler.join();
-            libusb_exit(_ctx);
+            if (_ctx)
+                libusb_exit(_ctx);
         }
         
         libusb_context* usb_context::get()
@@ -34,6 +60,8 @@ namespace librealsense
     
         void usb_context::start_event_handler()
         {
+            if (!_ctx) return; // Skip if libusb initialization failed
+            
             std::lock_guard<std::mutex> lk(_mutex);
             if (!_handler_requests) {
                 // see "Applications which do not use hotplug support" in libusb's io.c
