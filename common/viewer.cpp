@@ -853,7 +853,8 @@ namespace rs2
                     + "99-realsense-libusb.rules";
 
                 std::ofstream out(tmp_filename.c_str());
-                out << realsense_udev_rules;
+                std::string tmp = std::string(realsense_udev_rules, sizeof(realsense_udev_rules));
+                out << tmp;
                 out.close();
             }
         }
