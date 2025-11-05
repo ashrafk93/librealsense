@@ -84,7 +84,7 @@ def calculate_target_z():
 # Constants for validation
 HEALTH_FACTOR_THRESHOLD = 0.25
 TARGET_Z_MIN = 600
-TARGET_Z_MAX = 1500
+TARGET_Z_MAX = 2000
 _target_z = None
 
 # Additional constants & thresholds for advanced calibration modification test

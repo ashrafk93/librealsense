@@ -16,7 +16,7 @@ from test_calibrations_common import (
 )
 
 # Constants & thresholds (reintroduce after import fix)
-PIXEL_CORRECTION = -1.5  # pixel shift to apply to principal point
+PIXEL_CORRECTION = -2.0  # pixel shift to apply to principal point
 EPSILON = 0.001         # distance comparison tolerance
 HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.75
 
