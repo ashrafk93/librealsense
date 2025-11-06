@@ -497,7 +497,7 @@ namespace rs2
         // ------------ Depth Selection --------------
 
         const auto source_selection_popup = "Source Selection";
-        if (big_button(&select_3d_source, win, left, 0, textual_icons::cube,
+        if (big_button(&select_3d_source, win, left, 0, textual_icons::cube_dup,
                        "Source", true,
                        has_stream,
                        "List of available 3D data sources"))
