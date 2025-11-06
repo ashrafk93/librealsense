@@ -80,8 +80,8 @@ namespace rs2
         static const textual_icon angle_left{ u8"\uf107" };
         static const textual_icon circle{ u8"\uf111" };
         static const textual_icon minus_square_o{ u8"\uf120" };
-        static const textual_icon folder_open_o{ u8"\uf137" };
-        static const textual_icon folder_o{ u8"\uf13a" };
+        static const textual_icon circle_chevron_up{ u8"\uf139" };
+        static const textual_icon circle_chevron_down{ u8"\uf13a" };
         static const textual_icon check_square_o{ u8"\uf14a" };
         static const textual_icon cube{ u8"\uf1b2" };
         static const textual_icon cubes{ u8"\uf1b3" };
