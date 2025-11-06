@@ -19,7 +19,6 @@ namespace librealsense
                 LOG_DEBUG("Attempting libusb_init (attempt " << (attempt + 1) << "/" << max_retries << ")...");
                 try {
                     auto sts = libusb_init(&_ctx);
-                    LOG_INFO("libusb_init returned status: " << sts);
                     if(sts == LIBUSB_SUCCESS)
                     {
                         _count = libusb_get_device_list(_ctx, &_list);
