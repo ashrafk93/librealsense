@@ -104,6 +104,7 @@ namespace rs2
         static const textual_icon check{ u8"\uF00C" };
         static const textual_icon envelope{ u8"\uF01C" };
         static const textual_icon cube_dup{ u8"\uf1b2" };
+        static const textual_icon codepen{ u8"\uf1cb" };
         static const textual_icon hourglass{ u8"\uf251" };
         static const textual_icon plug_dup{ u8"\uf287" };
         static const textual_icon ruler{ u8"\uf545" };
