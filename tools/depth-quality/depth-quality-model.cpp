@@ -183,7 +183,7 @@ namespace rs2
             {
                 draw_notification(win, viewer_rect, 450,
                     std::string(rsutils::string::from()
-                        << "\n   " << textual_icons::cube_dup
+                        << "\n   " << textual_icons::cube
                         << "  Please point the camera to a flat Wall / Surface!"),
                     "");
                 return false;
