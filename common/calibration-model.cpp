@@ -398,7 +398,7 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
         ImGui::SameLine();
         if (_accept)
         {
-            std::string restore_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Restore Factory");
+            std::string restore_str = std::string(rsutils::string::from() << textual_icons::industry << " Restore Factory");
             if (ImGui::Button(restore_str.c_str(), ImVec2(120, 30)))
             {
                 try
@@ -433,7 +433,7 @@ void calibration_model::d400_update(ux_window& window, std::string& error_messag
             ImGui::PushStyleColor(ImGuiCol_Text, grey);
             ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, grey);
 
-            std::string restore_str = std::string(rsutils::string::from() << textual_icons::folder_open << " Restore Factory");
+            std::string restore_str = std::string(rsutils::string::from() << textual_icons::industry << " Restore Factory");
             ImGui::Button(restore_str.c_str(), ImVec2(120, 30));
             if (ImGui::IsItemHovered())
             {
