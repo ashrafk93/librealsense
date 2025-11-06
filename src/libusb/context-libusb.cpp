@@ -12,11 +12,11 @@ namespace librealsense
     {       
         usb_context::usb_context() : _ctx(NULL), _list(NULL), _count(0)
         {
-            const int max_retries = 30;
+            const int max_retries = 10;
             const int retry_delay_ms = 100;
             
             for(int attempt = 0; attempt < max_retries; attempt++) {
-                LOG_INFO("Attempting libusb_init (attempt " << (attempt + 1) << "/" << max_retries << ")...");
+                LOG_DEBUG("Attempting libusb_init (attempt " << (attempt + 1) << "/" << max_retries << ")...");
                 try {
                     auto sts = libusb_init(&_ctx);
                     LOG_INFO("libusb_init returned status: " << sts);
