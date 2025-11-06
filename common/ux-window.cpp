@@ -523,7 +523,7 @@ namespace rs2
 
             if (!_missing_device)
             {
-                std::string rs_dev_detected = std::string(rsutils::string::from() << textual_icons::plug_dup
+                std::string rs_dev_detected = std::string(rsutils::string::from() << textual_icons::usb
                     << " RealSense device detected.");
                 _query_devices = false;
             }
@@ -811,7 +811,7 @@ namespace rs2
         _first_frame = true;
         _app_ready = false;
         _splash_timer.reset();
-        _dev_stat_message = std::string(rsutils::string::from() << textual_icons::plug_dup << " Please connect RealSense device!");
+        _dev_stat_message = std::string(rsutils::string::from() << textual_icons::usb << " Please connect RealSense device!");
 
         {
             std::lock_guard<std::mutex> lock(_on_load_message_mtx);
