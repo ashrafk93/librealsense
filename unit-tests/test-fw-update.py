@@ -180,7 +180,7 @@ log.d( 'product line:', product_line )
 test.start( "Update FW" )
 # check if recovery. If so recover
 recovered = False
-if device.is_update_device():
+if device.is_in_recovery_mode():
     log.d( "recovering device ..." )
     try:
         # always flash signed fw when device on recovery befre flashing anything else
