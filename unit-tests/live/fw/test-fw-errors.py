@@ -8,6 +8,7 @@
 import pyrealsense2 as rs
 from rspy import test, log
 from rspy.stopwatch import Stopwatch
+import pyrsutils as rsutils
 import threading
 
 # This test monitors firmware error notifications during streaming to ensure hardware stability
@@ -15,17 +16,23 @@ import threading
 STREAMING_DURATION_SECONDS = 10  # Duration to stream and monitor for FW errors
 ERROR_TOLERANCE = 0  # No firmware errors should be tolerated
 
-# Known errors that might be expected in certain environments
-KNOWN_ERRORS = [
-    "Motion Module failure", # RSDSO-20645
-    # Add other known/expected errors here as needed
-]
+def get_known_errors_for_firmware(current_fw_version):
+    """Get list of known errors based on firmware version"""
+    known_errors = []
+    
+    # Motion Module failure is a known issue starting before firmware 5.17.0.12
+    if (current_fw_version >= rsutils.version("5.17.0.12")):
+        known_errors.append("Motion Module failure")  # See also RSDSO-20645
+        # Add other version-specific known errors here as needed
+    
+    return known_errors
 
 class FirmwareErrorMonitor:
-    def __init__(self):
+    def __init__(self, known_errors=None):
         self.firmware_errors = []
         self.hardware_errors = []
         self.known_errors = []
+        self.known_error_list = known_errors or []
         self.lock = threading.Lock()
     
     def notification_callback(self, notification):
@@ -39,7 +46,7 @@ class FirmwareErrorMonitor:
             log.d(f"Notification received - Category: {category}, Severity: {severity}, Description: {description}")
             
             # Check if this is a known error that should be ignored
-            is_known_error = any(known_error in description for known_error in KNOWN_ERRORS)
+            is_known_error = any(known_error in description for known_error in self.known_error_list)
             
             if is_known_error:
                 error_info = {
@@ -99,8 +106,15 @@ with test.closure("Monitor firmware errors during streaming"):
     
     log.i(f"Testing device: {device_name} (S/N: {device_serial}, FW: {firmware_version})")
     
-    # Set up error monitor
-    error_monitor = FirmwareErrorMonitor()
+    # Get known errors for this firmware version
+    known_errors = get_known_errors_for_firmware(firmware_version)
+    if known_errors:
+        log.i(f"Known errors for firmware {firmware_version}: {', '.join(known_errors)}")
+    else:
+        log.i(f"No known errors defined for firmware {firmware_version}")
+    
+    # Set up error monitor with firmware-specific known errors
+    error_monitor = FirmwareErrorMonitor(known_errors)
         
     # Query all available sensors and register notification callbacks
     sensors = device.query_sensors()
