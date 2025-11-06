@@ -22,7 +22,6 @@ namespace librealsense
                     LOG_INFO("libusb_init returned status: " << sts);
                     if(sts == LIBUSB_SUCCESS)
                     {
-                        LOG_INFO("libusb_init succeeded, getting device list...");
                         _count = libusb_get_device_list(_ctx, &_list);
                         LOG_INFO("Found " << _count << " USB devices");
                         return; // Success, exit constructor
