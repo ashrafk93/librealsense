@@ -21,7 +21,7 @@ def get_known_errors_for_firmware(current_fw_version):
     known_errors = []
     
     # Motion Module failure is a known issue starting before firmware 5.17.0.12
-    if (current_fw_version >= rsutils.version("5.17.0.12")):
+    if (rsutils.version(current_fw_version) < rsutils.version("5.17.0.12")):
         known_errors.append("Motion Module failure")  # See also RSDSO-20645
         # Add other version-specific known errors here as needed
     
