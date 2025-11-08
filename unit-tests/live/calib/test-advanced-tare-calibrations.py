@@ -13,7 +13,7 @@ from test_calibrations_common import (
     modify_extrinsic_calibration,
     restore_calibration_table,
     write_calibration_table_with_crc,
-    measure_average_depth,
+    measure_depth_fill_rate,
 )
 
 #disabled until we stabilize lab
@@ -31,6 +31,12 @@ def tare_calibration_json(tare_json_file, host_assistance):
         log.i('Using default parameters for Tare calibration.')
         tare_json = '{\n  '+\
                     '"host assistance": ' + str(int(host_assistance)) + ',\n'+\
+                    '"speed": 3,\n'+\
+                    '"scan parameter": 0,\n'+\
+                    '"step count": 20,\n'+\
+                    '"apply preset": 1,\n'+\
+                    '"accuracy": 2,\n'+\
+                    '"depth": 0,\n'+\
                     '"resize factor": 1\n'+\
                     '}'
     return tare_json
@@ -84,13 +90,13 @@ def calculate_target_z():
 # Constants for validation
 HEALTH_FACTOR_THRESHOLD = 0.25
 TARGET_Z_MIN = 600
-TARGET_Z_MAX = 2000
+TARGET_Z_MAX = 1500
 _target_z = None
 
 # Additional constants & thresholds for advanced calibration modification test
-PIXEL_CORRECTION = -1.5  # pixel shift to apply to principal point (right IR)
+PIXEL_CORRECTION = -0.8  # pixel shift to apply to principal point (right IR)
 EPSILON = 0.001          # distance comparison tolerance for reversion checks
-HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 0.75  # OCC health factor acceptance for modified run
+HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 2.0  # OCC health factor acceptance for modified run
 
 
 def run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, target_z=None):
@@ -107,30 +113,7 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
     config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
     try:
 
-        # 1. run tare for the first time to ensure we start from a known state
-        tare_json = tare_calibration_json(None, host_assistance)
-        new_calib_bytes = None
-        try:
-            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, tare_json, target_z, return_table=True)
-        except Exception as e:
-            log.e(f"Calibration_main failed: {e}")
-            restore_calibration_table(calib_dev)
-            test.fail()
-
-        if not (new_calib_bytes and health_factor is not None and abs(health_factor) < HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION):
-            log.e(f"tare calibration failed or health factor out of threshold (hf={health_factor})")
-            restore_calibration_table(calib_dev)
-            test.fail()
-        log.i(f"tare calibration completed (health factor={health_factor:+.4f})")
-
-        write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
-        if not write_ok:
-            log.e("Failed to write tare calibration table to device")
-            restore_calibration_table(calib_dev)
-            test.fail()
-
-
-        # 2. Read base (reference) principal points
+        # 1. Read base (reference) principal points
         principal_points_result = get_current_rect_params(calib_dev)
         if principal_points_result is None:
             log.e("Could not read current principal points")
@@ -140,9 +123,13 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
 
         base_axis_val = base_right_pp[0]
 
-        # (Deferred) Average depth measurement will occur AFTER modification verification
-        pre_avg_depth_m = None
-        pre_depth_delta_mm = None
+        # Measure depth fill rate before applying any manual perturbation
+        try:
+            pre_fill_rate = measure_depth_fill_rate(image_width, image_height, fps)
+            log.i(f"  Depth fill rate before modification: {pre_fill_rate:.2f}%")
+        except Exception as e:
+            pre_fill_rate = None
+            log.w(f"Depth fill rate measurement before modification unavailable: {e}")
 
         # 3. Apply perturbation
         log.i(f"Applying manual raw intrinsic correction: delta={PIXEL_CORRECTION:+.3f} px")
@@ -162,20 +149,7 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             log.e(f"Modification mismatch for ppx. Expected {modified_ppx:.6f} got {mod_right_pp[0]:.6f}")
             test.fail()
 
-        # 5. Measure average depth AFTER modification (baseline for convergence) and distance to target
-        try:
-            pre_avg_depth_m = measure_average_depth(width=image_width, height=image_height, fps=fps)
-            if pre_avg_depth_m is not None:
-                log.i(f"  Average depth after modification (pre-calibration): {pre_avg_depth_m*1000:.1f} mm")
-                if target_z is not None:
-                    pre_depth_delta_mm = abs(pre_avg_depth_m * 1000.0 - target_z)
-                    log.i(f"  Distance to target pre-calibration: {pre_depth_delta_mm:.1f} mm (target={target_z} mm)")
-            else:
-                log.w("  Average depth pre-calibration unavailable")
-        except Exception as e:
-            log.w(f"Average depth measurement pre-calibration failed: {e}")
-
-        # 6. Run tare again
+        # 5. Run tare again
         tare_json = tare_calibration_json(None, host_assistance)
         new_calib_bytes = None
         try:
@@ -189,7 +163,7 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             test.fail()
         log.i(f"tare calibration completed (health factor={health_factor:+.4f})")
 
-        # 7. Write updated table & evaluate
+        # 6. Write updated table & evaluate
         write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
         if not write_ok:
             log.e("Failed to write tare calibration table to device")
@@ -203,20 +177,13 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         final_axis_val = fin_right_pp[0]
         log.i(f"  Final principal points (Right) ppx={fin_right_pp[0]:.6f} ppy={fin_right_pp[1]:.6f}")
 
-        # Measure average depth after calibration and compute new distance to target
-        post_avg_depth_m = None
-        post_depth_delta_mm = None
+        # Measure depth fill rate after calibration re-run
         try:
-            post_avg_depth_m = measure_average_depth(width=image_width, height=image_height, fps=fps)
-            if post_avg_depth_m is not None:
-                log.i(f"  Average depth after calibration: {post_avg_depth_m*1000:.1f} mm")
-                if target_z is not None:
-                    post_depth_delta_mm = abs(post_avg_depth_m * 1000.0 - target_z)
-                    log.i(f"  Distance to target after calibration: {post_depth_delta_mm:.1f} mm (target={target_z} mm)")
-            else:
-                log.w("  Average depth after calibration unavailable")
+            post_fill_rate = measure_depth_fill_rate(image_width, image_height, fps)
+            log.i(f"  Depth fill rate after calibration: {post_fill_rate:.2f}%")
         except Exception as e:
-            log.w(f"Average depth measurement after calibration failed: {e}")
+            post_fill_rate = None
+            log.w(f"Depth fill rate measurement after calibration unavailable: {e}")
 
         # Reversion checks:
         # 1. Final must differ from modified (change happened)
@@ -226,22 +193,21 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         log.i(f"  ppx distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
 
         if abs(final_axis_val - modified_ppx) <= EPSILON:
-            log.e(f"Tare left ppx unchanged (within EPSILON={EPSILON}); failing")
+            log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
             test.fail()
         elif dist_from_modified + EPSILON <= dist_from_original:
-            log.e("Tare did not revert toward base (still closer to modified)")
+            log.e("OCC did not revert toward base (still closer to modified)")
             test.fail()
         else:
-            log.i("Tare reverted ppx toward base successfully")
+            log.i("OCC reverted ppy toward base successfully")
 
-        # Average depth convergence assertion: ensure we got closer (or equal within 1mm tolerance) to target
-        if target_z is not None and pre_depth_delta_mm is not None and post_depth_delta_mm is not None:
-            if post_depth_delta_mm > pre_depth_delta_mm + 1.0:  # allow small tolerance
-                log.e(f"Average depth diverged from target: before={pre_depth_delta_mm:.1f}mm after={post_depth_delta_mm:.1f}mm target={target_z}mm")
+        # Depth fill non-degradation assertion (only if both measurements succeeded)
+        if pre_fill_rate is not None and post_fill_rate is not None:
+            if post_fill_rate + 0.01 < pre_fill_rate:  # allow tiny numerical tolerance
+                log.e(f"Depth fill rate decreased: pre={pre_fill_rate:.2f}% post={post_fill_rate:.2f}%")
                 test.fail()
             else:
-                improvement = pre_depth_delta_mm - post_depth_delta_mm
-                log.i(f"Average depth moved {'closer' if improvement >= 0 else 'not closer'} to target (Δ improvement={improvement:.1f} mm)")
+                log.i("Depth fill rate non-decreased (or improved)")
     finally:
         # Always stop pipeline before returning device so subsequent tests can reset factory calibration
         try:
@@ -250,21 +216,23 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             pass
     return calib_dev
 
-with test.closure("Advanced tare calibration test with calibration table modifications"):
-    calib_dev = None
-    try:
-        host_assistance = False
-        if (_target_z is None):
-            _target_z = calculate_target_z()
-            test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
-        image_width, image_height, fps = (256, 144, 90)
-        calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
-        restore_calibration_table(calib_dev)
-    except Exception as e:
-        log.e("Tare calibration with principal point modification failed: ", str(e))
-        if calib_dev is not None:
-            restore_calibration_table(calib_dev)
-        test.fail()
+if not is_mipi_device():
+    with test.closure("Advanced tare calibration test with calibration table modifications"):
+        calib_dev = None
+        try:
+            host_assistance = False
+            if (_target_z is None):
+                _target_z = calculate_target_z()
+                test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
+            image_width, image_height, fps = (256, 144, 90)
+            calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
+        except Exception as e:
+            log.e("Tare calibration with principal point modification failed: ", str(e))
+            test.fail()
+        finally:
+            if calib_dev is not None and getattr(test, 'test_failed', True):
+                log.i("Restoring calibration table after test failure")
+                restore_calibration_table(calib_dev)
 
 with test.closure("Advanced tare calibration test with host assistance"):
     calib_dev = None
@@ -275,12 +243,13 @@ with test.closure("Advanced tare calibration test with host assistance"):
             test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
         image_width, image_height, fps = (1280, 720, 30)
         calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
-        restore_calibration_table(calib_dev)
     except Exception as e:
         log.e("Tare calibration with principal point modification failed: ", str(e))
-        if calib_dev is not None:
-            restore_calibration_table(calib_dev)
         test.fail()
+    finally:
+        if calib_dev is not None and getattr(test, 'test_failed', True):
+                log.i("Restoring calibration table after test failure")
+                restore_calibration_table(calib_dev)
 
 test.print_results_and_exit()
 

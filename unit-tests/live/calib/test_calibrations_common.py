@@ -93,10 +93,8 @@ def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground
             new_calib, health = calib_dev.process_calibration_frame(depth_frame, on_calib_cb, FRAME_PROCESSING_TIMEOUT_MS)
             calib_done = len(new_calib) > 0
         # Preserve final table
-        if isinstance(new_calib, list):
+        if calib_done:
             new_calib_result = bytes(new_calib)
-        else:
-            new_calib_result = bytes(new_calib) if new_calib else b''
             
         log.i("Calibration completed successfully")
         log.i("Health factor = ", health[0])
@@ -113,71 +111,7 @@ def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground
     return health[0]
 
 
-def measure_depth_fill_rate(ctx=None, width=640, height=480, fps=30, frames=10, timeout_s=12, enable_emitter=True):
-    """Measure average depth fill rate (non-zero pixel ratio * 100) over a number of frames.
-
-    Args:
-        ctx (rs.context|None): Optional existing context; created if None.
-        width, height, fps: Stream configuration.
-        frames (int): Max frames to sample (may exit early after 5 frames if stable).
-        timeout_s (float): Overall timeout.
-        enable_emitter (bool): Enable emitter if supported for consistent fill.
-
-    Returns:
-        float | None: Average fill rate percentage (0-100) or None if capture failed.
-    """
-    try:
-        if ctx is None:
-            ctx = rs.context()
-        cfg = rs.config()
-        cfg.enable_stream(rs.stream.depth, width, height, rs.format.z16, fps)
-        pipe = rs.pipeline(ctx)
-        profile = pipe.start(cfg)
-        # Small warm-up
-        try:
-            depth_sensor = profile.get_device().first_depth_sensor()
-            if enable_emitter and depth_sensor.supports(rs.option.emitter_enabled):
-                depth_sensor.set_option(rs.option.emitter_enabled, 1)
-            if depth_sensor.supports(rs.option.thermal_compensation):
-                depth_sensor.set_option(rs.option.thermal_compensation, 0)
-        except Exception:
-            pass
-        start = time.time()
-        collected = 0
-        total_fill = 0.0
-        import numpy as np
-        while collected < frames and (time.time() - start) < timeout_s:
-            try:
-                fs = pipe.wait_for_frames(3000)
-            except Exception:
-                continue
-            depth = fs.get_depth_frame()
-            if not depth:
-                continue
-            data = np.asanyarray(depth.get_data())  # z16
-            total_pixels = data.size
-            if total_pixels == 0:
-                continue
-            non_zero = np.count_nonzero(data)
-            fill = (non_zero / total_pixels) * 100.0
-            total_fill += fill
-            collected += 1
-            if collected >= 5 and (time.time() - start) > 1.5:
-                break
-        pipe.stop()
-        if collected == 0:
-            return None
-        return total_fill / collected
-    except Exception as e:
-        log.w(f"measure_depth_fill_rate failed: {e}")
-        try:
-            pipe.stop()
-        except Exception:
-            pass
-        return None
-
-
-def measure_average_depth(ctx=None, width=640, height=480, fps=30, frames=10, timeout_s=12, enable_emitter=True):
+def measure_average_depth(config, pipe, width=640, height=480, fps=30, frames=10, timeout_s=12, enable_emitter=True):
     """Measure the average depth distance (in meters) across a series of frames.
 
     Valid depth pixels are > 0 (raw units). Invalid (<=0) are ignored.
@@ -193,19 +127,13 @@ def measure_average_depth(ctx=None, width=640, height=480, fps=30, frames=10, ti
         float | None: Mean depth in meters over all valid pixels from collected frames,
                       or None if no valid data was obtained.
     """
-    pipe = None
     try:
         import numpy as np
-        if ctx is None:
-            ctx = rs.context()
-        cfg = rs.config()
-        cfg.enable_stream(rs.stream.depth, width, height, rs.format.z16, fps)
-        pipe = rs.pipeline(ctx)
-        profile = pipe.start(cfg)
 
+        conf = pipe.start(config)
         # Configure sensor options (best-effort)
         try:
-            depth_sensor = profile.get_device().first_depth_sensor()
+            depth_sensor = conf.get_device().first_depth_sensor()
             if enable_emitter and depth_sensor.supports(rs.option.emitter_enabled):
                 depth_sensor.set_option(rs.option.emitter_enabled, 1)
             if depth_sensor.supports(rs.option.thermal_compensation):
@@ -267,30 +195,25 @@ def is_mipi_device():
 # for step 2 -  not in use for now
 
 def get_current_rect_params(auto_calib_device):
-    """Return per-eye principal points (ppx, ppy) using intrinsic matrices; minimal logging."""
+    """
+    Return principal points (ppx, ppy) for left and right sensors derived from the device's calibration table
+
+    ""Return per-eye principal points (ppx, ppy) using intrinsic matrices; minimal logging."""
     calib_table = auto_calib_device.get_calibration_table()
-    if isinstance(calib_table, list) or (hasattr(calib_table, '__iter__') and not isinstance(calib_table, (bytes, bytearray, str))):
+    if calib_table is not None:
         calib_table = bytes(calib_table)
     if len(calib_table) < 280:
         log.e("Calibration table is too small")
         return None
     try:
+        #  calibration table is 4 3x3 float matrices (each 9 * 4 bytes) — intrinsics/extrinsics left/right pairs
         header_size = 16
         intrinsic_left_offset = header_size
         intrinsic_right_offset = header_size + 36
-        rect_params_base_offset = header_size + 36 + 36 + 36 + 36 + 4 + 4 + 88  # 256
-        rect_params_1280_800_offset = rect_params_base_offset + (8 * 16)
-        if (intrinsic_right_offset + 36 > len(calib_table) or
-            intrinsic_left_offset + 36 > len(calib_table) or
-            rect_params_1280_800_offset + 16 > len(calib_table)):
-            log.e("Calibration table too small for intrinsics")
-            return None
         left_intrinsics_raw = struct.unpack('<9f', calib_table[intrinsic_left_offset:intrinsic_left_offset + 36])
         right_intrinsics_raw = struct.unpack('<9f', calib_table[intrinsic_right_offset:intrinsic_right_offset + 36])
-        rect_params_1280_800 = struct.unpack('<4f', calib_table[rect_params_1280_800_offset:rect_params_1280_800_offset + 16])
         width = 1280.0
         height = 800.0
-        # Empirically determined indices: ppx uses element 2 (normalized), ppy uses element 3 (direct * height)
         left_ppx = left_intrinsics_raw[2] * width
         right_ppx = right_intrinsics_raw[2] * width
         left_ppy = left_intrinsics_raw[3] * height
@@ -303,108 +226,6 @@ def get_current_rect_params(auto_calib_device):
     except Exception as e:
         log.e(f"Error reading principal points: {e}")
         return None
-
-
-def modify_calibration_table(device, new_calib_params, rect_param_offset, image_width=None, image_height=None):
-    """
-    Modifies the calibration table of an auto-calibrated RealSense device
-    Args:
-        device: RealSense device object that supports auto calibration
-        new_calib_params: tuple of (fx, fy, ppx, ppy) new calibration parameters
-        rect_param_offset: offset in calibration table for the specific resolution
-        image_width: original image width (for scaling)
-        image_height: original image height (for scaling)
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    global _global_original_calib_table
-    
-    # Get the auto calibrated device interface
-    auto_calib_device = rs.auto_calibrated_device(device)
-    if not auto_calib_device:
-        log.e("Device does not support auto calibration")
-        return False
-    
-    # Read current calibration table if not already stored
-    if _global_original_calib_table is None:
-        log.i("Reading current calibration table...")
-        _global_original_calib_table = auto_calib_device.get_calibration_table()
-        
-        # Convert to bytes if it's returned as a list
-        if isinstance(_global_original_calib_table, list):
-            _global_original_calib_table = bytes(_global_original_calib_table)
-        elif hasattr(_global_original_calib_table, '__iter__') and not isinstance(_global_original_calib_table, (bytes, bytearray, str)):
-            _global_original_calib_table = bytes(_global_original_calib_table)
-            
-        log.i(f"Original calibration table size: {len(_global_original_calib_table)} bytes")
-    
-    # Make a copy for modification
-    modified_calib_table = bytearray(_global_original_calib_table)  # Use bytearray for easier modification
-
-    try:
-        new_fx, new_fy, new_ppx, new_ppy = new_calib_params
-        
-        # If we're working with 256x144 that was scaled from 424x240, we need to reverse the scaling
-        if image_width == 256 and image_height == 144:
-            # Reverse scale factors: 424/256 ≈ 1.656, 240/144 ≈ 1.667
-            scale_x = 424.0 / 256.0
-            scale_y = 240.0 / 144.0
-            
-            # Reverse scale the parameters back to 424x240 space for storage
-            storage_fx = new_fx * scale_x
-            storage_fy = new_fy * scale_y
-            storage_ppx = new_ppx * scale_x
-            storage_ppy = new_ppy * scale_y
-            
-            log.i(f"  Modifying calibration - fx: {new_fx:.3f}, fy: {new_fy:.3f}, ppx: {new_ppx:.3f}, ppy: {new_ppy:.3f}")
-            log.i(f"  Storing as 424x240 - fx: {storage_fx:.3f}, fy: {storage_fy:.3f}, ppx: {storage_ppx:.3f}, ppy: {storage_ppy:.3f}")
-            
-            # Pack the reverse-scaled values
-            new_rect_params = struct.pack('<ffff', storage_fx, storage_fy, storage_ppx, storage_ppy)
-        else:
-            log.i(f"  Modifying calibration - fx: {new_fx:.3f}, fy: {new_fy:.3f}, ppx: {new_ppx:.3f}, ppy: {new_ppy:.3f}")
-            # Pack new values normally
-            new_rect_params = struct.pack('<ffff', new_fx, new_fy, new_ppx, new_ppy)
-        
-        # Replace the section in the bytearray
-        modified_calib_table[rect_param_offset:rect_param_offset + 16] = new_rect_params
-        
-        # Update CRC32 for the modified table
-        # CRC is calculated over all data after the header (excluding the CRC field itself)
-        header_fmt = '<IIII'  # 4 uint32 values in header
-        header_size = struct.calcsize(header_fmt)
-        
-        # Extract original header values
-        header_data = struct.unpack(header_fmt, modified_calib_table[:header_size])
-        table_type, table_size, param, old_crc32 = header_data
-        
-        actual_data = bytes(modified_calib_table[header_size:])
-        new_crc32 = zlib.crc32(actual_data) & 0xffffffff
-        
-        # Update the CRC in the header
-        new_header = struct.pack('<IIII', table_type, table_size, param, new_crc32)
-        modified_calib_table[:header_size] = new_header
-        
-        # Convert back to bytes for setting
-        modified_calib_table = bytes(modified_calib_table)
-        
-        log.i("  Calibration table modification completed successfully")
-        
-        # Set the modified calibration table (temporarily)
-        # Convert bytes to list for the API
-        table_as_list = list(modified_calib_table)
-        auto_calib_device.set_calibration_table(table_as_list)
-        
-        # Write the modified calibration table to flash
-        auto_calib_device.write_calibration()
-        log.i("✓ Calibration table written to flash successfully")
-        
-        return True
-        
-    except Exception as e:
-        log.e(f"Failed to modify calibration table: {e}")
-        return False
-
         
 def restore_calibration_table(device):
     global _global_original_calib_table
@@ -418,18 +239,19 @@ def restore_calibration_table(device):
     auto_calib_device.reset_to_factory_calibration()
     return True
 
-def get_d400_calibration_table(device):
+def get_calibration_table(device):
     """Get current calibration table from device"""
     try:
         # device is already an auto_calibrated_device
         calib_table = device.get_calibration_table()
         # Convert to bytes if it's a list
-        if isinstance(calib_table, list):
+        if calib_table is not None:
             calib_table = bytes(calib_table)
         return calib_table
     except Exception as e:
         log.e(f"-E- Failed to get calibration table: {e}")
         return None
+    
 def write_calibration_table_with_crc(device, modified_data):
     """Write modified calibration table with updated CRC"""
     try:
@@ -468,7 +290,7 @@ def modify_extrinsic_calibration(device, pixel_correction, modify_ppy=True):
         tuple: (success(bool), modified_table_bytes(or error str), new_ppx, new_ppy)
     """
     try:
-        calib_table = get_d400_calibration_table(device)
+        calib_table = get_calibration_table(device)
         if not calib_table:
             return False, "Failed to get calibration table", None, None
         modified_data = bytearray(calib_table)
