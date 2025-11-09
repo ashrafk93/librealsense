@@ -330,9 +330,10 @@ jobs:
     
     - name: Build
       shell: bash
+      # Adding -DENABLE_SECURITY_FLAGS=true here to also check examples and tools. See RSDSO-RSDSO-20629.
       run: |
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{env.LRS_RUN_CONFIG}} -DBUILD_SHARED_LIBS=false -DBUILD_EXAMPLES=true -DBUILD_TOOLS=true -DCHECK_FOR_UPDATES=true -DBUILD_PYTHON_BINDINGS=true -DPYTHON_EXECUTABLE=$(which python3)
+        cmake .. -DCMAKE_BUILD_TYPE=${{env.LRS_RUN_CONFIG}} -DBUILD_SHARED_LIBS=false -DBUILD_EXAMPLES=true -DBUILD_TOOLS=true -DCHECK_FOR_UPDATES=true -DBUILD_PYTHON_BINDINGS=true -DPYTHON_EXECUTABLE=$(which python3) -DENABLE_SECURITY_FLAGS=true
         cmake --build . -- -j4
 
 
@@ -512,9 +513,10 @@ jobs:
 
     - name: Build
       shell: bash
+      # Adding -DENABLE_SECURITY_FLAGS=true here to also check DDS. See RSDSO-RSDSO-20629.
       run: | 
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{env.LRS_RUN_CONFIG}} -DBUILD_SHARED_LIBS=true -DBUILD_EXAMPLES=false -DBUILD_TOOLS=false -DBUILD_UNIT_TESTS=false -DCHECK_FOR_UPDATES=false -DBUILD_WITH_DDS=true -DBUILD_PYTHON_BINDINGS=true -DPYTHON_EXECUTABLE=$(which python3)
+        cmake .. -DCMAKE_BUILD_TYPE=${{env.LRS_RUN_CONFIG}} -DBUILD_SHARED_LIBS=true -DBUILD_EXAMPLES=false -DBUILD_TOOLS=false -DBUILD_UNIT_TESTS=false -DCHECK_FOR_UPDATES=false -DBUILD_WITH_DDS=true -DBUILD_PYTHON_BINDINGS=true -DPYTHON_EXECUTABLE=$(which python3) -DENABLE_SECURITY_FLAGS=true
         cmake --build . -- -j4
 
     - name: LibCI
