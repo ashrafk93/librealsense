@@ -11,13 +11,13 @@
   Library for controlling and capturing data from the Intel(R) RealSense(TM) D400 devices.
   </description>
 
-  <maintainer email="librs.ros@intel.com">LibRealSense ROS Team</maintainer>
-  <maintainer email="ashraf.kattoura@intel.com">Ashraf Kattoura</maintainer>
-  <maintainer email="nir.azkiel@intel.com">Nir Azkiel</maintainer>
+  <maintainer email="rsswsdk@realsensecloud.onmicrosoft.com">LibRealSense ROS Team</maintainer>
+  <maintainer email="ashraf.kattoura@realsenseai.com">Ashraf Kattoura</maintainer>
+  <maintainer email="nir.azkiel@realsenseai.com">Nir Azkiel</maintainer>
 
   <url type="website">https://github.com/IntelRealSense/librealsense/</url>
 
-  <author email="librs.ros@intel.com">LibRealSense ROS Team</author>
+  <author email="rsswsdk@realsensecloud.onmicrosoft.com">LibRealSense ROS Team</author>
 
   <license>Apache License, Version 2.0</license>
 
