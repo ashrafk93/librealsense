@@ -64,7 +64,7 @@ void init_device(py::module &m) {
                 auto connection_type = self.get_info(RS2_CAMERA_INFO_CONNECTION_TYPE);
                 ss << "  on ";
                 ss << connection_type;
-                if (connection_type == "USB")
+                if (strcmp(connection_type, "USB") == 0)
                     if (self.supports(RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR))
                         ss << self.get_info(RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR);
             }
