@@ -1758,7 +1758,7 @@ namespace rs2
                 ImGui::PushStyleColor(ImGuiCol_Text, update_state != RS2_CALIB_STATE_TARE_INPUT_ADVANCED ? light_grey : light_blue);
                 ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, update_state != RS2_CALIB_STATE_TARE_INPUT_ADVANCED ? light_grey : light_blue);
 
-                if (ImGui::Button(u8"\uf0d7"))
+                if (ImGui::Button(textual_icons::caret_down))
                 {
                     if (update_state == RS2_CALIB_STATE_TARE_INPUT_ADVANCED)
                         update_state = RS2_CALIB_STATE_TARE_INPUT;
@@ -2596,7 +2596,7 @@ namespace rs2
 
             ImGui::SetCursorScreenPos({ float(x + 10), float(y + 35) });
             ImGui::PushFont(win.get_large_font());
-            std::string txt = rsutils::string::from() << textual_icons::throphy;
+            std::string txt = rsutils::string::from() << textual_icons::trophy;
             ImGui::Text("%s", txt.c_str());
             ImGui::PopFont();
 

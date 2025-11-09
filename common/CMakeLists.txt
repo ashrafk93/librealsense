@@ -65,6 +65,7 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_LIST_DIR}/hdr-model.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-model.h"
     "${CMAKE_CURRENT_LIST_DIR}/embedded-filter-model.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/textual-icons.h"
     )
 
 set(SW_UPDATE_FILES

@@ -5,6 +5,7 @@
 
 #include "dds-stream-base.h"
 #include "dds-trinsics.h"
+#include "dds-sample.h"
 
 #include <string>
 #include <vector>

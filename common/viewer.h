@@ -206,7 +206,8 @@ namespace rs2
         bool modal_notification_on = false; // a notification which was expanded
         bool select_lpc_point_size = false;
 
-        press_button_model grid_object_button{ u8"\uf1cb", u8"\uf1cb",  "Configure Grid", "Configure Grid", false };
+        press_button_model grid_object_button{ textual_icons::codepen, textual_icons::codepen,
+            "Configure Grid", "Configure Grid", false };
 
         viewer_model(context &ctx_, bool disable_log_to_console = false );
 

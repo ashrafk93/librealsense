@@ -2271,7 +2271,7 @@ namespace rs2
                 {
                     std::string desc = dev.get_info(RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR);
                     ss.str("");
-                    ss << "   " << textual_icons::usb_type << " " << desc;
+                    ss << "   " << textual_icons::usb << " " << desc;
                     ImGui::SameLine();
                     if (!starts_with(desc, "3.")) ImGui::PushStyleColor(ImGuiCol_Text, yellow);
                     else ImGui::PushStyleColor(ImGuiCol_Text, light_grey);

@@ -553,19 +553,12 @@ jobs:
 
   #--------------------------------------------------------------------------------
   
-  Mac_cpp:
-    runs-on: macos-14
+  Mac_DDS_cpp:
+    runs-on: macos-15
     timeout-minutes: 60
     
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4
-
-    - name: Check_API
-      shell: bash
-      run: |
-        cd scripts
-        ./api_check.sh
-        cd ..
 
     - name: Prebuild
       run: |
@@ -582,7 +575,7 @@ jobs:
         # We use "greadlink -f" which is mac-os parallel command to "readlink -f" from Linux (-f to convert relative link to absolute link)
         export OPENSSL_ROOT_DIR=`greadlink -f /usr/local/opt/openssl@1.1`        
         echo "OPENSSL_ROOT_DIR = ${OPENSSL_ROOT_DIR}"
-        cmake .. -DCMAKE_BUILD_TYPE=${{env.LRS_BUILD_CONFIG}} -DBUILD_EXAMPLES=true -DBUILD_WITH_OPENMP=false -DHWM_OVER_XU=false -DCHECK_FOR_UPDATES=true
+        cmake .. -DCMAKE_CXX_STANDARD=20 -DCMAKE_BUILD_TYPE=${{env.LRS_BUILD_CONFIG}} -DBUILD_EXAMPLES=true -DBUILD_WITH_OPENMP=false -DHWM_OVER_XU=false -DCHECK_FOR_UPDATES=true -DBUILD_WITH_DDS=true
         cmake --build . -- -j4
         ls
 
