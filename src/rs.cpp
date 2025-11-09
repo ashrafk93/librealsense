@@ -1748,6 +1748,14 @@ void rs2_hardware_reset(const rs2_device* device, rs2_error** error) BEGIN_API_C
 }
 HANDLE_EXCEPTIONS_AND_RETURN(, device)
 
+int rs2_is_in_recovery_mode(const rs2_device* device, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(device->device);
+    return device->device->is_in_recovery_mode();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, device)
+
 // Verify  and provide API version encoded as integer value
 int rs2_get_api_version(rs2_error** error) BEGIN_API_CALL
 {

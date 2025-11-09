@@ -78,6 +78,8 @@ public:
 
     bool is_valid() const override { return *_is_alive; }
 
+    bool is_in_recovery_mode() const override { return false; }
+
     void tag_profiles(stream_profiles profiles) const override;
 
     virtual bool compress_while_record() const override { return true; }

@@ -515,7 +515,7 @@ def recovery():
     :return: A set of all device serial-numbers that are in recovery mode
     """
     global _device_by_sn
-    return { device.serial_number for device in _device_by_sn.values() if device.handle.is_update_device() }
+    return { device.serial_number for device in _device_by_sn.values() if device.handle.is_in_recovery_mode() }
 
 
 def enable_only( serial_numbers, recycle = False, timeout = MAX_ENUMERATION_TIME ):

@@ -465,3 +465,8 @@ bool record_device::is_valid() const
 {
     return m_device->is_valid();
 }
+
+bool record_device::is_in_recovery_mode() const
+{
+    return m_device->is_in_recovery_mode();
+}

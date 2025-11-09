@@ -130,6 +130,17 @@ namespace rs2
             error::handle(e);
         }
 
+        /**
+        * Find if a camera is in recovery mode
+        */
+        bool is_in_recovery_mode()
+        {
+            rs2_error* e = nullptr;
+            auto result = rs2_is_in_recovery_mode(_dev.get(), &e);
+            error::handle(e);
+            return result;
+        }
+
         device& operator=(const std::shared_ptr<rs2_device> dev)
         {
             _dev.reset();

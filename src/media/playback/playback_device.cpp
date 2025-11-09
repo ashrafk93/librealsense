@@ -429,6 +429,11 @@ bool playback_device::is_valid() const
     return true;
 }
 
+bool playback_device::is_in_recovery_mode() const
+{
+    return false;
+}
+
 void playback_device::update_time_base(device_serializer::nanoseconds base_timestamp)
 {
     m_base_sys_time = std::chrono::high_resolution_clock::now();
