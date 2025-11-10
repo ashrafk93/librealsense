@@ -1090,11 +1090,17 @@ namespace librealsense
         if (uncompressed_rgb)
         {
             auto uncompressed_size = w * h * bpp;
+            if (uncompressed_size != actual_size)
+            {
+                LOG_WARNING( "MJPEG decode size mismatch. Expected " << actual_size << ", got "
+                                                                     << uncompressed_size );
+                uncompressed_size = std::min( uncompressed_size, actual_size );
+            }
             std::memcpy( dest[0], uncompressed_rgb, uncompressed_size );
             stbi_image_free(uncompressed_rgb);
         }
         else
-            LOG_ERROR("jpeg decode failed");
+            LOG_ERROR("mjpeg decode failed");
     }
 
     /////////////////////////////
