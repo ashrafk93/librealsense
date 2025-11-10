@@ -11,56 +11,11 @@ from rspy.stopwatch import Stopwatch
 from rspy import test, log
 import time
 import platform
+import fps_helper
 
 # This test mirrors test-fps.py but forces manual exposure where supported
-
-global first_frame_seconds
-
-def measure_fps(sensor, profile, seconds_to_count_frames = 10):
-    """
-    Wait a few seconds to be sure that frames are at steady state after start
-    Count number of received frames for seconds_to_count_frames seconds and compare actual fps to requested fps
-    """
-    seconds_till_steady_state = 4
-
-    steady_state = False
-    first_frame_received = False
-    frames_received = 0
-    first_frame_stopwatch = Stopwatch()
-    prev_frame_number = 0
-
-    def frame_cb(frame):
-        global first_frame_seconds
-        nonlocal steady_state, frames_received, first_frame_received, prev_frame_number
-        current_frame_number = frame.get_frame_number()
-        if not first_frame_received:
-            first_frame_seconds = first_frame_stopwatch.get_elapsed()
-            first_frame_received = True
-        else:
-            if current_frame_number > prev_frame_number + 1:
-                log.w( f'Frame drop detected. Current frame number {current_frame_number} previous was {prev_frame_number}' )
-        if steady_state:
-            frames_received += 1
-        prev_frame_number = current_frame_number
-
-    sensor.open(profile)
-    sensor.start(frame_cb)
-    first_frame_stopwatch.reset()
-
-    time.sleep(seconds_till_steady_state)
-
-    steady_state = True
-
-    time.sleep(seconds_to_count_frames) # Time to count frames
-
-    steady_state = False # Stop counting
-
-    sensor.stop()
-    sensor.close()
-
-    fps = frames_received / seconds_to_count_frames
-    return fps
-
+# Start depth + color streams and measure frame frequency using sensor API.
+# Verify that actual fps is as requested
 
 def set_exposure_half_frame_time(sensor, requested_fps):
     """Set sensor exposure to half the frame time for the given requested_fps.
@@ -144,8 +99,11 @@ for i in range(len(tested_fps)):
     else:
         # set exposure to half frame time for this requested fps if supported
         exposure_val = set_exposure_half_frame_time(ds, requested_fps)
-        fps = measure_fps(ds, dp, time_to_test_fps[i])
-        log.i("Exposure: {:.1f} [msec], requested fps: {:.1f} [Hz], actual fps: {:.1f} [Hz]. Time to first frame {:.6f}".format(exposure_val/1000, requested_fps, fps, first_frame_seconds))
+        # use shared fps helper which expects a dict of {sensor: [profile]}
+        fps_helper.TIME_TO_COUNT_FRAMES = time_to_test_fps[i]
+        fps_dict = fps_helper.measure_fps({ds: [dp]})
+        fps = fps_dict.get(dp.stream_name(), 0)
+        log.i("Exposure: {:.1f} [msec], requested fps: {:.1f} [Hz], actual fps: {:.1f} [Hz]".format((exposure_val or 0)/1000, requested_fps, fps))
         delta_Hz = requested_fps * 0.05 # Validation KPI is 5%
         test.check(fps <= (requested_fps + delta_Hz) and fps >= (requested_fps - delta_Hz))
 test.finish()
@@ -188,8 +146,9 @@ if cs:
         else:
             # set exposure to half frame time for this requested fps if supported
             exposure_val = set_exposure_half_frame_time(cs, requested_fps)
-            fps = measure_fps(cs, cp, time_to_test_fps[i])
-            log.i("Exposure: {:.1f} [msec], requested fps: {:.1f} [Hz], actual fps: {:.1f} [Hz]. Time to first frame {:.6f}".format(exposure_val/1000, requested_fps, fps, first_frame_seconds))
+            fps_dict = fps_helper.measure_fps({cs: [cp]})
+            fps = fps_dict.get(cp.stream_name(), 0)
+            log.i("Exposure: {:.1f} [msec], requested fps: {:.1f} [Hz], actual fps: {:.1f} [Hz]".format((exposure_val or 0)/1000, requested_fps, fps))
             delta_Hz = requested_fps * (0.10 if requested_fps == 5 else 0.05) # Validation KPI is 5% for all non 5 FPS rate
             test.check(fps <= (requested_fps + delta_Hz) and fps >= (requested_fps - delta_Hz))
 
