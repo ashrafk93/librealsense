@@ -169,7 +169,7 @@ recovered = False
 if device.is_in_recovery_mode():
     log.d( "recovering device ..." )
     try:
-        # always flash signed fw when device on recovery befre flashing anything else
+        # always flash signed fw when device on recovery before flashing anything else
         image_file = find_image_or_exit(product_name)
         cmd = [fw_updater_exe, '-r', '-f', image_file, '-s', serial_number]
         log.d( 'running:', cmd )
