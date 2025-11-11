@@ -13,7 +13,7 @@ from test_calibrations_common import (
     modify_extrinsic_calibration,
     restore_calibration_table,
     write_calibration_table_with_crc,
-    measure_depth_fill_rate,
+    measure_average_depth,
 )
 
 #disabled until we stabilize lab
@@ -121,15 +121,7 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         base_left_pp, base_right_pp, base_offsets = principal_points_result
         log.i(f"  Base principal points (Right) ppx={base_right_pp[0]:.6f} ppy={base_right_pp[1]:.6f}")
 
-        base_axis_val = base_right_pp[0]
-
-        # Measure depth fill rate before applying any manual perturbation
-        try:
-            pre_fill_rate = measure_depth_fill_rate(image_width, image_height, fps)
-            log.i(f"  Depth fill rate before modification: {pre_fill_rate:.2f}%")
-        except Exception as e:
-            pre_fill_rate = None
-            log.w(f"Depth fill rate measurement before modification unavailable: {e}")
+        base_axis_val = base_right_pp[0]        
 
         # 3. Apply perturbation
         log.i(f"Applying manual raw intrinsic correction: delta={PIXEL_CORRECTION:+.3f} px")
@@ -147,6 +139,14 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         mod_left_pp, mod_right_pp, mod_offsets = modified_principal_points_result
         if abs(modified_ppx - mod_right_pp[0]) > EPSILON:
             log.e(f"Modification mismatch for ppx. Expected {modified_ppx:.6f} got {mod_right_pp[0]:.6f}")
+            test.fail()
+
+       # Measure average depth after modification, before tare correction (modified baseline)
+        modified_avg_depth_m = measure_average_depth(config, pipeline, width=image_width, height=image_height, fps=fps)
+        if modified_avg_depth_m is not None:
+            log.i(f"Average depth after modification (pre-tare): {modified_avg_depth_m*1000:.1f} mm")
+        else:
+            log.e("Average depth after modification unavailable")
             test.fail()
 
         # 5. Run tare again
@@ -177,13 +177,14 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         final_axis_val = fin_right_pp[0]
         log.i(f"  Final principal points (Right) ppx={fin_right_pp[0]:.6f} ppy={fin_right_pp[1]:.6f}")
 
-        # Measure depth fill rate after calibration re-run
-        try:
-            post_fill_rate = measure_depth_fill_rate(image_width, image_height, fps)
-            log.i(f"  Depth fill rate after calibration: {post_fill_rate:.2f}%")
-        except Exception as e:
-            post_fill_rate = None
-            log.w(f"Depth fill rate measurement after calibration unavailable: {e}")
+        # Measure average depth after tare correction
+        post_avg_depth_m = measure_average_depth(config, pipeline, width=image_width, height=image_height, fps=fps)
+        if post_avg_depth_m is not None:
+            log.i(f"Average depth after tare: {post_avg_depth_m*1000:.1f} mm")
+        else:
+            log.e("Average depth after tare unavailable")
+            test.fail()
+
 
         # Reversion checks:
         # 1. Final must differ from modified (change happened)
@@ -193,21 +194,25 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
         log.i(f"  ppx distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
 
         if abs(final_axis_val - modified_ppx) <= EPSILON:
-            log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
+            log.e(f"tare left ppy unchanged (within EPSILON={EPSILON}); failing")
             test.fail()
         elif dist_from_modified + EPSILON <= dist_from_original:
-            log.e("OCC did not revert toward base (still closer to modified)")
+            log.e("tare did not revert toward base (still closer to modified)")
             test.fail()
         else:
-            log.i("OCC reverted ppy toward base successfully")
+            log.i("tare reverted ppy toward base successfully")
 
-        # Depth fill non-degradation assertion (only if both measurements succeeded)
-        if pre_fill_rate is not None and post_fill_rate is not None:
-            if post_fill_rate + 0.01 < pre_fill_rate:  # allow tiny numerical tolerance
-                log.e(f"Depth fill rate decreased: pre={pre_fill_rate:.2f}% post={post_fill_rate:.2f}%")
+        # Measure average depth after tare correction
+        # Compare average depths to target_z (in mm). Expect post calibration to be closer.
+        if target_z is not None and modified_avg_depth_m is not None and post_avg_depth_m is not None:
+            modified_diff_mm = abs(modified_avg_depth_m * 1000.0 - target_z)
+            post_diff_mm = abs(post_avg_depth_m * 1000.0 - target_z)
+            log.i(f"  Depth distance to target: pre-tare={modified_diff_mm:.2f} mm post-tare={post_diff_mm:.2f} mm (target_z={target_z} mm)")
+            if post_diff_mm > modified_diff_mm:
+                log.e("Average depth after OCC not closer to target distance")
                 test.fail()
             else:
-                log.i("Depth fill rate non-decreased (or improved)")
+                log.i("Average depth after OCC moved closer to target distance")
     finally:
         # Always stop pipeline before returning device so subsequent tests can reset factory calibration
         try:
