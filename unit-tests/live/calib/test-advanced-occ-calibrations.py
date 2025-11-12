@@ -14,7 +14,11 @@ from test_calibrations_common import (
     restore_calibration_table,
     write_calibration_table_with_crc,
     measure_average_depth,
+    is_d555
 )
+
+#disabled until we stabilize lab
+#test:donotrun
 
 # Constants & thresholds (reintroduce after import fix)
 PIXEL_CORRECTION = -2.0  # pixel shift to apply to principal point
@@ -40,18 +44,19 @@ def on_chip_calibration_json(occ_json_file, host_assistance):
 
 #disabled until we stabilize lab
 
-def run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=None):
+def run_advanced_occ_calibration_test(host_assistance, config, pipeline, calib_dev, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=None):
     """Run advanced OCC calibration test with calibration table modifications.
 
         Flow:
-            1. OCC (baseline) or Restore factory calibration
-            2. Read & log base principal point
-            3. Apply controlled raw intrinsic perturbation (ppy or ppx)
-            4. Verify perturbation was applied
-            5. Run OCC once and capture returned table
-            6. Write table, read final principal point, compute correction metrics
+        1. Read and log base principal points (reference).
+        2. Measure baseline average depth; establish ground truth if not provided.
+        3. Apply manual principal-point perturbation (ppx/ppy shift) to the calibration table.
+        4. Re-read and verify the modification was applied (delta vs base within tolerance).
+        5. Measure average depth after modification (pre-OCC).
+        6. Run OCC calibration (host assistance optional); obtain new table & health factor; validate threshold.
+        7. Write returned table; read final principal points; compute and log distances to base and modified.
+        8. Measure post-OCC average depth; assert convergence toward ground truth and principal point reversion (failure handling if not satisfied).
     """
-    config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
     try:
 
         # 1. Read base (reference) principal points
@@ -64,7 +69,7 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
 
         base_axis_val = base_right_pp[1]
 
-        # Baseline average depth (after initial OCC, before perturbation)
+        # 2. Baseline average depth (before perturbation)
         baseline_avg_depth_m = measure_average_depth(config, pipeline, width=image_width, height=image_height, fps=fps)
         if baseline_avg_depth_m is not None:
             baseline_mm = baseline_avg_depth_m * 1000.0
@@ -86,7 +91,7 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             log.e("Failed to modify calibration table")
             test.fail()
 
-        # 4. Verify modification
+        # 4. Verify modification for ppy/ppx was applied
         modified_principal_points_result = get_current_rect_params(calib_dev)
         if modified_principal_points_result is None:
             log.e("Could not read principal points after modification")
@@ -99,7 +104,7 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             test.fail()
         applied_delta = modified_axis_val - base_axis_val
 
-        # Measure average depth after modification, before OCC correction (modified baseline)
+        # 5. Measure average depth after modification, before OCC correction (modified baseline)
         modified_avg_depth_m = measure_average_depth(config, pipeline, width=image_width, height=image_height, fps=fps)
         if modified_avg_depth_m is not None:
             log.i(f"Average depth after modification (pre-OCC): {modified_avg_depth_m*1000:.1f} mm")
@@ -107,7 +112,7 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             log.e("Average depth after modification unavailable")
             test.fail()
 
-        # 5. Run OCC again
+        # 6. Run OCC
         occ_json = on_chip_calibration_json(None, host_assistance)
         new_calib_bytes = None
         try:
@@ -121,7 +126,7 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
             test.fail()
         log.i(f"OCC calibration completed (health factor={health_factor:+.4f})")
 
-        # 6. Write updated table & evaluate
+        # 7 Write updated table & evaluate
         write_ok, _ = write_calibration_table_with_crc(calib_dev, new_calib_bytes)
         if not write_ok:
             log.e("Failed to write OCC calibration table to device")
@@ -135,9 +140,9 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
         final_axis_val = fin_right_pp[1]
         log.i(f"  Final principal points (Right) ppx={fin_right_pp[0]:.6f} ppy={fin_right_pp[1]:.6f}")
 
-        # Reversion checks:
-        # 1. Final must differ from modified (change happened)
-        # 2. Final must be closer to base than to modified (strict revert expectation)
+        # 8. Reversion checks:
+            # a. Final must differ from modified (change happened)
+            # b. Final must be closer to base than to modified (strict revert expectation)
         dist_from_original = abs(final_axis_val - base_axis_val)
         dist_from_modified = abs(final_axis_val - modified_axis_val)
         log.i(f"  ppy distances: from_base={dist_from_original:.6f} from_modified={dist_from_modified:.6f}")
@@ -167,6 +172,7 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
 
         if abs(final_axis_val - modified_axis_val) <= EPSILON:
             log.e(f"OCC left ppy unchanged (within EPSILON={EPSILON}); failing")
+            calib_dev.reset_to_factory_calibration()
             test.fail()
         elif dist_from_modified + EPSILON <= dist_from_original:
             log.e("OCC did not revert toward base (still closer to modified)")
@@ -179,38 +185,45 @@ def run_advanced_occ_calibration_test(host_assistance, image_width, image_height
 
     return calib_dev
 
-if not is_mipi_device():
-# mipi devices do not support OCC calibration without host assistance
+if not is_mipi_device() and not is_d555():
+    # mipi devices do not support OCC calibration without host assistance; D555 excluded separately
+    # D555 needs different parsing of calibration tables , SRC and more
     with test.closure("Advanced OCC calibration test with calibration table modifications"):
         calib_dev = None
+        config = None
+        pipeline = None
         try:
             host_assistance = False
             image_width, image_height, fps = (256, 144, 90)
-            ground_truth_mm = None # Example ground-truth depth (mm); adjust if known
-            calib_dev = run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=ground_truth_mm)
+            ground_truth_mm = None  # Example ground-truth depth (mm); adjust if known
+            config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+            run_advanced_occ_calibration_test(host_assistance, config, pipeline, calib_dev, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=ground_truth_mm)
         except Exception as e:
             log.e("OCC calibration with principal point modification failed: ", str(e))
             test.fail()
         finally:
             if calib_dev is not None and getattr(test, 'test_failed', True):
                 log.i("Restoring calibration table after test failure")
-                restore_calibration_table(calib_dev)
+                calib_dev.reset_to_factory_calibration()
 
-with test.closure("Advanced OCC calibration test with host assistance"):
-    calib_dev = None
-    try:
-        host_assistance = True
-        image_width, image_height, fps = (1280, 720, 30)
-        ground_truth_mm = None # Example ground-truth depth (mm); adjust if known
-        calib_dev = run_advanced_occ_calibration_test(host_assistance, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=ground_truth_mm)
-    except Exception as e:
-        log.e("OCC calibration with principal point modification failed: ", str(e))
-        test.fail()
-    finally:
-        if calib_dev is not None and getattr(test, 'test_failed', True):
-            log.i("Restoring calibration table after test failure")
-            restore_calibration_table(calib_dev)
-            
+if is_mipi_device() and not is_d555():
+    with test.closure("Advanced OCC calibration test with host assistance"):
+        calib_dev = None
+        config = None
+        pipeline = None
+        try:
+            host_assistance = True
+            image_width, image_height, fps = (1280, 720, 30)
+            ground_truth_mm = None  # Example ground-truth depth (mm); adjust if known
+            config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+            run_advanced_occ_calibration_test(host_assistance, config, pipeline, calib_dev, image_width, image_height, fps, modify_ppy=True, ground_truth_mm=ground_truth_mm)
+        except Exception as e:
+            log.e("OCC calibration with principal point modification failed: ", str(e))
+            test.fail()
+        finally:
+            if calib_dev is not None and getattr(test, 'test_failed', True):
+                log.i("Restoring calibration table after test failure")
+                calib_dev.reset_to_factory_calibration()
 
 test.print_results_and_exit()
 

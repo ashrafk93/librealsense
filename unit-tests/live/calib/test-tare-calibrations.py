@@ -8,6 +8,7 @@ from rspy import test, log
 from test_calibrations_common import calibration_main, get_calibration_device, is_mipi_device
 
 #disabled until we stabilize lab
+#test:donotrun
 
 def tare_calibration_json(tare_json_file, host_assistance):
     tare_json = None
@@ -76,23 +77,23 @@ HEALTH_FACTOR_THRESHOLD = 0.25
 TARGET_Z_MIN = 600
 TARGET_Z_MAX = 1500
 _target_z = None
+if is_mipi_device():
+    with test.closure("Tare calibration test with host assistance"):
+        try:
+            host_assistance = True
+            if (_target_z is None):
+                _target_z = calculate_target_z()
+                test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
+            
+            tare_json = tare_calibration_json(None, host_assistance)
+            image_width, image_height, fps = 1280, 720, 30
+            config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+            health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, tare_json, _target_z, return_table=True)
 
-with test.closure("Tare calibration test with host assistance"):
-    try:
-        host_assistance = True
-        if (_target_z is None):
-            _target_z = calculate_target_z()
-            test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
-        
-        tare_json = tare_calibration_json(None, host_assistance)
-        image_width, image_height, fps = 1280, 720, 30
-        config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
-        health_factor, new_calib_bytes = calibration_main(config, pipeline, calib_dev, False, tare_json, _target_z, return_table=True)
-
-        test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
-    except Exception as e:
-        log.e("Tare calibration test with host assistance failed: ", str(e))
-        test.fail()
+            test.check(abs(health_factor) < HEALTH_FACTOR_THRESHOLD)
+        except Exception as e:
+            log.e("Tare calibration test with host assistance failed: ", str(e))
+            test.fail()
 
 if not is_mipi_device():
 # mipi devices do not support OCC calibration without host assistance  

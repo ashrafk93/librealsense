@@ -65,10 +65,14 @@ def calibration_main(config, pipeline, calib_dev, occ_calib, json_config, ground
 
     conf = pipeline.start(config)
     pipeline.wait_for_frames()  # Verify streaming started before calling calibration methods
-
-    depth_sensor = conf.get_device().first_depth_sensor()
-    if depth_sensor.supports(rs.option.emitter_enabled):
-        depth_sensor.set_option(rs.option.emitter_enabled, 1)
+    camera_name = conf.get_device().get_info(rs.camera_info.name)
+    emitter_required = True
+    if camera_name == "Intel RealSense D415":
+        emitter_required = False
+    if emitter_required:
+        depth_sensor = conf.get_device().first_depth_sensor()
+        if depth_sensor.supports(rs.option.emitter_enabled):
+            depth_sensor.set_option(rs.option.emitter_enabled, 1)    
     if depth_sensor.supports(rs.option.thermal_compensation):
         depth_sensor.set_option(rs.option.thermal_compensation, 0)
 
@@ -191,6 +195,15 @@ def is_mipi_device():
     ctx = rs.context()
     device = ctx.query_devices()[0]
     return device.supports(rs.camera_info.connection_type) and device.get_info(rs.camera_info.connection_type) == "GMSL"
+
+def is_d555():
+    try:
+        ctx = rs.context()
+        dev = ctx.query_devices()[0]
+        name = dev.get_info(rs.camera_info.name) if dev.supports(rs.camera_info.name) else ""
+        return ("D555" in name)
+    except Exception:
+        return False
 
 # for step 2 -  not in use for now
 

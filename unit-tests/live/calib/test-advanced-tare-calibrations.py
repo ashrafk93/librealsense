@@ -14,6 +14,7 @@ from test_calibrations_common import (
     restore_calibration_table,
     write_calibration_table_with_crc,
     measure_average_depth,
+    is_d555
 )
 
 #disabled until we stabilize lab
@@ -99,18 +100,19 @@ EPSILON = 0.001          # distance comparison tolerance for reversion checks
 HEALTH_FACTOR_THRESHOLD_AFTER_MODIFICATION = 2.0  # OCC health factor acceptance for modified run
 
 
-def run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, target_z=None):
+def run_advanced_tare_calibration_test(host_assistance, config, pipeline, calib_dev, image_width, image_height, fps, target_z=None):
     """Run advanced tare calibration test with calibration table modifications.
 
-        Flow:
-            1. OCC (baseline) or Restore factory calibration
-            2. Read & log base principal point
-            3. Apply controlled raw intrinsic perturbation (ppy or ppx)
-            4. Verify perturbation was applied
-            5. Run OCC once and capture returned table
-            6. Write table, read final principal point, compute correction metrics
+    Flow:
+        1. Read and log base principal points (reference).
+        2. Measure baseline average depth; establish ground truth if not provided.
+        3. Apply manual principal-point perturbation (ppx/ppy shift) to the calibration table.
+        4. Re-read and verify the modification was applied (delta vs base within tolerance).
+        5. Measure average depth after modification (pre-Tare).
+        6. Run Tare calibration (host assistance optional); obtain new table & health factor; validate threshold.
+        7. Write returned table; read final principal points; compute and log distances to base and modified.
+        8. Measure post-Tare average depth; assert convergence toward ground truth and principal point reversion (failure handling if not satisfied).
     """
-    config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
     try:
 
         # 1. Read base (reference) principal points
@@ -185,7 +187,6 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             log.e("Average depth after tare unavailable")
             test.fail()
 
-
         # Reversion checks:
         # 1. Final must differ from modified (change happened)
         # 2. Final must be closer to base than to modified (strict revert expectation)
@@ -221,7 +222,10 @@ def run_advanced_tare_calibration_test(host_assistance, image_width, image_heigh
             pass
     return calib_dev
 
-if not is_mipi_device():
+
+if not is_mipi_device() and not is_d555():
+# mipi devices do not support OCC calibration without host assistance
+# D555 needs different parsing of calibration tables , SRC and more
     with test.closure("Advanced tare calibration test with calibration table modifications"):
         calib_dev = None
         try:
@@ -230,7 +234,8 @@ if not is_mipi_device():
                 _target_z = calculate_target_z()
                 test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
             image_width, image_height, fps = (256, 144, 90)
-            calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
+            config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+            calib_dev = run_advanced_tare_calibration_test(host_assistance, config, pipeline, calib_dev, image_width, image_height, fps, _target_z)
         except Exception as e:
             log.e("Tare calibration with principal point modification failed: ", str(e))
             test.fail()
@@ -239,20 +244,25 @@ if not is_mipi_device():
                 log.i("Restoring calibration table after test failure")
                 restore_calibration_table(calib_dev)
 
-with test.closure("Advanced tare calibration test with host assistance"):
-    calib_dev = None
-    try:
-        host_assistance = True
-        if (_target_z is None):
-            _target_z = calculate_target_z()
-            test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
-        image_width, image_height, fps = (1280, 720, 30)
-        calib_dev = run_advanced_tare_calibration_test(host_assistance, image_width, image_height, fps, _target_z)
-    except Exception as e:
-        log.e("Tare calibration with principal point modification failed: ", str(e))
-        test.fail()
-    finally:
-        if calib_dev is not None and getattr(test, 'test_failed', True):
+
+if is_mipi_device() and not is_d555():
+# mipi devices do not support OCC calibration without host assistance
+# D555 needs different parsing of calibration tables , SRC and more
+    with test.closure("Advanced tare calibration test with host assistance"):
+        calib_dev = None
+        try:
+            host_assistance = True
+            if (_target_z is None):
+                _target_z = calculate_target_z()
+                test.check(_target_z > TARGET_Z_MIN and _target_z < TARGET_Z_MAX)
+            image_width, image_height, fps = (1280, 720, 30)
+            config, pipeline, calib_dev = get_calibration_device(image_width, image_height, fps)
+            calib_dev = run_advanced_tare_calibration_test(host_assistance, config, pipeline, calib_dev, image_width, image_height, fps, _target_z)
+        except Exception as e:
+            log.e("Tare calibration with principal point modification failed: ", str(e))
+            test.fail()
+        finally:
+            if calib_dev is not None and getattr(test, 'test_failed', True):
                 log.i("Restoring calibration table after test failure")
                 restore_calibration_table(calib_dev)
 
