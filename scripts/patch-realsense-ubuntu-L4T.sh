@@ -224,6 +224,7 @@ fi
 #Building modules_prepare, which:
 #1. Prepares kernel headers for building external modules
 #2. Generates Module.symvers if it doesn’t already exist.
+LOCALVERSION='-tegra'
 make ARCH=arm64 prepare modules_prepare LOCALVERSION='' -j$(($(nproc)-1))
 
 echo -e "\e[32mCompiling uvcvideo kernel module\e[0m"
@@ -291,8 +292,8 @@ sudo depmod
 # when using our jetson drivers instructions
 UVCVIDEO_PATH=$(modinfo -F filename uvcvideo)
 if [[ -z "$UVCVIDEO_PATH" ]]; then
-    echo -e "\e[31mError: Could not find the uvcvideo kernel module. Please ensure it is available before running this script.\e[0m"
-    exit 1
+    UVCVIDEO_PATH='/lib/modules/$(uname -r)/updates'
+    echo -e "\e[33mCould not find the uvcvideo kernel module.\nIt will be loaded into updates folder: $UVCVIDEO_PATH.\e[0m"
 fi
 
 echo -e "\e[32mInsert the modified kernel modules\e[0m"
