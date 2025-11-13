@@ -291,7 +291,7 @@ sudo depmod
 # when using our jetson drivers instructions
 UVCVIDEO_PATH=$(modinfo -F filename uvcvideo)
 if [[ -z "$UVCVIDEO_PATH" ]]; then
-    UVCVIDEO_PATH='/lib/modules/$(uname -r)/updates'
+    UVCVIDEO_PATH="/lib/modules/$(uname -r)/updates"
     echo -e "\e[33mCould not find the uvcvideo kernel module.\nIt will be loaded into updates folder: $UVCVIDEO_PATH.\e[0m"
 fi
 
