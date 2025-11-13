@@ -290,6 +290,10 @@ sudo depmod
 # special attention to uvcvideo because it is one of the files that is set to /lib/modules/`uname -r`/updates/ folder
 # when using our jetson drivers instructions
 UVCVIDEO_PATH=$(modinfo -F filename uvcvideo)
+if [[ -z "$UVCVIDEO_PATH" ]]; then
+    echo -e "\e[31mError: Could not find the uvcvideo kernel module. Please ensure it is available before running this script.\e[0m"
+    exit 1
+fi
 
 echo -e "\e[32mInsert the modified kernel modules\e[0m"
 if version_lt "$PATCHES_REV" "6.0"; then
