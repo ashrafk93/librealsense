@@ -42,6 +42,7 @@ namespace librealsense
         const uint16_t RS400_MIPI_RECOVERY_PID = 0xbbcd; // D4XX MIPI DFU Recovery
         const uint16_t RS430_GMSL_PID = 0xabce; // D430 GMSL
         const uint16_t RS415_GMSL_PID = 0xabcf; // D415 GMSL
+        const uint16_t RS401_GMSL_PID = 0xabcc; // D401 GMSL
 
         // d400 Devices supported by the current version
         static const std::set<std::uint16_t> rs400_sku_pid = {
