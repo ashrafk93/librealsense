@@ -180,7 +180,7 @@ for opt, arg in opts:
         skip_regex = arg
     elif opt == '--custom-fw-d400':
         custom_fw_path = arg  # Store the custom firmware path
-        log.i(f"custom firmware path was provided ${custom_fw_path}")
+        log.i(f"custom D400 firmware path was provided ${custom_fw_path}")
     elif opt == '--custom-fw-d555':
         custom_fw_d555_path = arg  # Store the custom D555 firmware path
         log.i(f"custom D555 firmware path was provided ${custom_fw_d555_path}")

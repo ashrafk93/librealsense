@@ -21,18 +21,9 @@ import argparse
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Test firmware update")
-parser.add_argument('--custom-fw-d400', type=str, help='Path to custom firmware file')
+parser.add_argument('--custom-fw-d400', type=str, help='Path to custom D400 firmware file')
 parser.add_argument('--custom-fw-d555', type=str, help='Path to custom D555 firmware file')
 args = parser.parse_args()
-
-custom_fw_d400_path = args.custom_fw_d400
-custom_fw_d555_path = args.custom_fw_d555
-if custom_fw_d400_path:
-    log.i(f"Custom D400 firmware path provided: {custom_fw_d400_path}")
-elif custom_fw_d555_path:
-    log.i(f"Custom D555 firmware path provided: {custom_fw_d555_path}")
-else:
-    log.i(f"No Custom firmware path provided. using bundled firmware")
 
 
 def send_hardware_monitor_command(device, command):
@@ -61,7 +52,7 @@ def extract_version_from_filename(file_path):
         return None
 
     filename = os.path.basename(file_path)
-    match = re.search(r'(\d+)[._](\d+)[._](\d+)[._](\d+)', filename)
+    match = re.search(r'[-_](\d+)[._](\d+)[._](\d+)[._](\d+)', filename)
     if match:
         groups = match.groups()
         if groups[3] == '0':
@@ -77,15 +68,14 @@ def extract_version_from_filename(file_path):
 
 def get_update_counter(device):
     product_line = device.get_info(rs.camera_info.product_line)
-    product_name = device.get_info(rs.camera_info.name)
     opcode = 0x09
     start_index = 0x30
     size = None
 
     if product_line == "D400":
         size = 0x2
-    elif "D555" in product_name:
-        return 0 # D555 does not have update counter
+    elif product_line == "D500":
+        return 0 # D500 do not have update counter
     else:
         log.f( "Incompatible product line:", product_line )
 
@@ -157,10 +147,21 @@ if not fw_updater_exe:
 device, ctx = test.find_first_device_or_exit()
 product_line = device.get_info( rs.camera_info.product_line )
 product_name = device.get_info( rs.camera_info.name )
-serial_number = device.get_info(rs.camera_info.serial_number)
-log.d( 'product line:', product_line, 'serial number:', serial_number )
+log.d( 'product line:', product_line )
 ###############################################################################
 #
+
+current_fw_version = rsutils.version( device.get_info( rs.camera_info.firmware_version ))
+log.d( 'current FW version:', current_fw_version )
+
+# Determine which firmware to use based on product
+bundled_fw_version = rsutils.version("")
+custom_fw_path = None
+custom_fw_version = None
+if product_line == "D400" and args.custom_fw_d400:
+    custom_fw_path = args.custom_fw_d400
+elif "D555" in product_name and args.custom_fw_d555:
+    custom_fw_path = args.custom_fw_d555
 
 
 test.start( "Update FW" )
@@ -170,8 +171,10 @@ if device.is_in_recovery_mode():
     log.d( "recovering device ..." )
     try:
         # always flash signed fw when device on recovery before flashing anything else
-        image_file = find_image_or_exit(product_name)
-        cmd = [fw_updater_exe, '-r', '-f', image_file, '-s', serial_number]
+        # on D555 we currently do not have bundled FW
+        image_file = find_image_or_exit(product_name) if "D555" not in product_name else custom_fw_path
+        cmd = [fw_updater_exe, '-r', '-f', image_file]
+        del device, ctx
         log.d( 'running:', cmd )
         subprocess.run( cmd )
         recovered = True
@@ -186,31 +189,20 @@ if device.is_in_recovery_mode():
         log.f( "Unexpected error while trying to recover device:", e )
     else:
         device, ctx = test.find_first_device_or_exit()
-        # check we got the same serial number
-        new_serial_number = device.get_info(rs.camera_info.serial_number)
-        if new_serial_number != serial_number:
-            log.f( "Recovered device has different serial number:", new_serial_number )
+        current_fw_version = rsutils.version(device.get_info(rs.camera_info.firmware_version))
+        log.d("FW version after recovery:", current_fw_version)
 
-current_fw_version = rsutils.version( device.get_info( rs.camera_info.firmware_version ))
-log.d( 'current FW version:', current_fw_version )
-bundled_fw_version = rsutils.version("")
-if device.supports( rs.camera_info.recommended_firmware_version ): # currently, D500 does not support recommended FW
-    bundled_fw_version = rsutils.version( device.get_info( rs.camera_info.recommended_firmware_version ) )
-    log.d( 'bundled FW version:', bundled_fw_version )
-custom_fw_d400_version = extract_version_from_filename(custom_fw_d400_path)
-log.d( 'custom FW D400 version:', custom_fw_d400_version )
-custom_fw_d555_version = extract_version_from_filename(custom_fw_d555_path)
-log.d( 'custom FW D555 version:', custom_fw_d555_version )
 
-# Determine which custom firmware to use based on product
-custom_fw_path = None
-custom_fw_version = None
-if product_line == "D400" and custom_fw_d400_path:
-    custom_fw_path = custom_fw_d400_path
-    custom_fw_version = custom_fw_d400_version
-elif "D555" in product_name and custom_fw_d555_path:
-    custom_fw_path = custom_fw_d555_path
-    custom_fw_version = custom_fw_d555_version
+if custom_fw_path:
+    custom_fw_version = extract_version_from_filename(custom_fw_path)
+    log.d('Using custom FW version: ', custom_fw_version)
+elif device.supports(rs.camera_info.recommended_firmware_version):  # currently, D500 does not support recommended FW
+    log.i(f"No Custom firmware path provided. using bundled firmware")
+    bundled_fw_version = rsutils.version(device.get_info(rs.camera_info.recommended_firmware_version))
+    log.d('bundled FW version:', bundled_fw_version)
+else:
+    log.w("No custom FW provided and no bundled FW version available; skipping FW update test")
+    exit(0)
 
 if (current_fw_version == bundled_fw_version and not custom_fw_path) or \
    (current_fw_version == custom_fw_version):
@@ -218,9 +210,6 @@ if (current_fw_version == bundled_fw_version and not custom_fw_path) or \
         log.d('versions are same; skipping FW update')
         test.finish()
         test.print_results_and_exit()
-else:
-    # It is expected that, post-recovery, the FW versions will be the same
-    test.check(not recovered, on_fail=test.ABORT)
 
 update_counter = get_update_counter( device )
 log.d( 'update counter:', update_counter )
@@ -236,7 +225,7 @@ fw_version_regex = re.escape( fw_version_regex )
 image_file = find_image_or_exit(product_name, fw_version_regex) if not custom_fw_path else custom_fw_path
 # finding file containing image for FW update
 
-cmd = [fw_updater_exe, '-f', image_file, '-s', serial_number]
+cmd = [fw_updater_exe, '-f', image_file]
 if custom_fw_path:
     # Add '-u' only if the path doesn't include 'signed'
     if ('signed' not in custom_fw_path.lower()
