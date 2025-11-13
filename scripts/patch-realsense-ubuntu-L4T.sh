@@ -73,6 +73,7 @@ else
 	exit;
 fi
 
+# setting UBUNTU_CODENAME
 [[ -f /etc/os-release ]] && eval $(cat /etc/os-release|grep UBUNTU_CODENAME=)
 
 PATCHES_REV=""
@@ -191,21 +192,6 @@ else
 	make ARCH=arm64 defconfig -j$(($(nproc)-1))
 fi
 
-#Reuse existing module.symver
-kernel_ver=`uname -r`
-LINUX_HEADERS_NAME="linux-headers-${kernel_ver}-ubuntu18.04_aarch64"
-if [[ "$PATCHES_REV" = "5.0.2" ]]; then
-  LINUX_HEADERS_NAME="linux-headers-${kernel_ver}-ubuntu20.04_aarch64"
-fi
-if [[ "$PATCHES_REV" = "6.0" ]]; then
-  LINUX_HEADERS_NAME="linux-headers-${kernel_ver}-ubuntu22.04_aarch64"
-fi
-if [[ "$PATCHES_REV" = "7.0" ]]; then
-  LINUX_HEADERS_NAME="linux-headers-${kernel_ver}-ubuntu24.04_aarch64"
-fi
-
-export KBUILD_EXTRA_SYMBOLS="/lib/modules/${kernel_ver}/build/Module.symvers"
-
 #Jetpack prior to 4.4.1 requires manual reconfiguration of kernel
 if [[ "$PATCHES_REV" = "4.4" ]]; then
 	echo -e "\e[32mUpdate the kernel tree to support HID IMU sensors\e[0m"
@@ -213,8 +199,6 @@ if [[ "$PATCHES_REV" = "4.4" ]]; then
 	sed -i '/CONFIG_HID_SENSOR_GYRO_3D/c\CONFIG_HID_SENSOR_GYRO_3D=m' .config
 	sed -i '/CONFIG_HID_SENSOR_IIO_COMMON/c\CONFIG_HID_SENSOR_IIO_COMMON=m\nCONFIG_HID_SENSOR_IIO_TRIGGER=m' .config
 fi
-
-make ARCH=arm64 prepare modules_prepare LOCALVERSION='' -j$(($(nproc)-1))
 
 #Remove previously applied patches
 git reset --hard
@@ -236,6 +220,11 @@ else
 		&& patch -p1 < ${sdk_dir}/scripts/realsense-powerlinefrequency-control-fix-"${UBUNTU_CODENAME}".patch
 	sed -i s'/1.1.1/1.1.1-realsense/'g ./drivers/media/usb/uvc/uvcvideo.h
 fi
+
+#Building modules_prepare, which:
+#1. Prepares kernel headers for building external modules
+#2. Generates Module.symvers if it doesn’t already exist.
+make ARCH=arm64 prepare modules_prepare LOCALVERSION='' -j$(($(nproc)-1))
 
 echo -e "\e[32mCompiling uvcvideo kernel module\e[0m"
 #sudo -s make -j -C $KBASE M=$KBASE/drivers/media/usb/uvc/ modules
@@ -298,9 +287,13 @@ fi
 # update kernel module dependencies
 sudo depmod
 
+# special attention to uvcvideo because it is one of the files that is set to /lib/modules/`uname -r`/updates/ folder
+# when using our jetson drivers instructions
+UVCVIDEO_PATH=$(modinfo -F filename uvcvideo)
+
 echo -e "\e[32mInsert the modified kernel modules\e[0m"
 if version_lt "$PATCHES_REV" "6.0"; then
-	try_module_insert uvcvideo              ~/${TEGRA_TAG}-uvcvideo.ko                /lib/modules/`uname -r`/kernel/drivers/media/usb/uvc/uvcvideo.ko
+	try_module_insert uvcvideo              ~/${TEGRA_TAG}-uvcvideo.ko                $UVCVIDEO_PATH
 	try_load_module  uvcvideo
 	try_load_module  hid-sensor-gyro-3d
 	try_load_module  hid-sensor-accel-3d
