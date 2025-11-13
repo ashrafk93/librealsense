@@ -224,7 +224,9 @@ fi
 #Building modules_prepare, which:
 #1. Prepares kernel headers for building external modules
 #2. Generates Module.symvers if it doesn’t already exist.
-make ARCH=arm64 prepare modules_prepare LOCALVERSION='-tegra' -j$(($(nproc)-1))
+# Extract the local version suffix from the running kernel (e.g., "-tegra" or "")
+KERNEL_LOCALVERSION="$(uname -r | sed -E 's/^[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?//')"
+make ARCH=arm64 prepare modules_prepare LOCALVERSION="${KERNEL_LOCALVERSION}" -j$(($(nproc)-1))
 
 echo -e "\e[32mCompiling uvcvideo kernel module\e[0m"
 #sudo -s make -j -C $KBASE M=$KBASE/drivers/media/usb/uvc/ modules
