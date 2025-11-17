@@ -664,6 +664,26 @@ try:
             #
             test_ok = True
             for configuration, serial_numbers in devices_by_test_config( test, exceptions ):
+                # Currently, with all of our tests, serial_numbers holds a single serial number
+                # We will see multiple devices on serial_numbers only if the test specifies multiple devices in a
+                # single line. For example: "test:device D435 D455" will require both devices simultaneity
+
+                skip_test = False
+                for sn in serial_numbers:
+                    conn_type = devices.get(sn).connection_type.lower()
+                    excluded_connections = [ t[1:].lower() for t in test.config.types if t.startswith('!') ]
+                    required_connections = [ t.lower() for t in test.config.types if not t.startswith('!') ]
+                    if conn_type in excluded_connections:
+                        skip_test = True
+                        break
+                    if required_connections and conn_type not in required_connections:
+                        skip_test = True
+                        break
+
+                if skip_test:
+                    log.d( f'connection type does not fit {test.config.types}; skipping' )
+                    continue
+
                 for repetition in range(repeat):
                     try:
                         log.d( 'configuration:', configuration_str( configuration, repetition, sns=serial_numbers ) )
