@@ -52,9 +52,9 @@ def extract_version_from_filename(file_path):
         return None
 
     filename = os.path.basename(file_path)
-    match = re.search(r'[-_](\d+)[._](\d+)[._](\d+)[._](\d+)', filename)
+    match = re.search(r'_(\d+)_(\d+)_(\d+)_(\d+).(bin|img)', filename)
     if match:
-        groups = match.groups()
+        groups = match.groups()[:-1] # exclude the file extension
         if groups[3] == '0':
             version_str = ".".join(groups[:3])
         else:
