@@ -71,7 +71,8 @@ namespace librealsense
             ds::RS455_PID,
             ds::RS457_PID,
             ds::RS430_GMSL_PID,
-            ds::RS415_GMSL_PID
+            ds::RS415_GMSL_PID,
+            ds::RS401_GMSL_PID
         };
 
         static const std::set<std::uint16_t> d400_multi_sensors_pid = {
@@ -87,13 +88,15 @@ namespace librealsense
             ds::RS455_PID,
             ds::RS457_PID,
             ds::RS430_GMSL_PID,
-            ds::RS415_GMSL_PID
+            ds::RS415_GMSL_PID,
+            ds::RS401_GMSL_PID
         };
 
         static const std::set<std::uint16_t> d400_mipi_device_pid = {
             ds::RS457_PID,
             ds::RS430_GMSL_PID,
-            ds::RS415_GMSL_PID
+            ds::RS415_GMSL_PID,
+            ds::RS401_GMSL_PID
         };
 
         static const std::set<std::uint16_t> d400_hid_sensors_pid = {
@@ -150,6 +153,7 @@ namespace librealsense
             { RS400_MIPI_RECOVERY_PID,   "Intel RealSense D4XX MIPI Recovery"},
             { RS430_GMSL_PID,       "Intel RealSense D430" },
             { RS415_GMSL_PID,       "Intel RealSense D415" },
+            { RS401_GMSL_PID,       "Intel RealSense D401" },
         };
 
         static std::map<uint16_t, std::string> d400_device_to_fw_min_version = {
@@ -181,7 +185,8 @@ namespace librealsense
             {RS457_PID, "5.16.8.0" },
             {RS400_MIPI_RECOVERY_PID, "5.16.0.1" },
             {RS430_GMSL_PID, "5.16.8.0" },
-            {RS415_GMSL_PID, "5.17.1.1" }
+            {RS415_GMSL_PID, "5.17.1.1" },
+            {RS401_GMSL_PID, "5.17.2.100" }
         };
 
         std::vector<platform::uvc_device_info> filter_d400_device_by_capability(
