@@ -847,11 +847,18 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         dds_options options;
         for( auto & option_j : options_j )
         {
-            //LOG_DEBUG( "[" << debug_name() << "]     ... " << option_j );
-            auto option = dds_option::from_json( option_j );
-            options.push_back( option );
+            try
+            {
+                //LOG_DEBUG( "[" << debug_name() << "]     ... " << option_j );
+                auto option = dds_option::from_json( option_j );
+                options.push_back( option );
+            }
+            catch( std::exception const& e )
+            {
+                LOG_ERROR("[" << debug_name() << "] Invalid option for stream " << stream->name()
+                    << ". Error: " << e.what() << ", reading" << option_j);
+            }
         }
-
         stream->init_options( options );
     }
 
@@ -895,10 +902,17 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         dds_embedded_filters embedded_filters;
         for (auto& embedded_filter_j : embedded_filters_j)
         {
-            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
-            embedded_filters.push_back(embedded_filter);
+            try
+            {
+                auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
+                embedded_filters.push_back(embedded_filter);
+            }
+            catch (std::exception const& e)
+            {
+                LOG_ERROR("[" << debug_name() << "] Invalid embedded filter for stream " << stream->name()
+                    << ". Error: " << e.what() << ", reading" << embedded_filter_j);
+            }            
         }
-
         stream->init_embedded_filters(std::move(embedded_filters));
     }
 
