@@ -66,7 +66,7 @@ namespace rs2
 {
     void imgui_easy_theming(ImFont*& font_dynamic, ImFont*& font_18, ImFont*& monofont, int& font_size);
 
-    constexpr const char* server_versions_db_url = "https://librealsense.intel.com/Releases/rs_versions_db.json";
+    constexpr const char* server_versions_db_url = "https://librealsense.realsenseai.com/Releases/rs_versions_db.json";
 
     typedef std::vector<std::unique_ptr<device_model>> device_models_list;
 

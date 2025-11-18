@@ -62,7 +62,7 @@ Note that a lower version may not work due to non compatible CUDA versions limit
 2. Add the server to the list of repositories:
 
     ```sh
-    sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
+    sudo add-apt-repository "deb https://librealsense.realsenseai.com/Debian/apt-repo $(lsb_release -cs) main" -u
     ```
 
 3. Install the SDK:
