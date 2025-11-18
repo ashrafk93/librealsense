@@ -944,6 +944,7 @@ namespace librealsense
             const uint8_t GVD_PID_OFFSET    = 4;
 
             const uint8_t GVD_PID_D457      = 0x12;
+            const uint8_t GVD_PID_D401_GMSL = 0x13;
             const uint8_t GVD_PID_D430_GMSL = 0x0F;
             const uint8_t GVD_PID_D415_GMSL = 0x06;
 
@@ -999,6 +1000,10 @@ namespace librealsense
 
                         case(GVD_PID_D415_GMSL):
                             device_pid = D415_GMSL_PID;
+                            break;
+
+                        case(GVD_PID_D401_GMSL):
+                            device_pid = D401_GMSL_PID;
                             break;
 
                         default:
@@ -3114,9 +3119,8 @@ namespace librealsense
 
         std::shared_ptr<uvc_device> v4l_backend::create_uvc_device(uvc_device_info info) const
         {
-            bool mipi_device = (D457_PID == info.pid ||
-                                D430_GMSL_PID == info.pid ||
-                                D415_GMSL_PID == info.pid);
+            bool mipi_device = (mipi_devices_pid.count(info.pid) > 0);
+
             auto v4l_uvc_dev =        mipi_device ?         std::make_shared<v4l_mipi_device>(info) :
                               ((!info.has_metadata_node) ?  std::make_shared<v4l_uvc_device>(info) :
                                                             std::make_shared<v4l_uvc_meta_device>(info));
