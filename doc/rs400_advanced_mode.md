@@ -54,7 +54,7 @@ if (result)
     return EXIT_FAILURE;
 }
 ```
-(see [./rs400/examples/c-sample.c](https://github.com/IntelRealSense/librealsense/blob/development/rs400/examples/c-sample.c))
+(see [./rs400/examples/c-sample.c](https://github.com/realsenseai/librealsense/blob/development/rs400/examples/c-sample.c))
 
 In addition, you can use advanced mode functionality in your C++ application without linking with any additional dependencies by just including `rs400_advanced_mode/rs400_advanced_mode.hpp` (under `/rs400/include`):
 ```cpp
