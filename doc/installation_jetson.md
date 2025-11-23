@@ -74,7 +74,7 @@ Note that a lower version may not work due to non compatible CUDA versions limit
 
     ![installation](./img/install-jetson.png)
 
-    With `librealsense2-dev` package installed, you can compile an application with **librealsense** using `g++ -std=c++11 filename.cpp -lrealsense2` or an IDE of your choice. To get started with RealSense using **CMake** check out [librealsense/examples/cmake](https://github.com/IntelRealSense/librealsense/tree/master/examples/cmake)
+    With `librealsense2-dev` package installed, you can compile an application with **librealsense** using `g++ -std=c++11 filename.cpp -lrealsense2` or an IDE of your choice. To get started with RealSense using **CMake** check out [librealsense/examples/cmake](https://github.com/realsenseai/librealsense/tree/master/examples/cmake)
 
 4. Reconnect the RealSense device and run the following to verify the installation: `realsense-viewer`
 
@@ -83,13 +83,13 @@ Note that a lower version may not work due to non compatible CUDA versions limit
 You can also double-TAB after typing `rs-` to see the full list of SDK examples.
 
 > Note: you may need to also run the driver patch script in order for the camera to work on your platform:
-See [building-from-source-using-native-backend](https://github.com/IntelRealSense/librealsense/edit/development/doc/installation_jetson.md#building-from-source-using-native-backend)
+See [building-from-source-using-native-backend](https://github.com/realsenseai/librealsense/edit/development/doc/installation_jetson.md#building-from-source-using-native-backend)
 
 ## Building from Source using **RSUSB** Backend
 
 ⮕ Use the RSUSB backend without the kernel patching
 
-* In order to build the SDK using the `RSUSB` method and avoid the kernel patching procedure, please refer to [libuvc_installation.sh](https://github.com/IntelRealSense/librealsense/blob/master/scripts/libuvc_installation.sh) script for details. If you have CUDA dev-kit installed, don't forget to add `-DBUILD_WITH_CUDA=true` for optimal performance.
+* In order to build the SDK using the `RSUSB` method and avoid the kernel patching procedure, please refer to [libuvc_installation.sh](https://github.com/realsenseai/librealsense/blob/master/scripts/libuvc_installation.sh) script for details. If you have CUDA dev-kit installed, don't forget to add `-DBUILD_WITH_CUDA=true` for optimal performance.
 
 ## Building from Source using **Native** Backend
 
