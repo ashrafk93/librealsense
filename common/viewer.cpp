@@ -3155,7 +3155,7 @@ namespace rs2
 
                 ImGui::Text("Full source code is available at"); ImGui::SameLine();
                 auto github_pos = ImGui::GetCursorPos();
-                ImGui::Text("github.com/IntelRealSense/librealsense.");
+                ImGui::Text("github.com/realsenseai/librealsense.");
 
                 ImGui::Text("This software is distributed under the"); ImGui::SameLine();
                 auto license_pos = ImGui::GetCursorPos();
@@ -3181,11 +3181,11 @@ namespace rs2
                 hyperlink(window, "RealSense", "https://realsenseai.com/");
 
                 ImGui::SetCursorPos({ github_pos.x - 4, github_pos.y - 3 });
-                hyperlink(window, "github.com/IntelRealSense/librealsense", "https://github.com/IntelRealSense/librealsense/");
+                hyperlink(window, "github.com/realsenseai/librealsense", "https://github.com/realsenseai/librealsense/");
 
                 ImGui::SetCursorPos({ license_pos.x - 4, license_pos.y - 3 });
 
-                hyperlink(window, "Apache License, Version 2.0", "https://raw.githubusercontent.com/IntelRealSense/librealsense/master/LICENSE");
+                hyperlink(window, "Apache License, Version 2.0", "https://raw.githubusercontent.com/realsenseai/librealsense/master/LICENSE");
 
                 ImGui::PopStyleColor(4);
 
