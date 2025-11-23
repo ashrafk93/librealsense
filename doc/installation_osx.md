@@ -1,6 +1,6 @@
 # macOS Installation  
 
-**Note:** macOS support for the full range of functionality offered by the SDK is not yet complete. If you need support for R200 or the ZR300, [legacy librealsense](https://github.com/IntelRealSense/librealsense/tree/legacy) offers a subset of SDK functionality.
+**Note:** macOS support for the full range of functionality offered by the SDK is not yet complete. If you need support for R200 or the ZR300, [legacy librealsense](https://github.com/realsenseai/librealsense/tree/legacy) offers a subset of SDK functionality.
 
 ## Building from Source
 
@@ -28,7 +28,7 @@
 
 > **Note:**  On some Mac systems you might encounter `Could NOT find OpenSSL` error  (Usually when setting `-DCHECK_FOR_UPDATES=ON`), this can be worked-around by setting a global variable ``export OPENSSL_ROOT_DIR=`brew --prefix openssl` ``
 
-  **Note:** You can find more information about the available configuration options on [this wiki page](https://github.com/IntelRealSense/librealsense/wiki/Build-Configuration).
+  **Note:** You can find more information about the available configuration options on [this wiki page](https://github.com/realsenseai/librealsense/wiki/Build-Configuration).
 
 ## Packaging your application
 1. librealsense requires libusb to be bundled in the application. To fix the real-time linking, use `install_name_tool`

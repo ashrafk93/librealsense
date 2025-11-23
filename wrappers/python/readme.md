@@ -36,7 +36,7 @@ Windows users can install the RealSense SDK 2.0 from the release tab to get pre-
 2. Install Python and its development files via apt-get
   * `sudo apt-get install python3 python3-dev`
 3. Clone the librealsense repository and navigate into the directory:
-   * `git clone https://github.com/IntelRealSense/librealsense.git`
+   * `git clone https://github.com/realsenseai/librealsense.git`
    * `cd librealsense`
 4. Configure and make:
   * `mkdir build`
@@ -72,7 +72,7 @@ Windows users can install the RealSense SDK 2.0 from the release tab to get pre-
 
 3. If you have multiple python installations on your machine you can use: `-DPYTHON_EXECUTABLE=<path to python executable>`
   For example: `-DPYTHON_EXECUTABLE=C:/Python310/python.exe`
-> The precompiled binaries shipped with [the installer](https://github.com/IntelRealSense/librealsense/releases) assume **Python 3.11**.
+> The precompiled binaries shipped with [the installer](https://github.com/realsenseai/librealsense/releases) assume **Python 3.11**.
 >The error `ImportError: DLL load failed: The specified module could not be found` might indicate versions mismatch or architecture (x86 vs x64) mismatch.
 
 4. Open `librealsense2.sln` that was created in the previous step, and build the `pyrealsense2` project
