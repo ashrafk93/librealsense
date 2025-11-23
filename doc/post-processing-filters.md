@@ -73,14 +73,14 @@ Hole Filling| Control the data that will be used to fill the invalid pixels | [0
 
 ### Rotation filter
 
-The rotation filter transforms depth and IR frames by rotating them by specified angles: 0�, 90�, 180�, and -90�.
+The rotation filter transforms depth and IR frames by rotating them by specified angles: 0°, 90°, 180°, and -90°.
 This allows re-orienting frames to fit the required perspective for various applications.
 
 After the resulted frame is produced, the frame intrinsic parameters are recalculated to account for rotation.
 
 Controls | Operation |  Range | Default
 :------: | :-------- | :---- | :----:
-Rotation| The frame rotation in degrees | Discrete steps: 0, 90, 180, -90| 0� 
+Rotation| The frame rotation in degrees | Discrete steps: 0, 90, 180, -90| 0° 
 
 ## Design and Implementation
 Post-processing modules are encapsulated into self-contained processing blocks, that provide for the following key requirements:
