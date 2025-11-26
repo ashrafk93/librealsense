@@ -116,7 +116,7 @@ namespace rs2
 
     void open_issue(std::string body)
     {
-        std::string link = "https://github.com/IntelRealSense/librealsense/issues/new?body=" + url_encode(body);
+        std::string link = "https://github.com/realsenseai/librealsense/issues/new?body=" + url_encode(body);
         open_url(link.c_str());
     }
 
