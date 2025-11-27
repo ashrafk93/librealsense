@@ -1,7 +1,7 @@
 # Linux Distribution
 
 #### Using pre-build packages
-**Intel® RealSense™ SDK 2.0** provides installation packages for Intel X86/AMD64/ARM-based Debian distributions in [`dpkg`](https://en.wikipedia.org/wiki/Dpkg) format for Ubuntu 20/22/24 [LTS](https://wiki.ubuntu.com/LTS).
+**RealSense™ SDK 2.0** provides installation packages for Intel X86/AMD64/ARM-based Debian distributions in [`dpkg`](https://en.wikipedia.org/wiki/Dpkg) format for Ubuntu 20/22/24 [LTS](https://wiki.ubuntu.com/LTS).
 
 > Note: For EOL Ubuntu distributions please use the following versions:  
 Ubuntu 16 -> [2.51.1](https://github.com/realsenseai/librealsense/releases/tag/v2.51.1).  
@@ -21,7 +21,7 @@ The steps are described in [Linux manual installation guide](./installation.md)
 - Register the server's public key:
 ```
 sudo mkdir -p /etc/apt/keyrings
-curl -sSf https://librealsense.intel.com/Debian/librealsense.pgp | sudo tee /etc/apt/keyrings/librealsense.pgp > /dev/null
+curl -sSf https://librealsense.realsenseai.com/Debian/librealsense.pgp | sudo tee /etc/apt/keyrings/librealsense.pgp > /dev/null
 ```
 
 - Make sure apt HTTPS support is installed:
@@ -29,7 +29,7 @@ curl -sSf https://librealsense.intel.com/Debian/librealsense.pgp | sudo tee /etc
 
 - Add the server to the list of repositories:
 ```
-echo "deb [signed-by=/etc/apt/keyrings/librealsense.pgp] https://librealsense.intel.com/Debian/apt-repo `lsb_release -cs` main" | \
+echo "deb [signed-by=/etc/apt/keyrings/librealsense.pgp] https://librealsense.realsenseai.com/Debian/apt-repo `lsb_release -cs` main" | \
 sudo tee /etc/apt/sources.list.d/librealsense.list
 sudo apt-get update
 ```
@@ -44,7 +44,7 @@ sudo apt-get update
   `sudo apt-get install librealsense2-dbg`  
   With `dev` package installed, you can compile an application with **librealsense** using `g++ -std=c++11 filename.cpp -lrealsense2` or an IDE of your choice.
 
-Reconnect the Intel RealSense depth camera and run: `realsense-viewer` to verify the installation.
+Reconnect the RealSense depth camera and run: `realsense-viewer` to verify the installation.
 
 Verify that the kernel is updated :    
 `modinfo uvcvideo | grep "version:"` should include `realsense` string
