@@ -941,7 +941,7 @@ namespace rs2
             _device_model->show_depth_only = true;
             _device_model->show_stream_selection = false;
 
-            _depth_sensor_model->draw_streams_selector = true;
+            _depth_sensor_model->draw_streams_selector = false;
             _depth_sensor_model->draw_fps_selector = true;
             _depth_sensor_model->allow_change_resolution_while_streaming = true;
             _depth_sensor_model->allow_change_fps_while_streaming = true;
