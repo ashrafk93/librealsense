@@ -836,11 +836,14 @@ namespace rs2
         {
             // resolution
             // Draw combo-box with all resolution options for this stream type
-            res &= draw_resolutions_combo_box_multiple_resolutions(error_message, label, streaming_tooltip, col0, col1, stream_type);
+            res |= draw_resolutions_combo_box_multiple_resolutions(error_message, label, streaming_tooltip, col0, col1, stream_type);
 
-            // stream and formats
-            // Draw combo-box with all format options for current stream type
-            res &= draw_formats_combo_box_multiple_resolutions(error_message, label, streaming_tooltip, col0, col1, stream_type);
+            if (draw_streams_selector) 
+            {
+                // stream and formats
+                // Draw combo-box with all format options for current stream type
+                res |= draw_formats_combo_box_multiple_resolutions(error_message, label, streaming_tooltip, col0, col1, stream_type);
+            }
         }
 
         return res;
@@ -871,15 +874,12 @@ namespace rs2
                 res |= draw_fps(error_message, label, streaming_tooltip, col0, col1);
             }
 
-            if (draw_streams_selector)
+            if (!streaming)
             {
-                if (!streaming)
-                {
-                    ImGui::Text("Available Streams:");
-                }
-
-                res |= draw_res_stream_formats(error_message, label, streaming_tooltip, col0, col1);
+                ImGui::Text("Available Streams:");
             }
+
+            res |= draw_res_stream_formats(error_message, label, streaming_tooltip, col0, col1);
         }
         else
         {
@@ -1332,10 +1332,10 @@ namespace rs2
 
     bool subdevice_model::is_multiple_resolutions_supported() const
     {
-        std::string product_name = dev.get_info(RS2_CAMERA_INFO_NAME);
+        std::string product_line = dev.get_info(RS2_CAMERA_INFO_PRODUCT_LINE);
         std::string sensor_name = s->get_info(RS2_CAMERA_INFO_NAME);
-        
-        return product_name.find("D585S") != std::string::npos && sensor_name == "Stereo Module";
+
+        return product_line == "D500" && sensor_name == "Stereo Module";
     }
 
     std::pair<int, int> subdevice_model::get_max_resolution(rs2_stream stream) const
