@@ -43,9 +43,10 @@ namespace librealsense {
         // Take only the 'context' part of it
         config = rsutils::json_config::load_settings( config, "context", "config-file" );
 
-        LOG_DEBUG( "Loaded configuration: " << config.dump( 4 ) );
         // Patch the given context settings into the configuration
         config.override( context_settings, "context settings" );
+        LOG_DEBUG( "Loaded context configuration: " << config.dump(4) );
+
         return config;
     }
 
