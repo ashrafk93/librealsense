@@ -23,7 +23,6 @@ DEBUG_MODE = False
 # for example, 5 for 5cm, will define the range 100-104 cm as one (as 100)
 DETAIL_LEVEL = 5 
 BLACK_PIXEL_THRESHOLD = 0.8 # Fail if more than 80% pixels are zero
-DEPTH_PERCENTAGE = 0.4  # Percentage of pixels that need to have similar values to be considered meaningful - in front of wall
 FRAMES_TO_CHECK = 30 # Number of frames to check for meaningful depth
 
 dev, ctx = test.find_first_device_or_exit()
@@ -110,19 +109,21 @@ def get_distances(depth_frame):
     return dists, total
 
 
-def is_wall_depth_enough(save_image=False, show_image=False):
+def is_depth_fill_rate_enough(save_image=False, show_image=False):
     """
-    Checks if the camera is showing a frame with a meaningful depth.
-    DETAIL_LEVEL is setting how close distances need to be, to be considered the same
+    Checks if the camera is showing a frame with a enough depth fill rate.
 
-    returns true if frame shows meaningful depth
+    returns true if frame depth fill rate is enough
     """
+    has_depth = False
     frames = pipeline.wait_for_frames()
     depth = frames.get_depth_frame()
     color = frames.get_color_frame()
     if not depth:
         log.f("Error getting depth frame")
         return False
+    else:
+        has_depth = True
     if DEBUG_MODE and not color:
         log.e("Error getting color frame")
 
@@ -137,15 +138,12 @@ def is_wall_depth_enough(save_image=False, show_image=False):
     dists_no_zero = {k: v for k, v in dists.items() if k != 0}
     if save_image or show_image:
         frames_to_image(depth, color, save_image, show_image)
-    # If any distance is the same on more than DEPTH_PERCENTAGE of the pixels, there is no meaningful depth
     # Find the largest non-zero depth bin
     max_nonzero_count = max(dists_no_zero.values()) if dists_no_zero else 0
     max_nonzero_percent = 100.0 * max_nonzero_count / total if total > 0 else 0
-    wall_depth_ok = (max_nonzero_count > total * DEPTH_PERCENTAGE)
     fill_rate = 100.0 * (total - num_blank_pixels) / total if total > 0 else 0
-    # Since tests are in front of a wall, the largest bucket ideal is 100%, so we will require at least DEPTH_PERCENTAGE%
-    log.i(f"Depth fill rate: {fill_rate:.1f}% (blank pixels: {num_blank_pixels}/{total}), wall depth: {wall_depth_ok} (largest bucket: {max_nonzero_percent:.1f}% - min allowed {DEPTH_PERCENTAGE * 100:.1f}%)")
-    return wall_depth_ok, num_blank_pixels
+    log.i(f"Depth fill rate: {fill_rate:.1f}% (blank pixels: {num_blank_pixels}/{total}")
+    return has_depth, num_blank_pixels
 
 
 ################################################################################################
@@ -161,7 +159,7 @@ has_depth = False
 
 # we check a few different frames to try and detect depth
 for frame_num in range(FRAMES_TO_CHECK):
-    has_depth, laser_black_pixels = is_wall_depth_enough(save_image=DEBUG_MODE, show_image=DEBUG_MODE)
+    has_depth, laser_black_pixels = is_depth_fill_rate_enough(save_image=DEBUG_MODE, show_image=DEBUG_MODE)
     if has_depth:
         break
 
