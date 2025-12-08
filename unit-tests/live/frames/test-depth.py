@@ -23,7 +23,7 @@ DEBUG_MODE = False
 # for example, 5 for 5cm, will define the range 100-104 cm as one (as 100)
 DETAIL_LEVEL = 5 
 BLACK_PIXEL_THRESHOLD = 0.8 # Fail if more than 80% pixels are zero
-DEPTH_PERCENTAGE = 0.5  # Percentage of pixels that need to have different values to be considered meaningful
+DEPTH_PERCENTAGE = 0.4  # Percentage of pixels that need to have similar values to be considered meaningful - in front of wall
 FRAMES_TO_CHECK = 30 # Number of frames to check for meaningful depth
 
 dev, ctx = test.find_first_device_or_exit()
@@ -110,7 +110,7 @@ def get_distances(depth_frame):
     return dists, total
 
 
-def is_depth_meaningful(save_image=False, show_image=False):
+def is_wall_depth_enough(save_image=False, show_image=False):
     """
     Checks if the camera is showing a frame with a meaningful depth.
     DETAIL_LEVEL is setting how close distances need to be, to be considered the same
@@ -141,10 +141,11 @@ def is_depth_meaningful(save_image=False, show_image=False):
     # Find the largest non-zero depth bin
     max_nonzero_count = max(dists_no_zero.values()) if dists_no_zero else 0
     max_nonzero_percent = 100.0 * max_nonzero_count / total if total > 0 else 0
-    meaningful_depth = not (max_nonzero_count > total * DEPTH_PERCENTAGE)
+    wall_depth_ok = (max_nonzero_count > total * DEPTH_PERCENTAGE)
     fill_rate = 100.0 * (total - num_blank_pixels) / total if total > 0 else 0
-    log.i(f"Depth fill rate: {fill_rate:.1f}% (blank pixels: {num_blank_pixels}/{total}), meaningful depth: {meaningful_depth} (largest bin: {max_nonzero_percent:.1f}% - max allowed {DEPTH_PERCENTAGE * 100:.1f}%)")
-    return meaningful_depth, num_blank_pixels
+    # Since tests are in front of a wall, the largest bucket ideal is 100%, so we will require at least DEPTH_PERCENTAGE%
+    log.i(f"Depth fill rate: {fill_rate:.1f}% (blank pixels: {num_blank_pixels}/{total}), wall depth: {wall_depth_ok} (largest bucket: {max_nonzero_percent:.1f}% - min allowed {DEPTH_PERCENTAGE * 100:.1f}%)")
+    return wall_depth_ok, num_blank_pixels
 
 
 ################################################################################################
@@ -160,7 +161,7 @@ has_depth = False
 
 # we check a few different frames to try and detect depth
 for frame_num in range(FRAMES_TO_CHECK):
-    has_depth, laser_black_pixels = is_depth_meaningful(save_image=DEBUG_MODE, show_image=DEBUG_MODE)
+    has_depth, laser_black_pixels = is_wall_depth_enough(save_image=DEBUG_MODE, show_image=DEBUG_MODE)
     if has_depth:
         break
 
