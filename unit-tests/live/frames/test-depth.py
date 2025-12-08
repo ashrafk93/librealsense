@@ -115,15 +115,12 @@ def is_depth_fill_rate_enough(save_image=False, show_image=False):
 
     returns true if frame depth fill rate is enough
     """
-    has_depth = False
     frames = pipeline.wait_for_frames()
     depth = frames.get_depth_frame()
     color = frames.get_color_frame()
     if not depth:
         log.f("Error getting depth frame")
         return False
-    else:
-        has_depth = True
     if DEBUG_MODE and not color:
         log.e("Error getting color frame")
 
@@ -142,8 +139,9 @@ def is_depth_fill_rate_enough(save_image=False, show_image=False):
     max_nonzero_count = max(dists_no_zero.values()) if dists_no_zero else 0
     max_nonzero_percent = 100.0 * max_nonzero_count / total if total > 0 else 0
     fill_rate = 100.0 * (total - num_blank_pixels) / total if total > 0 else 0
+    fill_rate_ok = fill_rate > (1 - BLACK_PIXEL_THRESHOLD) * 100.0
     log.i(f"Depth fill rate: {fill_rate:.1f}% (blank pixels: {num_blank_pixels}/{total}")
-    return has_depth, num_blank_pixels
+    return fill_rate_ok, num_blank_pixels
 
 
 ################################################################################################
