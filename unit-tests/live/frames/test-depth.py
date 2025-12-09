@@ -22,7 +22,7 @@ DEBUG_MODE = False
 # Defines how far in cm do pixels have to be, to be considered in a different distance
 # for example, 5 for 5cm, will define the range 100-104 cm as one (as 100)
 DETAIL_LEVEL = 5 
-BLACK_PIXEL_THRESHOLD = 0.8 # Fail if more than 80% pixels are zero
+BLACK_PIXEL_THRESHOLD = 0.5 # Fail if more than 50% pixels are zero
 FRAMES_TO_CHECK = 30 # Number of frames to check for meaningful depth
 
 dev, ctx = test.find_first_device_or_exit()
