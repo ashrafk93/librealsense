@@ -250,19 +250,9 @@ subprocess.run( cmd )   # may throw
 # make sure update worked
 time.sleep(3) # MIPI devices do not re-enumerate so we need to give them some time to restart
 device, ctx = test.find_first_device_or_exit()
-fw_version_str = device.get_info( rs.camera_info.firmware_version )
-log.d('fw_version_str = ' , fw_version_str)
-log.d('rsutils.version( fw_version_str ) = ' , rsutils.version( fw_version_str ) )
-log.d('rsutils.version( device.get_info( rs.camera_info.firmware_version )) = ' , 
-      rsutils.version( device.get_info( rs.camera_info.firmware_version )) )
-log.d('device is:', device)
 current_fw_version = rsutils.version( device.get_info( rs.camera_info.firmware_version ))
 
 expected_fw_version = custom_fw_version if custom_fw_path else bundled_fw_version
-log.d('expected_fw_version = ' , expected_fw_version)
-log.d('custom_fw_path = ' , custom_fw_path)
-log.d('custom_fw_version = ' , custom_fw_version)
-log.d('bundled_fw_version = ', bundled_fw_version)
 test.check_equal(current_fw_version, expected_fw_version)
 new_update_counter = get_update_counter( device )
 # According to FW: "update counter zeros if you load newer FW than (ever) before"
