@@ -282,7 +282,7 @@ for prof in depth_profiles:
     fmt = f"{prof.as_video_stream_profile().width()}x{prof.as_video_stream_profile().height()}@{prof.fps()}"
     # Skip 90 fps and 300 fps test cases
     if prof.fps() == 90 or prof.fps() == 300:
-        log.i(f"Skipping 90 fps test case: {fmt}")
+        log.i(f"Skipping 90,300 fps test case: {fmt}")
         continue
     # Verify metadata is available for this profile before running the test
     if not check_metadata_availability(prof):
