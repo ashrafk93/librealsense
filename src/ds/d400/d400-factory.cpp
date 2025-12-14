@@ -78,6 +78,34 @@ namespace librealsense
         };
     };
 
+    class rs401_gmsl_device : //public d400_color,
+                              public d400_nonmonochrome,
+                              public d400_mipi_device,
+                              public firmware_logger_device
+    {
+    public:
+        rs401_gmsl_device( std::shared_ptr< const d400_info > const & dev_info, bool register_device_notifications )
+            : device( dev_info, register_device_notifications )
+            , backend_device( dev_info, register_device_notifications )
+            , d400_device( dev_info )
+            //, d400_color( dev_info )
+            , d400_nonmonochrome( dev_info )
+            , d400_mipi_device()
+            , firmware_logger_device( dev_info, d400_device::_hw_monitor, get_firmware_logs_command(), get_flash_logs_command() )
+        {
+        }
+
+        std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
+
+        std::vector<tagged_profile> get_profiles_tags() const override
+        {
+            std::vector<tagged_profile> tags;
+
+            tags.push_back({ RS2_STREAM_DEPTH, -1, 640, 480, RS2_FORMAT_Z16, 30, profile_tag::PROFILE_TAG_SUPERSET | profile_tag::PROFILE_TAG_DEFAULT });
+            return tags;
+        };
+    };
+
     // Not used, should be removed with EOL devices clean up
     class rs405u_device : public ds5u_device,
                           public ds_advanced_mode_base,
@@ -791,9 +819,11 @@ namespace librealsense
             , firmware_logger_device( dev_info, d400_device::_hw_monitor, get_firmware_logs_command(), get_flash_logs_command() )
         {
             ds_advanced_mode_base::initialize_advanced_mode( this );
-
+#if !defined(__APPLE__) // Motion sensors not supported on macOS
             if( _fw_version >= firmware_version( 5, 16, 0, 0 ) )
-                register_feature( std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
+                register_feature(
+                    std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
+#endif
         }
 
 
@@ -1002,9 +1032,11 @@ namespace librealsense
             , ds_thermal_tracking( d400_device::_thermal_monitor )
         {
             ds_advanced_mode_base::initialize_advanced_mode( this );
-
+#if !defined(__APPLE__) // Motion sensors not supported on macOS
             if( _fw_version >= firmware_version( 5, 16, 0, 0 ) )
-                register_feature( std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
+                register_feature(
+                    std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
+#endif
         }
 
         std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
@@ -1096,6 +1128,8 @@ namespace librealsense
             return std::make_shared< rs430_gmsl_device >( dev_info, register_device_notifications );
         case RS415_GMSL_PID:
             return std::make_shared< rs415_gmsl_device >(dev_info, register_device_notifications);
+        case RS401_GMSL_PID:
+            return std::make_shared< rs401_gmsl_device >( dev_info, register_device_notifications );
         default:
             throw std::runtime_error( rsutils::string::from() << "Unsupported RS400 model! 0x" << std::hex
                                                               << std::setw( 4 ) << std::setfill( '0' ) << (int)pid );
@@ -1165,6 +1199,12 @@ namespace librealsense
     std::shared_ptr<matcher> rs400_device::create_matcher(const frame_holder& frame) const
     {
         std::vector<stream_interface*> streams = { _depth_stream.get() , _left_ir_stream.get() , _right_ir_stream.get()};
+        return matcher_factory::create(RS2_MATCHER_DEFAULT, streams);
+    }
+
+    std::shared_ptr<matcher> rs401_gmsl_device::create_matcher(const frame_holder& frame) const
+    {
+        std::vector<stream_interface*> streams = { _depth_stream.get() , _left_ir_stream.get() , _right_ir_stream.get() };
         return matcher_factory::create(RS2_MATCHER_DEFAULT, streams);
     }
 

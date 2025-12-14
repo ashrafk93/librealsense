@@ -489,32 +489,68 @@ void dds_device::impl::on_log( json const & j, dds_sample const & )
 }
 
 
-void dds_device::impl::open( const dds_stream_profiles & profiles )
+void dds_device::impl::add_profiles_to_json( const realdds::dds_stream_profiles & profiles, rsutils::json & profiles_as_json ) const
 {
-    if( profiles.empty() )
-        DDS_THROW( runtime_error, "must provide at least one profile" );
-
-    json stream_profiles;
     for( auto & profile : profiles )
     {
         auto stream = profile->stream();
         if( ! stream )
             DDS_THROW( runtime_error, "profile '" << profile->to_string() << "' is not part of any stream" );
-        if( stream_profiles.nested( stream->name() ) )
+        if( profiles_as_json.nested( stream->name() ) )
             DDS_THROW( runtime_error, "more than one profile found for stream '" << stream->name() << "'" );
 
-        stream_profiles[stream->name()] = profile->to_json();
+        profiles_as_json[stream->name()] = profile->to_json();
     }
+}
+
+void dds_device::impl::open( const dds_stream_profiles & profiles )
+{
+    if( profiles.empty() )
+        DDS_THROW( runtime_error, "must provide at least one profile" );
+
+    json profiles_to_open;
+    add_profiles_to_json( profiles, profiles_to_open );
+    // Not needed, already open streams are kept open by FW
+    // add_profiles_to_json( _open_profiles_list, profiles_to_open ); // Add already open profiles to the list
 
     json j = {
         { topics::control::key::id, topics::control::open_streams::id },
-        { topics::control::open_streams::key::stream_profiles, std::move( stream_profiles ) },
+        // D555 initial FW treats reset field as implicitly true, so we explicitly mention it here
+        { topics::control::open_streams::key::reset, false }
     };
+    if( ! profiles_to_open.empty() )
+        j[topics::control::open_streams::key::stream_profiles] = std::move( profiles_to_open );
+
+    json reply;
+    write_control_message( j, &reply );
+
+    // If no exception writing to the device then save profiles in open profiles list
+    _open_profiles_list.insert( _open_profiles_list.end(), profiles.begin(), profiles.end() );
+}
+
+void dds_device::impl::close( const dds_stream_profiles & profiles )
+{
+    // Remove profiles from open profiles list. Not using erase-remove idiom but for a small number of profiles it does not really matter...
+    for( auto & profile : profiles )
+    {
+        auto it = find( _open_profiles_list.begin(), _open_profiles_list.end(), profile );
+        if( it != _open_profiles_list.end() )
+            _open_profiles_list.erase( it );
+    }
+
+    json keep_open_profiles;
+    add_profiles_to_json( _open_profiles_list, keep_open_profiles );
+
+    json j = {
+        { topics::control::key::id, topics::control::open_streams::id },
+        { topics::control::open_streams::key::reset, true }
+    };
+    if( ! keep_open_profiles.empty() )
+        j[topics::control::open_streams::key::stream_profiles] = std::move( keep_open_profiles );
 
     json reply;
     write_control_message( j, &reply );
 }
-
 
 void dds_device::impl::set_option_value( const std::shared_ptr< dds_option > & option, json new_value )
 {
@@ -847,11 +883,18 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         dds_options options;
         for( auto & option_j : options_j )
         {
-            //LOG_DEBUG( "[" << debug_name() << "]     ... " << option_j );
-            auto option = dds_option::from_json( option_j );
-            options.push_back( option );
+            try
+            {
+                //LOG_DEBUG( "[" << debug_name() << "]     ... " << option_j );
+                auto option = dds_option::from_json( option_j );
+                options.push_back( option );
+            }
+            catch( std::exception const& e )
+            {
+                LOG_ERROR("[" << debug_name() << "] Invalid option for stream " << stream->name()
+                    << ". Error: " << e.what() << ", reading" << option_j);
+            }
         }
-
         stream->init_options( options );
     }
 
@@ -895,10 +938,17 @@ void dds_device::impl::on_stream_options( json const & j, dds_sample const & sam
         dds_embedded_filters embedded_filters;
         for (auto& embedded_filter_j : embedded_filters_j)
         {
-            auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
-            embedded_filters.push_back(embedded_filter);
+            try
+            {
+                auto embedded_filter = dds_embedded_filter::from_json(embedded_filter_j);
+                embedded_filters.push_back(embedded_filter);
+            }
+            catch (std::exception const& e)
+            {
+                LOG_ERROR("[" << debug_name() << "] Invalid embedded filter for stream " << stream->name()
+                    << ". Error: " << e.what() << ", reading" << embedded_filter_j);
+            }            
         }
-
         stream->init_embedded_filters(std::move(embedded_filters));
     }
 

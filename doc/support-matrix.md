@@ -4,7 +4,7 @@
 
 RealSense devices pass validation and stability cycles. Every firmware + librealsense release is going through several levels of validation, from automated unit-tests to longer validation cycles.  
 
-After passing unit-tests and basic functional testing release is made available under [librealsense/releases](https://github.com/IntelRealSense/librealsense/releases) and marked as a ![pre-release](./img/prerelease.png).
+After passing unit-tests and basic functional testing release is made available under [librealsense/releases](https://github.com/realsenseai/librealsense/releases) and marked as a ![pre-release](./img/prerelease.png).
 
 Once full validation report is internally reviewed and approved, release is promoted to ![latest](./img/latest_release.png) and published at [www.realsenseai.com/developers/](https://realsenseai.com/developers).
 
