@@ -819,11 +819,11 @@ namespace librealsense
             , firmware_logger_device( dev_info, d400_device::_hw_monitor, get_firmware_logs_command(), get_flash_logs_command() )
         {
             ds_advanced_mode_base::initialize_advanced_mode( this );
-#if !defined(__APPLE__) // Motion sensors not supported on macOS
+// #if !defined(__APPLE__) // Motion sensors not supported on macOS
             if( _fw_version >= firmware_version( 5, 16, 0, 0 ) )
                 register_feature(
                     std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
-#endif
+// #endif
         }
 
 
@@ -1032,11 +1032,11 @@ namespace librealsense
             , ds_thermal_tracking( d400_device::_thermal_monitor )
         {
             ds_advanced_mode_base::initialize_advanced_mode( this );
-#if !defined(__APPLE__) // Motion sensors not supported on macOS
+// #if !defined(__APPLE__) // Motion sensors not supported on macOS
             if( _fw_version >= firmware_version( 5, 16, 0, 0 ) )
                 register_feature(
                     std::make_shared< gyro_sensitivity_feature >( get_raw_motion_sensor(), get_motion_sensor() ) );
-#endif
+// #endif
         }
 
         std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
@@ -1157,7 +1157,7 @@ namespace librealsense
             auto is_pid_of_multisensor_device = [](int pid) { return std::find(std::begin(ds::d400_multi_sensors_pid), std::end(ds::d400_multi_sensors_pid), pid) != std::end(ds::d400_multi_sensors_pid); };
             auto is_pid_of_mipi_device = [](int pid) { return std::find(std::begin(ds::d400_mipi_device_pid), std::end(ds::d400_mipi_device_pid), pid) != std::end(ds::d400_mipi_device_pid); };
 
-#if !defined(__APPLE__) // Not supported by macos
+// #if !defined(__APPLE__) // Not supported by macos
             auto is_pid_of_hid_sensor_device = [](int pid) { return std::find(std::begin(ds::d400_hid_sensors_pid),
                 std::end(ds::d400_hid_sensors_pid), pid) != std::end(ds::d400_hid_sensors_pid); };
             bool is_device_hid_sensor = false;
@@ -1166,7 +1166,7 @@ namespace librealsense
                 if (is_pid_of_hid_sensor_device(uvc.pid))
                     is_device_hid_sensor = true;
             }
-#endif
+// #endif
 
             if (!devices.empty() && is_mi_0_present)
             {

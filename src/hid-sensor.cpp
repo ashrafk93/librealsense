@@ -201,6 +201,13 @@ void hid_sensor::start( rs2_frame_callback_sptr callback )
                 std::lock_guard< std::mutex > lock( _configure_lock );
                 request = _configured_profiles[sensor_name];
             }
+            
+            if (!request)
+            {
+                LOG_DEBUG("No configured profile for sensor: " << sensor_name << ", frame dropped");
+                return;
+            }
+            
             bool is_custom_sensor = false;
             static const uint32_t custom_source_id_offset = 16;
             uint8_t custom_gpio = 0;
@@ -226,6 +233,12 @@ void hid_sensor::start( rs2_frame_callback_sptr callback )
                 auto stream_type = request->get_stream_type();
                 LOG_INFO( "HID Frame received when Streaming is not active," << get_string( stream_type ) << ",Arrived,"
                                                                              << std::fixed << system_time );
+                return;
+            }
+
+            if (!timestamp_reader)
+            {
+                LOG_ERROR("timestamp_reader is null for sensor: " << sensor_name);
                 return;
             }
 

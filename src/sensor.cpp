@@ -303,6 +303,12 @@ void log_callback_end( uint32_t fps,
                                            const unsigned long long & last_frame_number,
                                            std::shared_ptr< stream_profile_interface > profile )
     {
+        if (!profile)
+        {
+            LOG_ERROR("generate_frame_from_data called with null profile");
+            return nullptr;
+        }
+        
         auto fr = std::make_shared<frame>();
         
         fr->set_stream(profile);
@@ -331,10 +337,13 @@ void log_callback_end( uint32_t fps,
         fr->additional_data = additional_data;
 
         // update additional data
-        additional_data.timestamp = timestamp_reader->get_frame_timestamp(fr);
-        additional_data.last_frame_number = last_frame_number;
-        additional_data.frame_number = timestamp_reader->get_frame_counter(fr);
-        fr->additional_data = additional_data;
+        if (timestamp_reader)
+        {
+            additional_data.timestamp = timestamp_reader->get_frame_timestamp(fr);
+            additional_data.last_frame_number = last_frame_number;
+            additional_data.frame_number = timestamp_reader->get_frame_counter(fr);
+            fr->additional_data = additional_data;
+        }
 
         return fr;
     }

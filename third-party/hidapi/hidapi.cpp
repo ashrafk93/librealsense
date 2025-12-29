@@ -761,6 +761,9 @@ static int set_report(hidapi_device *dev, IOHIDReportType type, const unsigned c
 
 int HID_API_EXPORT hid_write(hidapi_device *dev, const unsigned char *data, size_t length)
 {
+    if (!dev)
+        return -1;
+    
     return set_report(dev, kIOHIDReportTypeOutput, data, length);
 }
 
@@ -822,6 +825,9 @@ static int cond_timedwait(const hidapi_device *dev, pthread_cond_t *cond, pthrea
 int HID_API_EXPORT hid_read_timeout(hidapi_device *dev, unsigned char *data, size_t length, int milliseconds)
 {
     int bytes_read = -1;
+    
+    if (!dev)
+        return -1;
     
     /* Lock the access to the report list. */
     pthread_mutex_lock(&dev->mutex);
@@ -895,11 +901,17 @@ ret:
 
 int HID_API_EXPORT hid_read(hidapi_device *dev, unsigned char *data, size_t length)
 {
+    if (!dev)
+        return -1;
+    
     return hid_read_timeout(dev, data, length, (dev->blocking)? -1: 0);
 }
 
 int HID_API_EXPORT hid_set_nonblocking(hidapi_device *dev, int nonblock)
 {
+    if (!dev)
+        return -1;
+    
     /* All Nonblocking operation is handled by the library. */
     dev->blocking = !nonblock;
     
@@ -908,6 +920,9 @@ int HID_API_EXPORT hid_set_nonblocking(hidapi_device *dev, int nonblock)
 
 int HID_API_EXPORT hid_send_feature_report(hidapi_device *dev, const unsigned char *data, size_t length)
 {
+    if (!dev)
+        return -1;
+    
     return set_report(dev, kIOHIDReportTypeFeature, data, length);
 }
 
@@ -915,6 +930,9 @@ int HID_API_EXPORT hid_get_feature_report(hidapi_device *dev, unsigned char *dat
 {
     CFIndex len = length;
     IOReturn res;
+    
+    if (!dev)
+        return -1;
     
     /* Return if the device has been unplugged. */
     if (dev->disconnected)
