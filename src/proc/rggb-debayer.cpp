@@ -4,6 +4,7 @@
 #include "rggb-debayer.h"
 
 #include <cstddef>   // size_t
+#include <cmath>     // std::pow
 
 namespace librealsense {
 namespace rggb {
@@ -49,6 +50,17 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
     const int bl   = p.black_level;
     const int row_px = ( dst_stride_px > width ) ? dst_stride_px : width;
 
+    // Tone curve: the sensor data is linear; encode with 1/gamma (sRGB-like) so midtones aren't
+    // crushed on a display. 256-entry LUT built once per frame (cost is negligible vs the demosaic).
+    uint8_t tone[256];
+    const float inv_g = ( p.gamma > 0.f ) ? 1.f / p.gamma : 1.f;
+    for( int i = 0; i < 256; ++i )
+        tone[i] = to_u8( 255.f * std::pow( i / 255.f, inv_g ) );
+
+    const float gr = p.gain_r * p.digital_gain;
+    const float gg = p.gain_g * p.digital_gain;
+    const float gb = p.gain_b * p.digital_gain;
+
     // Black-level-subtracted, edge-clamped Bayer sample at (x,y).
     auto S = [&]( int x, int y ) -> int {
         x = clampi( x, 0, wmax );
@@ -91,9 +103,9 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
                 R = ( S( x - 1, y - 1 ) + S( x + 1, y - 1 ) + S( x - 1, y + 1 ) + S( x + 1, y + 1 ) ) * 0.25f;
             }
 
-            row[ x * 3 + 0 ] = to_u8( R * p.gain_r );
-            row[ x * 3 + 1 ] = to_u8( G * p.gain_g );
-            row[ x * 3 + 2 ] = to_u8( B * p.gain_b );
+            row[ x * 3 + 0 ] = tone[ to_u8( R * gr ) ];
+            row[ x * 3 + 1 ] = tone[ to_u8( G * gg ) ];
+            row[ x * 3 + 2 ] = tone[ to_u8( B * gb ) ];
         }
         // Zero any padding columns so a narrower image sits cleanly in a wider output frame.
         for( int x = width; x < row_px; ++x )

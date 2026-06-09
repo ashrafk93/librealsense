@@ -22,10 +22,13 @@ namespace rggb {
 // ISP knobs. Defaults gray-balance the green-dominant OV9782 (measured R/G/B ~ 41/69/48).
 struct isp_params
 {
-    int   black_level = 16;     // subtracted per channel before gains, clamped to 0
-    float gain_r      = 1.9f;   // white-balance gains (boost R/B relative to green)
-    float gain_g      = 1.0f;
-    float gain_b      = 1.6f;
+    int   black_level   = 16;     // subtracted per channel before gains, clamped to 0
+    float gain_r        = 1.9f;   // white-balance gains (boost R/B relative to green)
+    float gain_g        = 1.0f;
+    float gain_b        = 1.6f;
+    float digital_gain  = 1.8f;   // overall brightness multiplier applied before the tone curve
+    float gamma         = 2.2f;   // display gamma; the sensor data is linear, so we encode with
+                                  // 1/gamma (sRGB-like) - WITHOUT this the image looks very dark
 };
 
 // Unpack MIPI RAW10 (4 px / 5 bytes) to 8-bit Bayer.
