@@ -266,7 +266,7 @@ public:
 
     void probe_and_commit( stream_profile profile, frame_callback callback, int buffers ) override
     {
-        auto dev_index = get_dev_index_by_profiles( profile );
+        auto dev_index = get_dev_index_by_profiles( profile, /*prefer_unconfigured*/ true );
         _configured_indexes.insert( dev_index );
         _dev[dev_index]->probe_and_commit( profile, callback, buffers );
     }
@@ -390,19 +390,30 @@ public:
     }
 
 private:
-    uint32_t get_dev_index_by_profiles( const stream_profile & profile ) const
+    // When several pins expose the *same* profile (e.g. D401 GMSL dual-RGB: both imager nodes carry
+    // identical RGGB), a profile alone can't pick a pin. Route by streaming state: on open prefer a
+    // pin that isn't streaming yet; on close prefer one that is. This sends two concurrent opens of
+    // the same profile to two distinct nodes (and their frames to the matching callbacks).
+    uint32_t get_dev_index_by_profiles( const stream_profile & profile, bool prefer_unconfigured = false ) const
     {
         uint32_t dev_index = 0;
+        int fallback = -1;
         for( auto & elem : _dev )
         {
             auto pin_stream_profiles = elem->get_profiles();
             auto it = find( pin_stream_profiles.begin(), pin_stream_profiles.end(), profile );
             if( it != pin_stream_profiles.end() )
             {
-                return dev_index;
+                const bool configured = ( _configured_indexes.find( dev_index ) != _configured_indexes.end() );
+                if( prefer_unconfigured ? ! configured : configured )
+                    return dev_index;
+                if( fallback < 0 )
+                    fallback = static_cast< int >( dev_index );
             }
             ++dev_index;
         }
+        if( fallback >= 0 )
+            return static_cast< uint32_t >( fallback );
         throw std::runtime_error( "profile not found" );
     }
 

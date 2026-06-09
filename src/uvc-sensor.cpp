@@ -542,6 +542,9 @@ stream_profiles uvc_sensor::init_stream_profiles()
     power on( std::dynamic_pointer_cast< uvc_sensor >( shared_from_this() ) );
 
     auto uvc_profiles = _device->get_profiles();
+    // Distinct stream index for otherwise-identical profiles from different backend pins (e.g.
+    // D401 GMSL dual-RGB: each imager node exposes the same RGGB). Else they share index 0 and merge.
+    std::map< std::tuple< rs2_stream, rs2_format, uint32_t, uint32_t, uint32_t >, int > index_by_profile;
     for( auto && p : uvc_profiles )
     {
         const auto && rs2_fmt = fourcc_to_rs2_format( p.format );
@@ -567,9 +570,11 @@ stream_profiles uvc_sensor::init_stream_profiles()
             if( ! profile )
                 throw librealsense::invalid_value_exception( "null pointer passed for argument \"profile\"." );
 
+            const auto rs2_strm = fourcc_to_rs2_stream( p.format );
             profile->set_dims( p.width, p.height );
-            profile->set_stream_type( fourcc_to_rs2_stream( p.format ) );
-            profile->set_stream_index( 0 );
+            profile->set_stream_type( rs2_strm );
+            profile->set_stream_index(
+                index_by_profile[ std::make_tuple( rs2_strm, rs2_fmt, p.width, p.height, p.fps ) ]++ );
             profile->set_format( rs2_fmt );
             profile->set_framerate( p.fps );
             video_profiles.insert( profile );

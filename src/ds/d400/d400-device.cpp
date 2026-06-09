@@ -264,7 +264,11 @@ namespace librealsense
             }
             else if (p->get_stream_type() == RS2_STREAM_COLOR)
             {
-                assign_stream(_owner->_color_stream, p);
+                // D401 GMSL dual-RGB: color index 0 = left imager, index 1 = right (distinct streams).
+                if (p->get_stream_index() == 1 && _owner->_color_stream2)
+                    assign_stream(_owner->_color_stream2, p);
+                else
+                    assign_stream(_owner->_color_stream, p);
             }
             auto&& vid_profile = dynamic_cast<video_stream_profile_interface*>(p.get());
 
@@ -701,9 +705,11 @@ namespace librealsense
                 // (0/1) is carried through from the source profile, mirroring the IR1/IR2 split.
                 if( _pid == RS401_GMSL_PID )
                 {
+                    // Two color targets: index 0 = left imager, index 1 = right. Backend tags the
+                    // two RGGB sources 0/1; formats-converter matches source index to target index.
                     depth_sensor.register_processing_block(
                         { { RS2_FORMAT_RAW8 } },
-                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR } },
+                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0 }, { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1 } },
                         []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); }
                     );
                 }

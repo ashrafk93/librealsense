@@ -72,6 +72,15 @@ namespace librealsense
         environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream, *_depth_stream, _color_extrinsic);
         register_stream_to_extrinsic_group(*_color_stream, 0);
 
+        if (_pid == RS401_GMSL_PID)
+        {
+            // D401 GMSL dual-RGB: second color stream (right imager). The depth sensor produces two
+            // Color profiles (index 0/1) and routes index 1 here; shares the color extrinsics.
+            _color_stream2 = std::make_shared< stream >( RS2_STREAM_COLOR );
+            environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream2, *_depth_stream, _color_extrinsic);
+            register_stream_to_extrinsic_group(*_color_stream2, 0);
+        }
+
         std::vector<platform::uvc_device_info> color_devs_info;
         // end point 3 is used for color sensor
         // except for D405 and D401_GMSL, in which the color is part of the depth unit
