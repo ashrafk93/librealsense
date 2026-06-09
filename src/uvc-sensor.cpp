@@ -157,6 +157,16 @@ void uvc_sensor::open( const stream_profiles & requests )
 
     verify_supported_requests( requests );
 
+    // When one device exposes more than one color stream (e.g. D401 GMSL dual-RGB) the streams
+    // share a single hardware frame counter, so each stream's frame number jumps by the number of
+    // color streams per interval - which makes the reported (hardware) FPS read 2x. Give each color
+    // stream its own software frame counter, mirroring the accel/gyro override below.
+    int color_stream_count = 0;
+    for( auto && rp : requests )
+        if( rp->get_stream_type() == RS2_STREAM_COLOR )
+            ++color_stream_count;
+    const bool per_stream_color_fn = ( color_stream_count > 1 );
+
     for( auto && req_profile : requests )
     {
         auto && req_profile_base = std::dynamic_pointer_cast< stream_profile_base >( req_profile );
@@ -170,7 +180,7 @@ void uvc_sensor::open( const stream_profiles & requests )
             auto zc_inflight = std::make_shared< std::atomic< int > >( 0 );
             _device->probe_and_commit(
                 req_profile_base->get_backend_profile(),
-                [this, req_profile_base, req_profile, last_frame_number, last_timestamp, zc_inflight](
+                [this, req_profile_base, req_profile, last_frame_number, last_timestamp, zc_inflight, per_stream_color_fn, color_fn = 0ull](
                     platform::stream_profile p,
                     platform::frame_object f,
                     std::function< void() > continuation ) mutable
@@ -212,7 +222,15 @@ void uvc_sensor::open( const stream_profiles & requests )
                             fr->additional_data.frame_number = ++_gyro_counter;
                         frame_counter = fr->additional_data.frame_number;
                     }
-                        
+
+                    // Dual color streams share one hardware frame counter; give each its own
+                    // per-stream software counter so the reported (hardware) FPS isn't doubled
+                    // (see per_stream_color_fn). Mirrors the accel/gyro override above.
+                    if( per_stream_color_fn && req_profile_base->get_stream_type() == RS2_STREAM_COLOR )
+                    {
+                        fr->additional_data.frame_number = ++color_fn;
+                        frame_counter = fr->additional_data.frame_number;
+                    }
 
                     LOG_DEBUG( "FrameAccepted,"
                                << librealsense::get_string( req_profile_base->get_stream_type() ) << ",Counter,"
