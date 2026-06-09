@@ -6,6 +6,7 @@
 #include <src/image.h>          // get_image_bpp
 #include <src/stream.h>         // struct rs2_stream_profile (->profile)
 #include <librealsense2/hpp/rs_frame.hpp>   // rs2::video_stream_profile
+#include <cstdio>
 
 namespace librealsense
 {
@@ -39,15 +40,35 @@ namespace librealsense
         }
     }
 
-    void rggb_converter::process_function( uint8_t * const dest[], const uint8_t * source,
-                                           int width, int height, int /*actual_size*/, int input_size )
+    rs2::frame rggb_converter::process_frame( const rs2::frame_source & source, const rs2::frame & f )
     {
-        // Source row stride = the V4L2 bytesperline, which the kernel pads to a 64-byte boundary
-        // (1612 -> 1664; confirmed via VIDIOC_TRY_FMT). Do NOT derive it from input_size /
-        // RS2_FRAME_METADATA_RAW_FRAME_SIZE: that is the *logical* size (width*height) with the
-        // row padding removed, so using it shears the demosaic across the frame.
-        (void)input_size;
-        const int stride = ( _src_width + 63 ) & ~63;
+        // Capture the source frame's *actual* byte count - the authoritative way to recover the
+        // real row stride regardless of whether the backend keeps the padded V4L2 buffer (1664)
+        // or repacks to width*bpp (1612).
+        _src_data_size = f.get_data_size();
+        static bool logged = false;
+        if( ! logged )
+        {
+            logged = true;
+            auto vf = f.as< rs2::video_frame >();
+            std::fprintf( stderr,
+                "[RGGB] src w=%d h=%d stride_in_bytes=%d bpp=%d data_size=%d  -> derived row stride=%d\n",
+                vf ? vf.get_width() : -1, vf ? vf.get_height() : -1,
+                vf ? vf.get_stride_in_bytes() : -1, vf ? vf.get_bytes_per_pixel() : -1,
+                _src_data_size, ( _src_height > 0 ) ? _src_data_size / _src_height : -1 );
+        }
+        return functional_processing_block::process_frame( source, f );
+    }
+
+    void rggb_converter::process_function( uint8_t * const dest[], const uint8_t * source,
+                                           int width, int height, int /*actual_size*/, int /*input_size*/ )
+    {
+        // Row stride from the source frame's real size (data_size / height). Falls back to the
+        // kernel's 64-byte-aligned width if the size isn't usable. Deriving from RAW_FRAME_SIZE
+        // metadata is unreliable, so we use the buffer's true byte count captured in process_frame.
+        int stride = ( _src_width + 63 ) & ~63;
+        if( _src_data_size > 0 && _src_height > 0 && ( _src_data_size % _src_height ) == 0 )
+            stride = _src_data_size / _src_height;
         rggb::debayer_rggb8( source, stride, width, height, dest[0], _isp );
     }
 }
