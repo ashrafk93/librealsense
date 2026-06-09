@@ -34,9 +34,13 @@ namespace librealsense
             _target_stream_profile = p.clone( p.stream_type(), p.stream_index(), _target_format );
             _target_bpp = get_image_bpp( _target_format ) / 8;
 
-            // NOTE: output keeps the source width for now. The ~324 px of transport padding on
-            // the right are demosaiced harmlessly; cropping to _output_width (1288) by changing
-            // the target dims here would desync from the advertised profile (handled separately).
+            // Crop the output to the real sensor width (drop the transport padding). The registered
+            // target carries a matching resolution_transform, so the advertised profile is also
+            // _output_width x height -> no advertised-vs-runtime desync.
+            auto target_spi = (stream_profile_interface *)_target_stream_profile.get()->profile;
+            if( auto target_vspi = dynamic_cast< video_stream_profile_interface * >( target_spi ) )
+                target_vspi->set_dims( static_cast< uint32_t >( _output_width ),
+                                       static_cast< uint32_t >( _src_height ) );
         }
     }
 
