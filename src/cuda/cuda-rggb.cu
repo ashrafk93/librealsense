@@ -4,6 +4,7 @@
 #ifdef RS2_USE_CUDA
 
 #include "cuda-rggb.cuh"
+#include "../../include/librealsense2/rs.h"   // rs2_intrinsics/rs2_extrinsics (used by rscuda_utils.cuh)
 #include "rscuda_utils.cuh"
 #include <cuda_runtime.h>
 #include <memory>
