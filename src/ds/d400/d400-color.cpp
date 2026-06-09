@@ -7,6 +7,7 @@
 #include <src/ds/ds-timestamp.h>
 #include <src/ds/ds-thermal-monitor.h>
 #include "proc/color-formats-converter.h"
+#include "proc/rggb-converter.h"
 #include "d400-color.h"
 #include "d400-info.h"
 #include <src/backend.h>
@@ -26,7 +27,8 @@ namespace librealsense
          {rs_fourcc('U','Y','V','Y'), RS2_FORMAT_UYVY},
          {rs_fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
          {rs_fourcc('R','W','1','6'), RS2_FORMAT_RAW16},
-         {rs_fourcc('B','Y','R','2'), RS2_FORMAT_RAW16}
+         {rs_fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
+         {rs_fourcc('R','G','G','B'), RS2_FORMAT_RAW8}    // D401 GMSL dual-RGB: 8-bit RGGB (RAW10 in disguise)
     };
     std::map<rs_fourcc::value_type, rs2_stream> d400_color_fourcc_to_rs2_stream = {
         {rs_fourcc('Y','U','Y','2'), RS2_STREAM_COLOR},
@@ -34,7 +36,8 @@ namespace librealsense
         {rs_fourcc('U','Y','V','Y'), RS2_STREAM_COLOR},
         {rs_fourcc('R','W','1','6'), RS2_STREAM_COLOR},
         {rs_fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
-        {rs_fourcc('M','J','P','G'), RS2_STREAM_COLOR}
+        {rs_fourcc('M','J','P','G'), RS2_STREAM_COLOR},
+        {rs_fourcc('R','G','G','B'), RS2_STREAM_COLOR}
     };
 
     d400_color::d400_color( std::shared_ptr< const d400_info > const & dev_info )
@@ -74,7 +77,9 @@ namespace librealsense
         // except for D405 and D401_GMSL, in which the color is part of the depth unit
         // and it will then been found in end point 0 (the depth's one)
         auto color_devs_info_mi3 = filter_by_mi(group.uvc_devices, 3);
-        if (color_devs_info_mi3.size() == 1 || (_is_mipi_device && _pid != ds::RS401_GMSL_PID) )
+        // D401 GMSL dual-RGB: take the separate-color-sensor path too (bind the dedicated color
+        // node below), so the color node becomes its own RGB sensor instead of folding into depth.
+        if (color_devs_info_mi3.size() == 1 || _is_mipi_device )
         {
             // means color end point in part of a separate color sensor (e.g. D435)
             if (_is_mipi_device)
@@ -93,7 +98,15 @@ namespace librealsense
             auto enable_global_time_option = std::shared_ptr<global_time_option>(new global_time_option());
             platform::uvc_device_info info;
             if (_is_mipi_device)
+            {
                 info = color_devs_info[1];
+                if (_pid == ds::RS401_GMSL_PID)
+                {
+                    // Bind the dedicated color node (video-rs-color) rather than a positional index.
+                    for (auto && ci : filter_by_mi(group.uvc_devices, 0))
+                        if (ci.device_path.find("video-rs-color") != std::string::npos) { info = ci; break; }
+                }
+            }
             else
                 info = color_devs_info.front();
             auto uvcd = get_backend()->create_uvc_device( info );
@@ -288,7 +301,16 @@ namespace librealsense
             {
                 color_ep.register_processing_block(processing_block_factory::create_pbf_vector<yuy2_converter>(RS2_FORMAT_YUYV, map_supported_color_formats(RS2_FORMAT_YUYV), RS2_STREAM_COLOR));
             }
-        }        
+
+            // D401 GMSL dual-RGB: the color node carries 8-bit RGGB (RAW10 passthrough). Unpack +
+            // demosaic it to RGB8 on this dedicated color sensor (the second RGB comes off the
+            // depth sensor's ir node).
+            if( _pid == ds::RS401_GMSL_PID )
+                color_ep.register_processing_block(
+                    { { RS2_FORMAT_RAW8 } },
+                    { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR } },
+                    []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); } );
+        }
     }
 
     void d400_color::register_metadata_mipi(const synthetic_sensor &color_ep) const
