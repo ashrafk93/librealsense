@@ -25,6 +25,7 @@
 #include <src/proc/y8i-to-y8y8-mipi.h>
 #include <src/proc/y12i-to-y16y16.h>
 #include <src/proc/y12i-to-y16y16-mipi.h>
+#include <src/proc/rggb-converter.h>
 #include <src/proc/color-formats-converter.h>
 
 #include <src/hdr-config.h>
@@ -62,7 +63,8 @@ namespace librealsense
         {fourcc('Z','1','6',' '), RS2_FORMAT_Z16},
         {fourcc('R','G','B','2'), RS2_FORMAT_BGR8},
         {fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
-        {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16}
+        {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
+        {fourcc('R','G','G','B'), RS2_FORMAT_RAW8}   // D401 GMSL dual-RGB: 8-bit RGGB Bayer (RAW8 CSI passthrough)
 
     };
     std::map<fourcc::value_type, rs2_stream> d400_depth_fourcc_to_rs2_stream = {
@@ -78,7 +80,8 @@ namespace librealsense
         {fourcc('Z','1','6',' '), RS2_STREAM_DEPTH},
         {fourcc('Z','1','6','H'), RS2_STREAM_DEPTH},
         {fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
-        {fourcc('M','J','P','G'), RS2_STREAM_COLOR}
+        {fourcc('M','J','P','G'), RS2_STREAM_COLOR},
+        {fourcc('R','G','G','B'), RS2_STREAM_COLOR}   // D401 GMSL dual-RGB: expose each OV9782 imager as color
     };
 
     std::vector<uint8_t> d400_device::send_receive_raw_data(const std::vector<uint8_t>& input)
@@ -691,8 +694,21 @@ namespace librealsense
                     { {RS2_FORMAT_Y16, RS2_STREAM_INFRARED, 1}, {RS2_FORMAT_Y16, RS2_STREAM_INFRARED, 2} },
                     []() {return std::make_shared<y12i_to_y16y16_mipi>(); }
                 );
+
+                // D401 GMSL dual-RGB POC: the two OV9782 imagers stream 8-bit RGGB Bayer via the
+                // FW RAW8 CSI passthrough. Expose each as a color stream - crop the transport
+                // padding (1612 -> 1288 px) and demosaic RGGB -> RGB8. The per-imager stream index
+                // (0/1) is carried through from the source profile, mirroring the IR1/IR2 split.
+                if( _pid == RS401_GMSL_PID )
+                {
+                    depth_sensor.register_processing_block(
+                        { { RS2_FORMAT_RAW8 } },
+                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR } },
+                        []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); }
+                    );
+                }
             }
-            
+
 
             pid_hex_str = rsutils::string::from() << std::uppercase << rsutils::string::hexdump( _pid );
 
