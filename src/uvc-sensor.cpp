@@ -14,6 +14,8 @@
 #include <src/core/time-service.h>
 #include <map>
 #include <tuple>
+#include <set>
+#include <utility>
 #include <src/core/frame-continuation.h>
 #include <atomic>
 #include <cstdlib>
@@ -103,12 +105,17 @@ void uvc_sensor::verify_supported_requests( const stream_profiles & requests ) c
     // This method's aim is to send a relevant exception message when a user tries to stream
     // twice the same stream (at least) with different configurations (fps, resolution)
     std::map< rs2_stream, uint32_t > requests_map;
+    // Duplicate-stream detection keyed by stream type + index, so that multiple distinct streams
+    // of the same type (e.g. D401 GMSL dual-RGB: Color index 0 and 1) are allowed, while the same
+    // (type,index) requested twice with different config is still rejected.
+    std::set< std::pair< rs2_stream, int > > unique_streams;
     for( auto && req : requests )
     {
         requests_map[req->get_stream_type()] = req->get_framerate();
+        unique_streams.insert( { req->get_stream_type(), req->get_stream_index() } );
     }
 
-    if( requests_map.size() < requests.size() )
+    if( unique_streams.size() < requests.size() )
         throw( std::runtime_error( "Wrong configuration requested" ) );
 
     // D457 dev
