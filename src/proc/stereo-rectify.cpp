@@ -101,6 +101,10 @@ rectification compute( const rs2_intrinsics & inL, const rs2_intrinsics & inR,
     if( tn < 1e-9f ) tn = 1.f;
     // rectified basis: e1 along baseline, e2 = z x e1, e3 = e1 x e2
     float e1[3] = { t[0] / tn, t[1] / tn, t[2] / tn };
+    // Orient the rectified x-axis to +x. The D400 baseline is along -x (T.x < 0), which would make
+    // Rrect a 180-degree rotation (flipped image). Keeping x ~ +x yields Rrect ~ identity for these
+    // near-parallel imagers (a mirror of the disparity sign, irrelevant for display/rectification).
+    if( e1[0] < 0.f ) { e1[0] = -e1[0]; e1[1] = -e1[1]; e1[2] = -e1[2]; }
     float e2[3] = { -e1[1], e1[0], 0.f };
     float e2n = std::sqrt( e2[0] * e2[0] + e2[1] * e2[1] ); if( e2n < 1e-9f ) e2n = 1.f;
     e2[0] /= e2n; e2[1] /= e2n; e2[2] = 0.f;
