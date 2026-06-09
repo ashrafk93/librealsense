@@ -69,16 +69,23 @@ namespace librealsense
 
         _color_extrinsic = std::make_shared< rsutils::lazy< rs2_extrinsics > >(
             [this]() { return from_pose( get_d400_color_stream_extrinsic( *_color_calib_table_raw ) ); } );
-        environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream, *_depth_stream, _color_extrinsic);
-        register_stream_to_extrinsic_group(*_color_stream, 0);
-
+        auto & ext_graph = environment::get_instance().get_extrinsics_graph();
         if (_pid == RS401_GMSL_PID)
         {
-            // D401 GMSL dual-RGB: second color stream (right imager). The depth sensor produces two
-            // Color profiles (index 0/1) and routes index 1 here; shares the color extrinsics.
+            // D401 GMSL dual-RGB: the two color streams ARE the two stereo imagers. Tie each color
+            // stream to its imager's pose (left/right IR) so the inter-stream extrinsics carry the
+            // real stereo baseline (Color0->Color1 == IR1->IR2) and rectification has correct geometry.
+            // (Otherwise both colors share one pose and Color0->Color1 is zero.)
+            ext_graph.register_same_extrinsics( *_color_stream, *_left_ir_stream );
+            register_stream_to_extrinsic_group(*_color_stream, 0);
             _color_stream2 = std::make_shared< stream >( RS2_STREAM_COLOR );
-            environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream2, *_depth_stream, _color_extrinsic);
+            ext_graph.register_same_extrinsics( *_color_stream2, *_right_ir_stream );
             register_stream_to_extrinsic_group(*_color_stream2, 0);
+        }
+        else
+        {
+            ext_graph.register_extrinsics(*_color_stream, *_depth_stream, _color_extrinsic);
+            register_stream_to_extrinsic_group(*_color_stream, 0);
         }
 
         std::vector<platform::uvc_device_info> color_devs_info;
