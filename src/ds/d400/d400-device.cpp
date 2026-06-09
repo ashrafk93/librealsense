@@ -26,6 +26,7 @@
 #include <src/proc/y12i-to-y16y16.h>
 #include <src/proc/y12i-to-y16y16-mipi.h>
 #include <src/proc/rggb-converter.h>
+#include <src/proc/dual-rgb-rectify-filter.h>
 #include <src/proc/color-formats-converter.h>
 
 #include <src/hdr-config.h>
@@ -170,7 +171,12 @@ namespace librealsense
 
     processing_blocks d400_depth_sensor::get_recommended_processing_blocks() const
     {
-        return get_ds_depth_recommended_proccesing_blocks();
+        auto res = get_ds_depth_recommended_proccesing_blocks();
+        // D401 GMSL dual-RGB: rectify the two color streams (default-on, toggleable in the viewer's
+        // Post-Processing). The filter self-configures from the color profiles' SDK calibration.
+        if( _owner->_pid == ds::RS401_GMSL_PID )
+            res.push_back( std::make_shared< dual_rgb_rectify_filter >() );
+        return res;
     }
 
     rs2_intrinsics d400_depth_sensor::get_intrinsics( const stream_profile & profile ) const
