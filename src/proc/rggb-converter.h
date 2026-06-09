@@ -31,7 +31,8 @@ namespace librealsense
                                int width, int height, int actual_size, int input_size ) override;
 
         int              _output_width;   // cropped output width in px (real sensor width, e.g. 1288)
-        int              _src_stride = 0; // source bytes per row (RAW8 = 1 B/px, e.g. 1612)
+        int              _src_width = 0;  // source profile width in px (e.g. 1612, padded)
+        int              _src_height = 0; // source profile height in px (e.g. 808)
         rggb::isp_params _isp;
     };
 }

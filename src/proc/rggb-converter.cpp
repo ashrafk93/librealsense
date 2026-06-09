@@ -16,17 +16,18 @@ namespace librealsense
         {
             _source_stream_profile = p;
 
-            // Source row width in bytes. RAW8 passthrough is 1 byte/pixel, so the V4L2 profile
-            // width (e.g. 1612, padded) is the stride we must step by when reading the mosaic.
-            int src_height = 0;
+            // Source dimensions. RAW8 passthrough is 1 byte/pixel and the V4L2 profile width is
+            // the padded transport width (e.g. 1612). The real row stride is larger still — the
+            // kernel pads each row to 64 bytes (1612 -> 1664) — so process_function() derives the
+            // true stride from the frame's raw size rather than trusting width.
             if( auto vsp = p.as< rs2::video_stream_profile >() )
             {
-                _src_stride = vsp.width();
-                src_height  = vsp.height();
+                _src_width  = vsp.width();
+                _src_height = vsp.height();
             }
             else
             {
-                _src_stride = _output_width;
+                _src_width = _output_width;
             }
 
             _target_stream_profile = p.clone( p.stream_type(), p.stream_index(), _target_format );
@@ -36,14 +37,22 @@ namespace librealsense
             auto target_spi = (stream_profile_interface *)_target_stream_profile.get()->profile;
             if( auto target_vspi = dynamic_cast< video_stream_profile_interface * >( target_spi ) )
                 target_vspi->set_dims( static_cast< uint32_t >( _output_width ),
-                                       static_cast< uint32_t >( src_height ) );
+                                       static_cast< uint32_t >( _src_height ) );
         }
     }
 
     void rggb_converter::process_function( uint8_t * const dest[], const uint8_t * source,
-                                           int width, int height, int /*actual_size*/, int /*input_size*/ )
+                                           int width, int height, int /*actual_size*/, int input_size )
     {
-        // width/height are the cropped target dims; _src_stride steps across the padded source.
-        rggb::debayer_rggb8( source, _src_stride, width, height, dest[0], _isp );
+        // width/height are the cropped target dims (e.g. 1288x808). The source row stride is the
+        // padded transport stride: prefer the exact value from the frame's raw size, else fall
+        // back to the kernel's 64-byte row alignment of the source width (e.g. 1612 -> 1664).
+        int stride;
+        if( input_size > 0 && _src_height > 0 && ( input_size % _src_height ) == 0 )
+            stride = input_size / _src_height;
+        else
+            stride = ( _src_width + 63 ) & ~63;
+
+        rggb::debayer_rggb8( source, stride, width, height, dest[0], _isp );
     }
 }
