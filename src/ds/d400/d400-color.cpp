@@ -72,14 +72,22 @@ namespace librealsense
         environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream, *_depth_stream, _color_extrinsic);
         register_stream_to_extrinsic_group(*_color_stream, 0);
 
+        if (_pid == RS401_GMSL_PID)
+        {
+            // D401 GMSL dual-RGB: a second color stream (right imager). The depth sensor produces
+            // two Color profiles (index 0/1, one per imager node) and routes index 1 here. Shares
+            // the color extrinsics for now (both imagers ~ same pose vs depth).
+            _color_stream2 = std::make_shared< stream >( RS2_STREAM_COLOR );
+            environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream2, *_depth_stream, _color_extrinsic);
+            register_stream_to_extrinsic_group(*_color_stream2, 0);
+        }
+
         std::vector<platform::uvc_device_info> color_devs_info;
         // end point 3 is used for color sensor
         // except for D405 and D401_GMSL, in which the color is part of the depth unit
         // and it will then been found in end point 0 (the depth's one)
         auto color_devs_info_mi3 = filter_by_mi(group.uvc_devices, 3);
-        // D401 GMSL dual-RGB: take the separate-color-sensor path too (bind the dedicated color
-        // node below), so the color node becomes its own RGB sensor instead of folding into depth.
-        if (color_devs_info_mi3.size() == 1 || _is_mipi_device )
+        if (color_devs_info_mi3.size() == 1 || (_is_mipi_device && _pid != ds::RS401_GMSL_PID) )
         {
             // means color end point in part of a separate color sensor (e.g. D435)
             if (_is_mipi_device)
@@ -98,15 +106,7 @@ namespace librealsense
             auto enable_global_time_option = std::shared_ptr<global_time_option>(new global_time_option());
             platform::uvc_device_info info;
             if (_is_mipi_device)
-            {
                 info = color_devs_info[1];
-                if (_pid == ds::RS401_GMSL_PID)
-                {
-                    // Bind the dedicated color node (video-rs-color) rather than a positional index.
-                    for (auto && ci : filter_by_mi(group.uvc_devices, 0))
-                        if (ci.device_path.find("video-rs-color") != std::string::npos) { info = ci; break; }
-                }
-            }
             else
                 info = color_devs_info.front();
             auto uvcd = get_backend()->create_uvc_device( info );
@@ -126,13 +126,6 @@ namespace librealsense
             color_ep->register_info(RS2_CAMERA_INFO_PHYSICAL_PORT, color_devs_info.front().device_path);
 
             _color_device_idx = add_sensor(color_ep);
-
-            // D401 GMSL dual-RGB: the depth sensor also emits a Color (the ir-node RGGB = 2nd RGB)
-            // and assigns it to d400_device::_color_stream. The old fold branch set that member;
-            // this split path doesn't, leaving it null -> null-deref in init_stream_profiles. Point
-            // it at our (extrinsics-registered) color stream so that assignment has a valid target.
-            if (_pid == ds::RS401_GMSL_PID)
-                d400_device::_color_stream = _color_stream;
         }
         else
         {

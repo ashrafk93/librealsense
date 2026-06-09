@@ -264,7 +264,11 @@ namespace librealsense
             }
             else if (p->get_stream_type() == RS2_STREAM_COLOR)
             {
-                assign_stream(_owner->_color_stream, p);
+                // D401 GMSL dual-RGB: two color profiles (index 0 = left imager, index 1 = right).
+                if (p->get_stream_index() == 1 && _owner->_color_stream2)
+                    assign_stream(_owner->_color_stream2, p);
+                else
+                    assign_stream(_owner->_color_stream, p);
             }
             auto&& vid_profile = dynamic_cast<video_stream_profile_interface*>(p.get());
 
@@ -494,14 +498,6 @@ namespace librealsense
 
         std::vector<std::shared_ptr<platform::uvc_device>> depth_devices;
         auto depth_devs_info = filter_by_mi( all_device_infos, 0 );
-
-        // D401 GMSL dual-RGB: the color node (video-rs-color) is exposed as its own color sensor,
-        // so keep it out of the depth sensor's aggregated (multi-pin) device.
-        if( ! all_device_infos.empty() && all_device_infos.front().pid == ds::RS401_GMSL_PID )
-            depth_devs_info.erase(
-                std::remove_if( depth_devs_info.begin(), depth_devs_info.end(),
-                    []( const platform::uvc_device_info & i ) { return i.device_path.find( "video-rs-color" ) != std::string::npos; } ),
-                depth_devs_info.end() );
 
         for (auto&& info : depth_devs_info) // Filter just mi=0, DEPTH
         {
