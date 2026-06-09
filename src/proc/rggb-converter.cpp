@@ -52,10 +52,21 @@ namespace librealsense
             logged = true;
             auto vf = f.as< rs2::video_frame >();
             std::fprintf( stderr,
-                "[RGGB] src w=%d h=%d stride_in_bytes=%d bpp=%d data_size=%d  -> derived row stride=%d\n",
+                "[RGGB] src w=%d h=%d stride_in_bytes=%d bpp=%d data_size=%d\n",
                 vf ? vf.get_width() : -1, vf ? vf.get_height() : -1,
                 vf ? vf.get_stride_in_bytes() : -1, vf ? vf.get_bytes_per_pixel() : -1,
-                _src_data_size, ( _src_height > 0 ) ? _src_data_size / _src_height : -1 );
+                _src_data_size );
+            // One-shot: dump the exact source bytes the converter receives, to analyze the real
+            // layout offline (./tmp/sdk_frame.bin). Remove once the stride/layout is settled.
+            if( _src_data_size > 0 )
+            {
+                if( FILE * fp = std::fopen( "/tmp/sdk_frame.bin", "wb" ) )
+                {
+                    std::fwrite( f.get_data(), 1, static_cast< size_t >( _src_data_size ), fp );
+                    std::fclose( fp );
+                    std::fprintf( stderr, "[RGGB] dumped %d bytes to /tmp/sdk_frame.bin\n", _src_data_size );
+                }
+            }
         }
         return functional_processing_block::process_frame( source, f );
     }
