@@ -126,6 +126,13 @@ namespace librealsense
             color_ep->register_info(RS2_CAMERA_INFO_PHYSICAL_PORT, color_devs_info.front().device_path);
 
             _color_device_idx = add_sensor(color_ep);
+
+            // D401 GMSL dual-RGB: the depth sensor also emits a Color (the ir-node RGGB = 2nd RGB)
+            // and assigns it to d400_device::_color_stream. The old fold branch set that member;
+            // this split path doesn't, leaving it null -> null-deref in init_stream_profiles. Point
+            // it at our (extrinsics-registered) color stream so that assignment has a valid target.
+            if (_pid == ds::RS401_GMSL_PID)
+                d400_device::_color_stream = _color_stream;
         }
         else
         {
