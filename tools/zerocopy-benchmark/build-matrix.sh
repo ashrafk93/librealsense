@@ -35,6 +35,7 @@ RUN=1
 EXTRA_CMAKE=""
 RGB_NN=0          # --rgb-nn: run the RGB upload-vs-direct comparison instead of align+pointcloud
 RES=""            # --res WxH: color resolution for --rgb-nn (e.g. 1280x720)
+DUAL=0            # --dual: dual-RGB (both color streams, D401 GMSL) in --rgb-nn mode
 WITH_EXAMPLES=0   # --with-examples: also build realsense-viewer + rs-gpu-frame (slow). Default off.
 
 while [[ $# -gt 0 ]]; do
@@ -46,6 +47,7 @@ while [[ $# -gt 0 ]]; do
         --run-only)       BUILD=0; shift;;
         --extra-cmake)    EXTRA_CMAKE="$2"; shift 2;;
         --rgb-nn)         RGB_NN=1; shift;;
+        --dual)           DUAL=1; shift;;
         --res)            RES="$2"; shift 2;;
         --with-examples)  WITH_EXAMPLES=1; shift;;
         *) echo "unknown arg: $1"; exit 2;;
@@ -57,7 +59,9 @@ bench_args() {
     if [[ $RGB_NN -eq 1 ]]; then
         local r=""
         [[ -n "$RES" ]] && r="--width ${RES%x*} --height ${RES#*x}"
-        echo "--rgb-nn --seconds $SECONDS_RUN $r"
+        local d=""
+        [[ $DUAL -eq 1 ]] && d="--dual"
+        echo "--rgb-nn --seconds $SECONDS_RUN $r $d"
     else
         echo "--seconds $SECONDS_RUN"
     fi

@@ -104,27 +104,53 @@ double peak_rss_mb()
 // Runs each as its own phase so each gets a clean CPU% (getrusage over its window). The delta
 // is the per-frame host->device upload that zero-copy removes -- and it scales with cameras.
 #ifdef RGBNN_HAVE_CUDA
-int run_rgb_nn( int seconds, int width, int height )
+int run_rgb_nn( int seconds, int width, int height, bool dual )
 {
     rs2::pipeline pipe;
     rs2::config cfg;
-    if( width && height )
+    if( dual )
+    {
+        // D401 GMSL dual-RGB: both imagers exposed as COLOR index 0 (left) and 1 (right).
+        // Defaults to the device's real resolution when --width/--height aren't given.
+        const int w = width  ? width  : 1288;
+        const int h = height ? height : 808;
+        cfg.enable_stream( RS2_STREAM_COLOR, 0, w, h, RS2_FORMAT_RGB8, 30 );
+        cfg.enable_stream( RS2_STREAM_COLOR, 1, w, h, RS2_FORMAT_RGB8, 30 );
+    }
+    else if( width && height )
         cfg.enable_stream( RS2_STREAM_COLOR, width, height, RS2_FORMAT_RGB8, 30 );
     else
         cfg.enable_stream( RS2_STREAM_COLOR, RS2_FORMAT_RGB8 );
     auto prof = pipe.start( cfg );
 
-    auto vsp = prof.get_stream( RS2_STREAM_COLOR ).as< rs2::video_stream_profile >();
-    const int w = vsp.width(), h = vsp.height();
-    const std::size_t bytes = (std::size_t)w * h * 3;
-    printf( "  mode    : RGB -> GPU (feed a color frame to a GPU kernel)\n" );
-    printf( "  device  : %s\n", prof.get_device().get_info( RS2_CAMERA_INFO_NAME ) );
-    printf( "  config  : color %dx%d RGB8 (%zu bytes/frame), %ds/method, warmup 30 frames excluded\n",
-            w, h, bytes, seconds );
-    printf( "  timing  : cudaEvent (GPU-side) for H2D + kernel; total = H2D + kernel\n" );
+    // Collect every color profile (1 normally, 2 for dual-RGB). Buffers are sized to the largest.
+    std::vector< rs2::video_stream_profile > colors;
+    std::size_t max_bytes = 0;
+    int max_pixels = 0;
+    for( auto && sp : prof.get_streams() )
+    {
+        auto v = sp.as< rs2::video_stream_profile >();
+        if( v && v.stream_type() == RS2_STREAM_COLOR )
+        {
+            colors.push_back( v );
+            max_bytes  = std::max( max_bytes,  (std::size_t)v.width() * v.height() * 3 );
+            max_pixels = std::max( max_pixels, v.width() * v.height() );
+        }
+    }
+    const int ncam = (int)colors.size();
 
-    void *  d_in  = rgbnn::dev_alloc( bytes );        // upload target
-    float * d_out = rgbnn::dev_alloc_float( (std::size_t)w * h );  // preprocess output
+    printf( "  mode    : RGB -> GPU (feed %d color frame%s to a GPU kernel)%s\n",
+            ncam, ncam == 1 ? "" : "s", dual ? "  [DUAL-RGB]" : "" );
+    printf( "  device  : %s\n", prof.get_device().get_info( RS2_CAMERA_INFO_NAME ) );
+    for( int i = 0; i < ncam; ++i )
+        printf( "  color[%d]: %dx%d RGB8 (%zu bytes/frame)\n",
+                colors[i].stream_index(), colors[i].width(), colors[i].height(),
+                (std::size_t)colors[i].width() * colors[i].height() * 3 );
+    printf( "  config  : %d camera(s), %ds/method, warmup 30 frames excluded\n", ncam, seconds );
+    printf( "  timing  : cudaEvent (GPU-side) for H2D + kernel; total = H2D + kernel; per-camera-frame\n" );
+
+    void *  d_in  = rgbnn::dev_alloc( max_bytes );                 // upload target (largest frame)
+    float * d_out = rgbnn::dev_alloc_float( (std::size_t)max_pixels );  // preprocess output
     if( ! d_in || ! d_out ) { printf( "device alloc failed\n" ); return 1; }
 
     struct phase_result { double cpu_pct = 0, total_ms = 0, h2d_ms = 0, kernel_ms = 0, fps = 0; int n = 0; bool gpu_used = false; };
@@ -145,44 +171,52 @@ int run_rgb_nn( int seconds, int width, int height )
         {
             rs2::frameset fs;
             if( ! pipe.try_wait_for_frames( &fs, 1000 ) ) continue;
-            auto color = fs.get_color_frame();
-            if( ! color ) continue;
-            ++idx;
-            const bool timed = idx > warmup;
-            if( timed && ! started ) { cpu0 = cpu_ms(); wall0 = now_ms(); started = true; }
 
-            double this_h2d = 0;
-            const unsigned char * rgb_dev = nullptr;
-            if( method == M_GET_GPU_DATA )
+            // Process every color frame in the set (both eyes for dual-RGB) as its own sample.
+            for( auto && fr : fs )
             {
-                rgb_dev = static_cast< const unsigned char * >( color.get_gpu_data() );
-                if( rgb_dev ) r.gpu_used = true;
-            }
-            else if( method == M_OR_UPLOAD )
-            {
-                // The SDK returns a device ptr, uploading internally if there's no zero-copy.
-                // Its internal upload can't be event-timed from here, so host-time the call when
-                // it copies (slightly jittery, but it's the real API-call cost). Zero-copy -> 0.
-                bool copied = false;
-                double c0 = now_ms();
-                rgb_dev = static_cast< const unsigned char * >( color.get_gpu_data_or_upload( &copied ) );
-                double c1 = now_ms();
-                if( copied ) this_h2d = c1 - c0;
-                else if( rgb_dev ) r.gpu_used = true;
-            }
-            if( ! rgb_dev )  // M_H2D_COPY, or a method returned null -> manual upload
-            {
-                this_h2d = rgbnn::upload_ms( d_in, color.get_data(), bytes );  // cudaEvent-timed
-                rgb_dev = static_cast< const unsigned char * >( d_in );
-            }
-            // cudaEvent-timed kernel (GPU-side, immune to host scheduling jitter); also syncs.
-            double kms = rgbnn::preprocess( rgb_dev, d_out, w, h );
+                auto color = fr.as< rs2::video_frame >();
+                if( ! color || color.get_profile().stream_type() != RS2_STREAM_COLOR ) continue;
+                const int cw = color.get_width(), ch = color.get_height();
+                const std::size_t cbytes = (std::size_t)cw * ch * 3;
 
-            if( timed )
-            {
-                if( this_h2d > 0 ) h2d.add( this_h2d );
-                kern.add( kms );
-                total.add( this_h2d + kms );
+                ++idx;
+                const bool timed = idx > warmup;
+                if( timed && ! started ) { cpu0 = cpu_ms(); wall0 = now_ms(); started = true; }
+
+                double this_h2d = 0;
+                const unsigned char * rgb_dev = nullptr;
+                if( method == M_GET_GPU_DATA )
+                {
+                    rgb_dev = static_cast< const unsigned char * >( color.get_gpu_data() );
+                    if( rgb_dev ) r.gpu_used = true;
+                }
+                else if( method == M_OR_UPLOAD )
+                {
+                    // The SDK returns a device ptr, uploading internally if there's no zero-copy.
+                    // Its internal upload can't be event-timed from here, so host-time the call when
+                    // it copies (slightly jittery, but it's the real API-call cost). Zero-copy -> 0.
+                    bool copied = false;
+                    double c0 = now_ms();
+                    rgb_dev = static_cast< const unsigned char * >( color.get_gpu_data_or_upload( &copied ) );
+                    double c1 = now_ms();
+                    if( copied ) this_h2d = c1 - c0;
+                    else if( rgb_dev ) r.gpu_used = true;
+                }
+                if( ! rgb_dev )  // M_H2D_COPY, or a method returned null -> manual upload
+                {
+                    this_h2d = rgbnn::upload_ms( d_in, color.get_data(), cbytes );  // cudaEvent-timed
+                    rgb_dev = static_cast< const unsigned char * >( d_in );
+                }
+                // cudaEvent-timed kernel (GPU-side, immune to host scheduling jitter); also syncs.
+                double kms = rgbnn::preprocess( rgb_dev, d_out, cw, ch );
+
+                if( timed )
+                {
+                    if( this_h2d > 0 ) h2d.add( this_h2d );
+                    kern.add( kms );
+                    total.add( this_h2d + kms );
+                }
             }
         }
         if( started )
@@ -210,22 +244,25 @@ int run_rgb_nn( int seconds, int width, int height )
     // without the API); "get_gpu_data" is the zero-copy API. The difference is the saving.
     // Numbers are AVERAGES per frame over the run; total = H2D + kernel (the GPU op reading the
     // frame -- the uploaded buffer for H2D-copy, the mapped frame in place for get_gpu_data).
-    printf( "\n=== feed RGB to GPU: H2D-copy vs get_gpu_data (avg per frame, %dx%d) ===\n", w, h );
+    const std::size_t cam0_bytes = ncam ? (std::size_t)colors[0].width() * colors[0].height() * 3 : 0;
+    printf( "\n=== feed RGB to GPU: H2D-copy vs get_gpu_data (avg per camera-frame, %d camera%s) ===\n",
+            ncam, ncam == 1 ? "" : "s" );
     printf( "  H2D-copy: %d frames | get_gpu_data: %d frames | ~%ds each | 30-frame warmup excluded\n",
             up.n, dir.n, seconds );
-    printf( "  %-14s | %-12s | %-12s | %-12s | %-8s | %-8s\n", "method", "total(ms)", "H2D(ms)", "kernel(ms)", "FPS", "CPU%" );
-    printf( "  ---------------+--------------+--------------+--------------+----------+--------\n" );
-    printf( "  %-14s | %-12.3f | %-12.3f | %-12.3f | %-8.1f | %-6.1f\n", "H2D-copy",
+    printf( "  %-14s | %-12s | %-12s | %-12s | %-10s | %-8s\n", "method", "total(ms)", "H2D(ms)", "kernel(ms)", "cam-fps", "CPU%" );
+    printf( "  ---------------+--------------+--------------+--------------+------------+--------\n" );
+    printf( "  %-14s | %-12.3f | %-12.3f | %-12.3f | %-10.1f | %-6.1f\n", "H2D-copy",
             up.total_ms,  up.h2d_ms,  up.kernel_ms,  up.fps,  up.cpu_pct );
-    printf( "  %-14s | %-12.3f | %-12.3f | %-12.3f | %-8.1f | %-6.1f%s\n", "get_gpu_data",
+    printf( "  %-14s | %-12.3f | %-12.3f | %-12.3f | %-10.1f | %-6.1f%s\n", "get_gpu_data",
             dir.total_ms, dir.h2d_ms, dir.kernel_ms, dir.fps, dir.cpu_pct,
             dir.gpu_used ? "" : "  (no GPU ptr -> fell back to H2D-copy!)" );
     if( dir.gpu_used )
     {
         printf( "\n  H2D saved/frame : %.3f ms   (the host->device upload get_gpu_data removes)\n", up.h2d_ms );
         printf( "  CPU saved       : %.1f%% -> %.1f%% of 1 core\n", up.cpu_pct, dir.cpu_pct );
-        printf( "  bandwidth saved : %.1f MB/s/camera at %.0f fps\n", bytes * up.fps / 1e6, up.fps );
-        printf( "  (multiply by N cameras for the aggregate host CPU + bus saving)\n" );
+        printf( "  bandwidth saved : %.1f MB/s/camera at %.0f cam-fps (x %d cam = %.1f MB/s aggregate)\n",
+                cam0_bytes * ( up.fps / ( ncam ? ncam : 1 ) ) / 1e6, up.fps / ( ncam ? ncam : 1 ),
+                ncam, cam0_bytes * up.fps / 1e6 );
     }
     return 0;
 }
@@ -240,6 +277,7 @@ int main( int argc, char ** argv )
     bool do_align = true;
     bool do_pointcloud = true;
     bool rgb_nn = false;
+    bool dual = false;
 
     for( int i = 1; i < argc; ++i )
     {
@@ -250,6 +288,7 @@ int main( int argc, char ** argv )
         else if( a == "--width" && i + 1 < argc )         width = std::atoi( argv[++i] );
         else if( a == "--height" && i + 1 < argc )        height = std::atoi( argv[++i] );
         else if( a == "--rgb-nn" )                        rgb_nn = true;
+        else if( a == "--dual" )                          dual = true;   // dual-RGB: both color streams
         else { printf( "unknown/!! arg: %s\n", a.c_str() ); }
     }
 
@@ -265,7 +304,7 @@ int main( int argc, char ** argv )
             printf( "--rgb-nn: no CUDA device available at runtime.\n" );
             return 1;
         }
-        try { return run_rgb_nn( seconds, width, height ); }
+        try { return run_rgb_nn( seconds, width, height, dual ); }
         catch( const rs2::error & e )
         {
             fprintf( stderr, "RealSense error in %s(%s): %s\n",
