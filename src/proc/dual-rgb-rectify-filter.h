@@ -18,6 +18,7 @@ class LRS_EXTENSION_API dual_rgb_rectify_filter : public stream_filter_processin
 {
 public:
     dual_rgb_rectify_filter();
+    ~dual_rgb_rectify_filter() override;
 
 protected:
     rs2::frame process_frame( const rs2::frame_source & source, const rs2::frame & f ) override;
@@ -29,6 +30,11 @@ private:
     bool                      _ready = false;
     rect::rectification       _rc;
     std::vector< uint8_t >    _tmp;        // scratch for the rectified (real-width) image
+
+    // CUDA: the remap tables uploaded to the device once (indexed by eye, 0=left/1=right). Plain
+    // void* so the header stays CUDA-free; populated/used/freed only under RS2_USE_CUDA.
+    void * _dmap_sx[2] = { nullptr, nullptr };
+    void * _dmap_sy[2] = { nullptr, nullptr };
 };
 
 }  // namespace librealsense

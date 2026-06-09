@@ -8,6 +8,11 @@
 #include <librealsense2/hpp/rs_frame.hpp>   // rs2::video_stream_profile
 #include <cstdio>
 
+#ifdef RS2_USE_CUDA
+#include "cuda/cuda-rggb.cuh"
+#include "rsutils/accelerators/gpu.h"   // rsutils::rs2_is_cuda_available
+#endif
+
 namespace librealsense
 {
     void rggb_converter::init_profiles_info( const rs2::frame * f )
@@ -79,6 +84,19 @@ namespace librealsense
             src_stride = _src_data_size / _src_height;
 
         const int real_width = _output_width;          // real sensor width, e.g. 1288 (multiple of 4)
+
+#ifdef RS2_USE_CUDA
+        // GPU path: one fused kernel does RAW10 unpack + RGGB demosaic + gain + tone, writing the
+        // output frame in place under zero-copy (no host round-trip). Output is tight (width*3).
+        if( rsutils::rs2_is_cuda_available() )
+        {
+            const rscuda::rggb_isp_params ip{ _isp.black_level, _isp.gain_r, _isp.gain_g, _isp.gain_b,
+                                              _isp.digital_gain, _isp.gamma };
+            rscuda::rggb_debayer_raw10_cuda( source, src_stride, real_width, height, dest[0], width * 3, ip );
+            return;
+        }
+#endif
+
         _bayer.resize( static_cast< size_t >( real_width ) * height );
         rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
         rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], _isp, /*dst_stride_px*/ width );
