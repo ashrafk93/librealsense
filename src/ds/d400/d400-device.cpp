@@ -713,9 +713,13 @@ namespace librealsense
                 {
                     // Two color targets: index 0 = left imager, index 1 = right. Backend tags the
                     // two RGGB sources 0/1; formats-converter matches source index to target index.
+                    // resolution_transform advertises the real width (padded 1612 -> 1288); the
+                    // converter allocates + emits at 1288 to match (see rggb_converter::prepare_frame).
+                    static const auto real_w = []( uint32_t & w, uint32_t & ) { w = 1288; };
                     depth_sensor.register_processing_block(
                         { { RS2_FORMAT_RAW8, RS2_STREAM_COLOR } },
-                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0 }, { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1 } },
+                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0, 0, 0, 0, real_w },
+                          { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1, 0, 0, 0, real_w } },
                         []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); }
                     );
                 }

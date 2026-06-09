@@ -34,10 +34,25 @@ namespace librealsense
             _target_stream_profile = p.clone( p.stream_type(), p.stream_index(), _target_format );
             _target_bpp = get_image_bpp( _target_format ) / 8;
 
-            // Output keeps the advertised (source) width; the real image occupies the left
-            // _output_width px and the transport padding on the right is zeroed by process_function.
-            // (Cropping the advertised resolution here desyncs the format-converter; left as-is.)
+            // Set the target profile dims to the real (cropped) width, matching the advertised
+            // resolution (registration's resolution_transform) and the frame allocated in
+            // prepare_frame() -> advertised, profile, and produced frame are all _output_width.
+            auto target_spi = (stream_profile_interface *)_target_stream_profile.get()->profile;
+            if( auto target_vspi = dynamic_cast< video_stream_profile_interface * >( target_spi ) )
+                target_vspi->set_dims( static_cast< uint32_t >( _output_width ),
+                                       static_cast< uint32_t >( _src_height ) );
         }
+    }
+
+    rs2::frame rggb_converter::prepare_frame( const rs2::frame_source & source, const rs2::frame & f )
+    {
+        init_profiles_info( &f );
+        auto vf = f.as< rs2::video_frame >();
+        const int h = vf ? vf.get_height() : _src_height;
+        // Allocate the output at the real width (_output_width), NOT the source's padded width
+        // (the base prepare_frame uses the source frame width, which keeps the padding).
+        return source.allocate_video_frame( _target_stream_profile, f, _target_bpp,
+                                            _output_width, h, _output_width * _target_bpp, _extension_type );
     }
 
     rs2::frame rggb_converter::process_frame( const rs2::frame_source & source, const rs2::frame & f )

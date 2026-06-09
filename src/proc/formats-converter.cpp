@@ -318,7 +318,14 @@ void formats_converter::update_target_profiles_data( const stream_profiles & fro
 
                 // Hack for L515 confidence.
                 // Requesting source resolution from the camera, getting frame size of target (*2 y axis resolution)
-                video_raw_profile->set_dims( video_from_profile->get_width(), video_from_profile->get_height() );
+                // Do NOT shrink the raw/source profile below its native resolution: a resolution-reducing
+                // converter (e.g. the D401 GMSL RGGB crop 1612 -> 1288) must keep the backend capturing at
+                // the full source resolution, otherwise the V4L2 buffer is sized for the (smaller) target and
+                // the packed raw data is truncated. For every non-reducing conversion (all others today) the
+                // target dims equal the native dims, so this guard is a no-op and behavior is unchanged.
+                if( ! ( video_raw_profile->get_width()  > video_from_profile->get_width()
+                        || video_raw_profile->get_height() > video_from_profile->get_height() ) )
+                    video_raw_profile->set_dims( video_from_profile->get_width(), video_from_profile->get_height() );
             }
         }
     }
