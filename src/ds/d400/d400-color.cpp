@@ -301,15 +301,8 @@ namespace librealsense
             {
                 color_ep.register_processing_block(processing_block_factory::create_pbf_vector<yuy2_converter>(RS2_FORMAT_YUYV, map_supported_color_formats(RS2_FORMAT_YUYV), RS2_STREAM_COLOR));
             }
-
-            // D401 GMSL dual-RGB: the color node carries 8-bit RGGB (RAW10 passthrough). Unpack +
-            // demosaic it to RGB8 on this dedicated color sensor (the second RGB comes off the
-            // depth sensor's ir node).
-            if( _pid == ds::RS401_GMSL_PID )
-                color_ep.register_processing_block(
-                    { { RS2_FORMAT_RAW8 } },
-                    { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR } },
-                    []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); } );
+            // Note: for D401 GMSL the color folds into the depth sensor, and the RGGB->RGB8
+            // dual-color converters are registered there (see d400_device::create_depth_device).
         }
     }
 

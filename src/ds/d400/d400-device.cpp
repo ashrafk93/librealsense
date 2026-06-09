@@ -705,9 +705,12 @@ namespace librealsense
                 // (0/1) is carried through from the source profile, mirroring the IR1/IR2 split.
                 if( _pid == RS401_GMSL_PID )
                 {
+                    // Two color targets (index 0 = left imager, index 1 = right). The backend tags
+                    // the two RGGB sources with indices 0/1; the formats-converter matches source
+                    // index to target index (see formats-converter), so each becomes its own stream.
                     depth_sensor.register_processing_block(
                         { { RS2_FORMAT_RAW8 } },
-                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR } },
+                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0 }, { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1 } },
                         []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); }
                     );
                 }
