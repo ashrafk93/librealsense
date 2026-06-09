@@ -4,50 +4,49 @@
 
 #include <cstdint>
 
-// RGGB8 -> RGB8 debayer for the D401 GMSL "dual RGB" mode.
+// RAW10 RGGB -> RGB8 for the D401 GMSL "dual RGB" mode.
 //
-// On the D401 GMSL dual-RGB POC firmware, each OV9782 imager is delivered over the GMSL
-// link as an 8-bit RGGB Bayer image using the FW CSI passthrough (RAW8) path. The V4L2 node
-// advertises width = 1612 (the VDF byte-count per line) while the real sensor image is only
-// 1288 px wide; the remaining columns are dword-alignment padding. The host therefore has to:
-//   1) crop the padding away (1612 -> 1288),
-//   2) subtract the OV9782 black level,
-//   3) demosaic the RGGB Bayer mosaic to RGB,
-//   4) (optionally) apply per-channel white-balance gains.
+// Each OV9782 imager is delivered over GMSL via the FW CSI passthrough. Although the V4L2 node
+// advertises 'RGGB' 8-bit, the payload is actually MIPI **RAW10**: 4 pixels packed into 5 bytes
+// (4 MSB bytes + 1 byte holding the four 2-bit LSBs). The transport width is 1612 (1610 active
+// RAW10 bytes + alignment) while the real image is 1288 px; the row is padded to a 64-byte
+// V4L2 stride (1664) on the kernel side, though librealsense hands us a 1612-stride frame.
 //
-// This header is deliberately free of any librealsense/SDK dependency so the algorithm can be
-// unit-tested on its own. The SDK processing-block wrapper (a color_converter) calls into it.
+// The host therefore: (1) unpacks RAW10 -> 8-bit Bayer (the 8-bit value is just the MSB byte,
+// since (msb<<2 | lsb) >> 2 == msb), (2) demosaics RGGB -> RGB, (3) applies white-balance gains
+// (OV9782 is green-dominant). This header has no SDK dependency so it can be unit-tested alone.
 
 namespace librealsense {
 namespace rggb {
 
-// OV9782 / dual-RGB ISP knobs. Defaults are a sane starting point for the D401 OV9782 sensor
-// (black level for the 8-bit RAW8 passthrough is the 10-bit floor 64 shifted down by 2 = 16).
+// ISP knobs. Defaults gray-balance the green-dominant OV9782 (measured R/G/B ~ 41/69/48).
 struct isp_params
 {
-    int   black_level = 16;     // subtracted from every channel before gains, then clamped to 0
-    float gain_r      = 1.0f;   // white-balance gains applied per channel after black-level
+    int   black_level = 16;     // subtracted per channel before gains, clamped to 0
+    float gain_r      = 1.9f;   // white-balance gains (boost R/B relative to green)
     float gain_g      = 1.0f;
-    float gain_b      = 1.0f;
+    float gain_b      = 1.6f;
 };
 
-// Bilinear demosaic of an 8-bit RGGB Bayer image into interleaved RGB8.
-//
-//   src        : Bayer8 data, top-left origin, RGGB phase (row0: R G R G..., row1: G B G B...)
-//   src_stride : bytes per Bayer row (>= src_width; e.g. 1612 or kernel-padded 1664)
-//   out_width  : cropped output width  in pixels (e.g. 1288) — must be even, <= src usable width
-//   out_height : cropped output height in pixels (e.g. 808)  — must be even
-//   dst        : caller-owned buffer of out_width * out_height * 3 bytes (RGB8, R first)
-//   p          : ISP parameters (black level + WB gains)
-//
-// Edge pixels use clamped neighbours. Both dimensions are assumed even (Bayer tiles are 2x2);
-// odd inputs are handled by clamping but the last row/col phase may be approximate.
-void debayer_rggb8( const uint8_t * src,
-                    int src_stride,
-                    int out_width,
-                    int out_height,
-                    uint8_t * dst,
-                    const isp_params & p = {} );
+// Unpack MIPI RAW10 (4 px / 5 bytes) to 8-bit Bayer.
+//   src        : RAW10-packed bytes, top-left origin
+//   src_stride : bytes per source row (e.g. 1612 from the SDK frame, or 1664 raw V4L2)
+//   real_width : real pixel columns to produce, multiple of 4 (e.g. 1288)
+//   height     : rows
+//   bayer8     : caller buffer of real_width*height bytes (8-bit RGGB Bayer)
+void unpack_raw10( const uint8_t * src, int src_stride, int real_width, int height, uint8_t * bayer8 );
+
+// Bilinear RGGB demosaic of 8-bit Bayer -> interleaved RGB8, with black-level + WB gains.
+//   bayer        : 8-bit RGGB Bayer (row0: R G R G..., row1: G B G B...)
+//   bayer_stride : bytes per Bayer row
+//   width,height : pixels to demosaic (even dims assumed)
+//   dst          : RGB8 output (R first)
+//   p            : ISP params
+//   dst_stride_px: output row width in px (0 => contiguous = width). If > width, the extra
+//                  columns [width, dst_stride_px) are zeroed - lets a 1288-px image sit inside a
+//                  1612-px output frame without a profile-dimension change.
+void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int height,
+                    uint8_t * dst, const isp_params & p = {}, int dst_stride_px = 0 );
 
 }  // namespace rggb
 }  // namespace librealsense

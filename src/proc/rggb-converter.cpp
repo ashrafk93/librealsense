@@ -45,41 +45,27 @@ namespace librealsense
         // Capture the source frame's *actual* byte count - the authoritative way to recover the
         // real row stride regardless of whether the backend keeps the padded V4L2 buffer (1664)
         // or repacks to width*bpp (1612).
+        // The source frame's actual byte count gives the true row stride (data_size / height),
+        // independent of whether the backend keeps 1664-padded rows or hands us a 1612 frame.
         _src_data_size = f.get_data_size();
-        static bool logged = false;
-        if( ! logged )
-        {
-            logged = true;
-            auto vf = f.as< rs2::video_frame >();
-            std::fprintf( stderr,
-                "[RGGB] src w=%d h=%d stride_in_bytes=%d bpp=%d data_size=%d\n",
-                vf ? vf.get_width() : -1, vf ? vf.get_height() : -1,
-                vf ? vf.get_stride_in_bytes() : -1, vf ? vf.get_bytes_per_pixel() : -1,
-                _src_data_size );
-            // One-shot: dump the exact source bytes the converter receives, to analyze the real
-            // layout offline (./tmp/sdk_frame.bin). Remove once the stride/layout is settled.
-            if( _src_data_size > 0 )
-            {
-                if( FILE * fp = std::fopen( "/tmp/sdk_frame.bin", "wb" ) )
-                {
-                    std::fwrite( f.get_data(), 1, static_cast< size_t >( _src_data_size ), fp );
-                    std::fclose( fp );
-                    std::fprintf( stderr, "[RGGB] dumped %d bytes to /tmp/sdk_frame.bin\n", _src_data_size );
-                }
-            }
-        }
         return functional_processing_block::process_frame( source, f );
     }
 
     void rggb_converter::process_function( uint8_t * const dest[], const uint8_t * source,
                                            int width, int height, int /*actual_size*/, int /*input_size*/ )
     {
-        // Row stride from the source frame's real size (data_size / height). Falls back to the
-        // kernel's 64-byte-aligned width if the size isn't usable. Deriving from RAW_FRAME_SIZE
-        // metadata is unreliable, so we use the buffer's true byte count captured in process_frame.
-        int stride = ( _src_width + 63 ) & ~63;
+        // The 'RGGB 8-bit' node actually carries MIPI RAW10 (4 px / 5 bytes). Recover the row
+        // stride from the frame's real byte count (fallback: 64-byte-aligned source width), unpack
+        // RAW10 -> 8-bit Bayer at the real sensor width, then demosaic into the output frame. The
+        // output keeps the advertised width (e.g. 1612); the real image (e.g. 1288) sits on the
+        // left and the remaining columns are zeroed (see debayer_rggb8's dst_stride_px).
+        int src_stride = ( _src_width + 63 ) & ~63;
         if( _src_data_size > 0 && _src_height > 0 && ( _src_data_size % _src_height ) == 0 )
-            stride = _src_data_size / _src_height;
-        rggb::debayer_rggb8( source, stride, width, height, dest[0], _isp );
+            src_stride = _src_data_size / _src_height;
+
+        const int real_width = _output_width;          // real sensor width, e.g. 1288 (multiple of 4)
+        _bayer.resize( static_cast< size_t >( real_width ) * height );
+        rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
+        rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], _isp, /*dst_stride_px*/ width );
     }
 }

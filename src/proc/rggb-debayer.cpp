@@ -3,7 +3,7 @@
 
 #include "rggb-debayer.h"
 
-#include <algorithm>
+#include <cstddef>   // size_t
 
 namespace librealsense {
 namespace rggb {
@@ -23,53 +23,68 @@ inline uint8_t to_u8( float v )
 
 }  // namespace
 
-void debayer_rggb8( const uint8_t * src,
-                    int src_stride,
-                    int out_width,
-                    int out_height,
-                    uint8_t * dst,
-                    const isp_params & p )
+void unpack_raw10( const uint8_t * src, int src_stride, int real_width, int height, uint8_t * bayer8 )
 {
-    const int wmax = out_width - 1;
-    const int hmax = out_height - 1;
+    const int groups = real_width / 4;   // 5 source bytes per 4 pixels
+    for( int y = 0; y < height; ++y )
+    {
+        const uint8_t * s = src + static_cast< size_t >( y ) * src_stride;
+        uint8_t * d = bayer8 + static_cast< size_t >( y ) * real_width;
+        for( int g = 0; g < groups; ++g )
+        {
+            const uint8_t * q = s + g * 5;          // [m0 m1 m2 m3 lsb]; 8-bit value == MSB byte
+            d[ g * 4 + 0 ] = q[ 0 ];
+            d[ g * 4 + 1 ] = q[ 1 ];
+            d[ g * 4 + 2 ] = q[ 2 ];
+            d[ g * 4 + 3 ] = q[ 3 ];
+        }
+    }
+}
+
+void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int height,
+                    uint8_t * dst, const isp_params & p, int dst_stride_px )
+{
+    const int wmax = width - 1;
+    const int hmax = height - 1;
     const int bl   = p.black_level;
+    const int row_px = ( dst_stride_px > width ) ? dst_stride_px : width;
 
     // Black-level-subtracted, edge-clamped Bayer sample at (x,y).
     auto S = [&]( int x, int y ) -> int {
         x = clampi( x, 0, wmax );
         y = clampi( y, 0, hmax );
-        int v = static_cast< int >( src[ y * src_stride + x ] ) - bl;
+        int v = static_cast< int >( bayer[ y * bayer_stride + x ] ) - bl;
         return v < 0 ? 0 : v;
     };
 
-    for( int y = 0; y < out_height; ++y )
+    for( int y = 0; y < height; ++y )
     {
-        uint8_t * row = dst + static_cast< size_t >( y ) * out_width * 3;
+        uint8_t * row = dst + static_cast< size_t >( y ) * row_px * 3;
         const int yodd = y & 1;
-        for( int x = 0; x < out_width; ++x )
+        for( int x = 0; x < width; ++x )
         {
             const int xodd = x & 1;
             float R, G, B;
 
-            if( !yodd && !xodd )            // R site (red row, red col)
+            if( !yodd && !xodd )            // R site
             {
                 R = (float)S( x, y );
                 G = ( S( x - 1, y ) + S( x + 1, y ) + S( x, y - 1 ) + S( x, y + 1 ) ) * 0.25f;
                 B = ( S( x - 1, y - 1 ) + S( x + 1, y - 1 ) + S( x - 1, y + 1 ) + S( x + 1, y + 1 ) ) * 0.25f;
             }
-            else if( !yodd && xodd )        // Gr site (red row, green col): H=R, V=B
+            else if( !yodd && xodd )        // Gr site (red row): H=R, V=B
             {
                 G = (float)S( x, y );
                 R = ( S( x - 1, y ) + S( x + 1, y ) ) * 0.5f;
                 B = ( S( x, y - 1 ) + S( x, y + 1 ) ) * 0.5f;
             }
-            else if( yodd && !xodd )        // Gb site (blue row, green col): H=B, V=R
+            else if( yodd && !xodd )        // Gb site (blue row): H=B, V=R
             {
                 G = (float)S( x, y );
                 R = ( S( x, y - 1 ) + S( x, y + 1 ) ) * 0.5f;
                 B = ( S( x - 1, y ) + S( x + 1, y ) ) * 0.5f;
             }
-            else                            // B site (blue row, blue col)
+            else                            // B site
             {
                 B = (float)S( x, y );
                 G = ( S( x - 1, y ) + S( x + 1, y ) + S( x, y - 1 ) + S( x, y + 1 ) ) * 0.25f;
@@ -79,6 +94,13 @@ void debayer_rggb8( const uint8_t * src,
             row[ x * 3 + 0 ] = to_u8( R * p.gain_r );
             row[ x * 3 + 1 ] = to_u8( G * p.gain_g );
             row[ x * 3 + 2 ] = to_u8( B * p.gain_b );
+        }
+        // Zero any padding columns so a narrower image sits cleanly in a wider output frame.
+        for( int x = width; x < row_px; ++x )
+        {
+            row[ x * 3 + 0 ] = 0;
+            row[ x * 3 + 1 ] = 0;
+            row[ x * 3 + 2 ] = 0;
         }
     }
 }

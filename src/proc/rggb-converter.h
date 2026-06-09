@@ -3,7 +3,9 @@
 #pragma once
 
 #include "color-formats-converter.h"   // color_converter
-#include "rggb-debayer.h"              // rggb::isp_params, debayer_rggb8
+#include "rggb-debayer.h"              // rggb::isp_params, unpack_raw10, debayer_rggb8
+
+#include <vector>
 
 namespace librealsense
 {
@@ -36,5 +38,6 @@ namespace librealsense
         int              _src_height = 0;   // source profile height in px (e.g. 808)
         int              _src_data_size = 0;// source frame's actual byte count (authoritative for stride)
         rggb::isp_params _isp;
+        std::vector< uint8_t > _bayer;      // scratch: RAW10 unpacked to 8-bit Bayer (real_width*height)
     };
 }
