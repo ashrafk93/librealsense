@@ -113,12 +113,10 @@ stream_profiles formats_converter::get_all_possible_profiles( const stream_profi
                     // targets are saved with format, type and sometimes index. Updating fps and resolution before using as key
                     for( const auto & target : pbf->get_target_info() )
                     {
-                        // When interleaved/multi-imager streams are separated into distinct streams
-                        // (e.g. IR1/IR2, or D401 GMSL dual-RGB color 0/1), the same converter is
-                        // registered per index; match the raw profile's index to the target's.
-                        // (For single-stream color, raw index 0 == target index 0, so it still matches.)
-                        if( ( source.stream == RS2_STREAM_INFRARED || source.stream == RS2_STREAM_COLOR )
-                            && raw_profile->get_stream_index() != target.index )
+                        // When interleaved streams are seperated to two distinct streams (e.g. sent as DDS streams),
+                        // same converters are registered for both streams. We handle the relevant one based on index.
+                        // Currently for infrared streams only.
+                        if( source.stream == RS2_STREAM_INFRARED && raw_profile->get_stream_index() != target.index )
                             continue;
 
                         auto cloned_profile = clone_profile( raw_profile );
