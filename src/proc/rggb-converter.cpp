@@ -98,15 +98,20 @@ namespace librealsense
             double sR = 0, sG = 0, sB = 0;
             long n = 0;
             const int step = 32;                                  // sample one RGGB cell every 32 px
+            const int hi = 220, lo = 2;   // skip clipped highlights (e.g. a blown white wall, which
+                                          // reads neutral and skews gray-world) and near-black cells
             for( int y = 0; y + 1 < height; y += step )
                 for( int x = 0; x + 1 < real_width; x += step )   // x,y even -> land on R sites
                 {
-                    sR += bval( x, y );                                   // R
-                    sG += ( bval( x + 1, y ) + bval( x, y + 1 ) ) * 0.5;  // (Gr + Gb) / 2
-                    sB += bval( x + 1, y + 1 );                           // B
-                    ++n;
+                    const int rr  = bval( x, y );                          // R
+                    const int gg2 = ( bval( x + 1, y ) + bval( x, y + 1 ) ) >> 1;  // (Gr + Gb) / 2
+                    const int bb  = bval( x + 1, y + 1 );                  // B
+                    const int mx  = rr > gg2 ? ( rr > bb ? rr : bb ) : ( gg2 > bb ? gg2 : bb );
+                    if( mx >= hi || mx <= lo )                             // no reliable colour here
+                        continue;
+                    sR += rr;  sG += gg2;  sB += bb;  ++n;
                 }
-            if( n > 0 && sR > 1.0 && sB > 1.0 )
+            if( n > 30 && sR > 1.0 && sB > 1.0 )   // enough mid-tone samples to trust the estimate
             {
                 const double mR = sR / n, mG = sG / n, mB = sB / n;
                 auto clampg = []( float g ) { return g < 0.5f ? 0.5f : ( g > 4.f ? 4.f : g ); };
