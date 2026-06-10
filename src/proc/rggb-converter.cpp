@@ -111,9 +111,10 @@ namespace librealsense
             for( int y = 0; y + 1 < height; y += step )
                 for( int x = 0; x + 1 < real_width; x += step )   // x,y even -> land on R sites
                 {
-                    const int rr  = bval( x, y );                          // R
+                    int rr  = bval( x, y );                                // R site (BGGR: this is B)
                     const int gg2 = ( bval( x + 1, y ) + bval( x, y + 1 ) ) >> 1;  // (Gr + Gb) / 2
-                    const int bb  = bval( x + 1, y + 1 );                  // B
+                    int bb  = bval( x + 1, y + 1 );                        // B site (BGGR: this is R)
+                    if( _isp.swap_rb ) { int t = rr; rr = bb; bb = t; }    // BGGR: real R/B are swapped
                     if( gg2 < gthr )         continue;                     // not a bright surface
                     if( rr >= hi || gg2 >= hi || bb >= hi ) continue;      // any channel clipped
                     sR += rr;  sG += gg2;  sB += bb;  ++n;
@@ -145,6 +146,7 @@ namespace librealsense
             ip.gain_r = isp.gain_r;  ip.gain_g = isp.gain_g;  ip.gain_b = isp.gain_b;
             ip.digital_gain = isp.digital_gain;  ip.gamma = isp.gamma;  ip.s_curve = isp.s_curve;
             ip.saturation = isp.saturation;  ip.contrast = isp.contrast;
+            ip.swap_rb = isp.swap_rb ? 1 : 0;
             for( int i = 0; i < 9; ++i ) ip.ccm[i] = isp.ccm[i];
             rscuda::rggb_debayer_raw10_cuda( source, src_stride, real_width, height, dest[0], width * 3, ip );
             return;

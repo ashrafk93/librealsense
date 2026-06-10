@@ -115,6 +115,8 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
                 R = ( S( x - 1, y - 1 ) + S( x + 1, y - 1 ) + S( x - 1, y + 1 ) + S( x + 1, y + 1 ) ) * 0.25f;
             }
 
+            if( p.swap_rb ) { float t = R; R = B; B = t; }   // RGGB demosaic -> BGGR (real D401 phase)
+
             // White-balance + digital gain, normalized to [0,1].
             float r = clamp01( R * gr * inv_range );
             float g = clamp01( G * gg * inv_range );

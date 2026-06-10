@@ -71,6 +71,8 @@ __global__ void kernel_rggb_debayer( const uint8_t * src, int src_stride, int wi
             + bayer_at( src, src_stride, x - 1, y + 1, wmax, hmax, bl ) + bayer_at( src, src_stride, x + 1, y + 1, wmax, hmax, bl ) ) * 0.25f;
     }
 
+    if( p.swap_rb ) { float t = R; R = B; B = t; }   // RGGB demosaic -> BGGR (real D401 phase)
+
     const float gr = p.gain_r * p.digital_gain;
     const float gg = p.gain_g * p.digital_gain;
     const float gb = p.gain_b * p.digital_gain;

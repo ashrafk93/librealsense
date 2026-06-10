@@ -33,6 +33,7 @@ namespace rscuda
         float s_curve;         // contrast S-curve strength baked after gamma (the "pop")
         float saturation;
         float contrast;
+        int   swap_rb;         // 1 => BGGR (swap R/B after demosaic); 0 => RGGB
         float ccm[9];          // row-major 3x3 sensor-RGB -> display-RGB color-correction matrix
     };
 

@@ -720,7 +720,11 @@ namespace librealsense
                         { { RS2_FORMAT_RAW8, RS2_STREAM_COLOR } },
                         { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0, 0, 0, 0, real_w },
                           { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1, 0, 0, 0, real_w } },
-                        []() { return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288 ); }
+                        []() {
+                            rggb::isp_params isp;
+                            isp.swap_rb = true;   // D401 GMSL delivers BGGR, not the wiki's RGGB
+                            return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288, isp );
+                        }
                     );
                 }
             }

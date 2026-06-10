@@ -30,16 +30,16 @@ struct isp_params
     float gamma         = 1.8f;   // display gamma (teammate-validated tone; brighter than 2.2)
     float s_curve       = 0.6f;   // contrast S-curve baked into the tone LUT - the "pop"/contrast,
                                   // f(x) = x + sc*x*(1-x)*(2x-1); replaces the plain contrast multiply
-    float saturation    = 1.20f;  // chroma boost about luma (LINEAR, after CCM). Kept LOW on purpose:
-                                  // blue is the OV9782's only strong colour channel, so high saturation
-                                  // just skews the image blue. Low = muted but neutral (the honest look).
+    float saturation    = 1.40f;  // teammate value; correct now the Bayer phase (BGGR) is right
     float contrast      = 1.0f;   // separate contrast off - the S-curve handles contrast/de-haze
-    // Color-correction matrix. IDENTITY by validation: an aggressive CCM amplified the small residual
-    // tint left after white balance into a visible colour cast (verified by decoding the captured
-    // raw). White balance + saturation carry colour; identity keeps neutrals truly neutral.
-    float ccm[9] = { 1.f, 0.f, 0.f,
-                     0.f, 1.f, 0.f,
-                     0.f, 0.f, 1.f };
+    bool  swap_rb       = false;  // true => treat the Bayer as BGGR (the D401 GMSL's ACTUAL phase).
+                                  // The delivered data is BGGR, NOT the wiki's RGGB; decoding it as
+                                  // RGGB swaps red<->blue (red objects render blue). GMSL sets this true.
+    // Color-correction matrix (teammate-validated: boosts R/B purity, suppresses green crosstalk).
+    // Correct ONLY with the right Bayer phase (swap_rb); on wrong-phase data it produces a colour cast.
+    float ccm[9] = {  1.5f, -0.4f, -0.1f,
+                     -0.1f,  1.2f, -0.1f,
+                     -0.1f, -0.4f,  1.5f };
 };
 
 // Unpack MIPI RAW10 (4 px / 5 bytes) to 8-bit Bayer.
