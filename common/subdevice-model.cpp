@@ -670,6 +670,11 @@ namespace rs2
 
                         if (stream_enabled[f.first])
                         {
+                            // On the dual-RGB configuration color and stereo
+                            // (depth/infrared) streams cannot be captured
+                            // together, so enabling one group disables the other.
+                            enforce_dual_color_stereo_exclusion(f.first);
+
                             // Find the stream type for this unique_id
                             rs2_stream stream_type = RS2_STREAM_ANY;
                             for (auto& p : profiles)
@@ -1406,6 +1411,57 @@ namespace rs2
             }
         }
         return is_cal_format;
+    }
+
+    bool subdevice_model::is_dual_color_subdevice() const
+    {
+        // The dual-RGB configuration exposes two color streams within a single
+        // subdevice alongside the stereo streams. This is unique to that mode:
+        // standard devices expose color in a dedicated subdevice, and D405
+        // exposes only a single color stream on the depth sensor.
+        int color_streams = 0;
+        bool has_stereo = false;
+        for (auto&& p : profiles)
+        {
+            if (p.stream_type() == RS2_STREAM_COLOR)
+                ++color_streams;
+            else if (p.stream_type() == RS2_STREAM_INFRARED || p.stream_type() == RS2_STREAM_DEPTH)
+                has_stereo = true;
+        }
+        return color_streams >= 2 && has_stereo;
+    }
+
+    void subdevice_model::enforce_dual_color_stereo_exclusion(int just_enabled_unique_id)
+    {
+        if (!is_dual_color_subdevice())
+            return;
+
+        auto stream_type_of = [this](int unique_id) -> rs2_stream
+        {
+            for (auto&& p : profiles)
+                if (p.unique_id() == unique_id)
+                    return p.stream_type();
+            return RS2_STREAM_ANY;
+        };
+
+        auto is_color = [](rs2_stream st) { return st == RS2_STREAM_COLOR; };
+        auto is_stereo = [](rs2_stream st) { return st == RS2_STREAM_INFRARED || st == RS2_STREAM_DEPTH; };
+
+        rs2_stream enabled_type = stream_type_of(just_enabled_unique_id);
+        if (!is_color(enabled_type) && !is_stereo(enabled_type))
+            return;
+
+        // Disable any currently-enabled stream that belongs to the opposite group.
+        for (auto& other : stream_enabled)
+        {
+            if (other.first == just_enabled_unique_id || !other.second)
+                continue;
+
+            rs2_stream other_type = stream_type_of(other.first);
+            if ((is_color(enabled_type) && is_stereo(other_type)) ||
+                (is_stereo(enabled_type) && is_color(other_type)))
+                other.second = false;
+        }
     }
 
     bool subdevice_model::is_depth_calibration_profile() const

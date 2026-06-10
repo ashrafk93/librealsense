@@ -7,6 +7,7 @@
 #include <src/ds/ds-timestamp.h>
 #include <src/ds/ds-thermal-monitor.h>
 #include "proc/color-formats-converter.h"
+#include "proc/rggb-converter.h"
 #include "d400-color.h"
 #include "d400-info.h"
 #include <src/backend.h>
@@ -26,7 +27,8 @@ namespace librealsense
          {rs_fourcc('U','Y','V','Y'), RS2_FORMAT_UYVY},
          {rs_fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
          {rs_fourcc('R','W','1','6'), RS2_FORMAT_RAW16},
-         {rs_fourcc('B','Y','R','2'), RS2_FORMAT_RAW16}
+         {rs_fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
+         {rs_fourcc('R','G','G','B'), RS2_FORMAT_RAW8}    // D401 GMSL dual-RGB: 8-bit RGGB (RAW10 in disguise)
     };
     std::map<rs_fourcc::value_type, rs2_stream> d400_color_fourcc_to_rs2_stream = {
         {rs_fourcc('Y','U','Y','2'), RS2_STREAM_COLOR},
@@ -34,7 +36,8 @@ namespace librealsense
         {rs_fourcc('U','Y','V','Y'), RS2_STREAM_COLOR},
         {rs_fourcc('R','W','1','6'), RS2_STREAM_COLOR},
         {rs_fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
-        {rs_fourcc('M','J','P','G'), RS2_STREAM_COLOR}
+        {rs_fourcc('M','J','P','G'), RS2_STREAM_COLOR},
+        {rs_fourcc('R','G','G','B'), RS2_STREAM_COLOR}
     };
 
     d400_color::d400_color( std::shared_ptr< const d400_info > const & dev_info )
@@ -66,8 +69,24 @@ namespace librealsense
 
         _color_extrinsic = std::make_shared< rsutils::lazy< rs2_extrinsics > >(
             [this]() { return from_pose( get_d400_color_stream_extrinsic( *_color_calib_table_raw ) ); } );
-        environment::get_instance().get_extrinsics_graph().register_extrinsics(*_color_stream, *_depth_stream, _color_extrinsic);
-        register_stream_to_extrinsic_group(*_color_stream, 0);
+        auto & ext_graph = environment::get_instance().get_extrinsics_graph();
+        if (_pid == RS401_GMSL_PID)
+        {
+            // D401 GMSL dual-RGB: the two color streams ARE the two stereo imagers. Tie each color
+            // stream to its imager's pose (left/right IR) so the inter-stream extrinsics carry the
+            // real stereo baseline (Color0->Color1 == IR1->IR2) and rectification has correct geometry.
+            // (Otherwise both colors share one pose and Color0->Color1 is zero.)
+            ext_graph.register_same_extrinsics( *_color_stream, *_left_ir_stream );
+            register_stream_to_extrinsic_group(*_color_stream, 0);
+            _color_stream2 = std::make_shared< stream >( RS2_STREAM_COLOR );
+            ext_graph.register_same_extrinsics( *_color_stream2, *_right_ir_stream );
+            register_stream_to_extrinsic_group(*_color_stream2, 0);
+        }
+        else
+        {
+            ext_graph.register_extrinsics(*_color_stream, *_depth_stream, _color_extrinsic);
+            register_stream_to_extrinsic_group(*_color_stream, 0);
+        }
 
         std::vector<platform::uvc_device_info> color_devs_info;
         // end point 3 is used for color sensor
@@ -288,7 +307,9 @@ namespace librealsense
             {
                 color_ep.register_processing_block(processing_block_factory::create_pbf_vector<yuy2_converter>(RS2_FORMAT_YUYV, map_supported_color_formats(RS2_FORMAT_YUYV), RS2_STREAM_COLOR));
             }
-        }        
+            // Note: for D401 GMSL the color folds into the depth sensor, and the RGGB->RGB8
+            // dual-color converters are registered there (see d400_device::create_depth_device).
+        }
     }
 
     void d400_color::register_metadata_mipi(const synthetic_sensor &color_ep) const

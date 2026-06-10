@@ -1253,6 +1253,10 @@ namespace librealsense
     std::shared_ptr<matcher> rs401_gmsl_device::create_matcher(const frame_holder& frame) const
     {
         std::vector<stream_interface*> streams = { _depth_stream.get() , _left_ir_stream.get() , _right_ir_stream.get(), _color_stream.get() };
+        // D401 GMSL dual-RGB: the second color stream (right imager) must be known to the syncer,
+        // otherwise its frames have no matcher -> create_matcher recurses -> stack/heap corruption.
+        if( _color_stream2 )
+            streams.push_back( _color_stream2.get() );
         return matcher_factory::create(RS2_MATCHER_DEFAULT, streams);
     }
 
