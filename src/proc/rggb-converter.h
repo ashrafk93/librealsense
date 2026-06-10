@@ -41,6 +41,8 @@ namespace librealsense
         int              _src_height = 0;   // source profile height in px (e.g. 808)
         int              _src_data_size = 0;// source frame's actual byte count (authoritative for stride)
         rggb::isp_params _isp;
+        float            _awb_gain_r = 1.7f;  // gray-world auto-white-balance gains (EMA per frame)
+        float            _awb_gain_b = 1.4f;
         std::vector< uint8_t > _bayer;      // scratch: RAW10 unpacked to 8-bit Bayer (real_width*height)
     };
 }

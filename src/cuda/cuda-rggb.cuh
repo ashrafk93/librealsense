@@ -32,6 +32,7 @@ namespace rscuda
         float gamma;
         float saturation;
         float contrast;
+        float ccm[9];          // row-major 3x3 sensor-RGB -> display-RGB color-correction matrix
     };
 
     // RAW10 (4 px / 5 bytes, RGGB) -> interleaved RGB8. src_stride/dst_stride are bytes per row.

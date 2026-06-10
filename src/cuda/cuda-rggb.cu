@@ -22,14 +22,7 @@ __device__ __forceinline__ int bayer_at( const uint8_t * src, int stride, int x,
     return v < 0 ? 0 : v;
 }
 
-// Apply gain, clamp to [0,255], then encode with 1/gamma (sRGB-like tone curve). Returns float
-// (display-space 0..255) so saturation/contrast can run before the final 8-bit quantization.
-__device__ __forceinline__ float tonef( float v, float inv_g )
-{
-    if( v < 0.f )   v = 0.f;
-    if( v > 255.f ) v = 255.f;
-    return 255.f * powf( v * ( 1.f / 255.f ), inv_g );
-}
+__device__ __forceinline__ float clamp01( float v ) { return v < 0.f ? 0.f : ( v > 1.f ? 1.f : v ); }
 
 __device__ __forceinline__ unsigned char clamp_u8( float v )
 {
@@ -82,21 +75,29 @@ __global__ void kernel_rggb_debayer( const uint8_t * src, int src_stride, int wi
     const float gg = p.gain_g * p.digital_gain;
     const float gb = p.gain_b * p.digital_gain;
     const float inv_g = ( p.gamma > 0.f ) ? 1.f / p.gamma : 1.f;
+    const float * m = p.ccm;
 
-    float r = tonef( R * gr, inv_g );
-    float g = tonef( G * gg, inv_g );
-    float b = tonef( B * gb, inv_g );
-    // saturation about luma, then contrast about mid-grey (matches rggb-debayer.cpp)
-    const float yl = 0.299f * r + 0.587f * g + 0.114f * b;
-    r = yl + p.saturation * ( r - yl );  g = yl + p.saturation * ( g - yl );  b = yl + p.saturation * ( b - yl );
-    r = ( r - 128.f ) * p.contrast + 128.f;
-    g = ( g - 128.f ) * p.contrast + 128.f;
-    b = ( b - 128.f ) * p.contrast + 128.f;
+    // white-balance + digital gain, normalized to [0,1] (matches rggb-debayer.cpp)
+    float r = clamp01( R * gr * ( 1.f / 255.f ) );
+    float g = clamp01( G * gg * ( 1.f / 255.f ) );
+    float b = clamp01( B * gb * ( 1.f / 255.f ) );
+    // color-correction matrix
+    float r2 = m[0] * r + m[1] * g + m[2] * b;
+    float g2 = m[3] * r + m[4] * g + m[5] * b;
+    float b2 = m[6] * r + m[7] * g + m[8] * b;
+    // saturation about luma (linear, Rec.709), gamma, then contrast about mid-grey
+    const float yl = 0.2126f * r2 + 0.7152f * g2 + 0.0722f * b2;
+    r2 = clamp01( yl + p.saturation * ( r2 - yl ) );
+    g2 = clamp01( yl + p.saturation * ( g2 - yl ) );
+    b2 = clamp01( yl + p.saturation * ( b2 - yl ) );
+    float rd = 255.f * powf( r2, inv_g );
+    float gd = 255.f * powf( g2, inv_g );
+    float bd = 255.f * powf( b2, inv_g );
 
     uint8_t * o = dst + (size_t)y * dst_stride + (size_t)x * 3;
-    o[0] = clamp_u8( r );
-    o[1] = clamp_u8( g );
-    o[2] = clamp_u8( b );
+    o[0] = clamp_u8( ( rd - 128.f ) * p.contrast + 128.f );
+    o[1] = clamp_u8( ( gd - 128.f ) * p.contrast + 128.f );
+    o[2] = clamp_u8( ( bd - 128.f ) * p.contrast + 128.f );
 }
 
 __global__ void kernel_remap_rgb8( const uint8_t * src, int src_w, int src_h, int src_stride,

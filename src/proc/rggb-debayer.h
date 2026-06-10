@@ -29,8 +29,13 @@ struct isp_params
     float digital_gain  = 1.8f;   // overall brightness multiplier applied before the tone curve
     float gamma         = 2.2f;   // display gamma; the sensor data is linear, so we encode with
                                   // 1/gamma (sRGB-like) - WITHOUT this the image looks very dark
-    float saturation    = 1.45f;  // chroma boost in display space (1 = neutral); OV9782 reads flat
+    float saturation    = 1.40f;  // chroma boost about luma, applied in LINEAR space after the CCM
     float contrast      = 1.18f;  // contrast around mid-grey (1 = neutral); lifts the washed-out look
+    // Color-correction matrix (sensor RGB -> display primaries): boosts R/B purity, suppresses
+    // green crosstalk. Row-major 3x3, applied to white-balanced, normalized [0,1] linear RGB.
+    float ccm[9] = {  1.5f, -0.4f, -0.1f,
+                     -0.1f,  1.2f, -0.1f,
+                     -0.1f, -0.4f,  1.5f };
 };
 
 // Unpack MIPI RAW10 (4 px / 5 bytes) to 8-bit Bayer.

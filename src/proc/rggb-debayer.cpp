@@ -22,6 +22,8 @@ inline uint8_t to_u8( float v )
     return static_cast< uint8_t >( i < 0 ? 0 : ( i > 255 ? 255 : i ) );
 }
 
+inline float clamp01( float v ) { return v < 0.f ? 0.f : ( v > 1.f ? 1.f : v ); }
+
 }  // namespace
 
 void unpack_raw10( const uint8_t * src, int src_stride, int real_width, int height, uint8_t * bayer8 )
@@ -51,16 +53,18 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
     const int row_px = ( dst_stride_px > width ) ? dst_stride_px : width;
 
     // Tone curve: the sensor data is linear; encode with 1/gamma (sRGB-like) so midtones aren't
-    // crushed on a display. 256-entry LUT built once per frame (cost is negligible vs the demosaic).
-    uint8_t tone[256];
+    // crushed on a display. 1024-entry LUT indexed by the normalized [0,1] post-CCM value.
+    uint8_t tone[1024];
     const float inv_g = ( p.gamma > 0.f ) ? 1.f / p.gamma : 1.f;
-    for( int i = 0; i < 256; ++i )
-        tone[i] = to_u8( 255.f * std::pow( i / 255.f, inv_g ) );
+    for( int i = 0; i < 1024; ++i )
+        tone[i] = to_u8( 255.f * std::pow( i / 1023.f, inv_g ) );
 
     const float gr = p.gain_r * p.digital_gain;
     const float gg = p.gain_g * p.digital_gain;
     const float gb = p.gain_b * p.digital_gain;
     const float sat = p.saturation, con = p.contrast;
+    const float * m = p.ccm;
+    const float inv255 = 1.f / 255.f;
 
     // Black-level-subtracted, edge-clamped Bayer sample at (x,y).
     auto S = [&]( int x, int y ) -> int {
@@ -104,19 +108,25 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
                 R = ( S( x - 1, y - 1 ) + S( x + 1, y - 1 ) + S( x - 1, y + 1 ) + S( x + 1, y + 1 ) ) * 0.25f;
             }
 
-            // White-balance gain + tone curve (display space), then saturation about luma and
-            // contrast about mid-grey - lifts the flat, greyish look of the raw OV9782 RGB.
-            float r = tone[ to_u8( R * gr ) ];
-            float g = tone[ to_u8( G * gg ) ];
-            float b = tone[ to_u8( B * gb ) ];
-            const float y = 0.299f * r + 0.587f * g + 0.114f * b;
-            r = y + sat * ( r - y );   g = y + sat * ( g - y );   b = y + sat * ( b - y );
-            r = ( r - 128.f ) * con + 128.f;
-            g = ( g - 128.f ) * con + 128.f;
-            b = ( b - 128.f ) * con + 128.f;
-            row[ x * 3 + 0 ] = to_u8( r );
-            row[ x * 3 + 1 ] = to_u8( g );
-            row[ x * 3 + 2 ] = to_u8( b );
+            // White-balance + digital gain, normalized to [0,1].
+            float r = clamp01( R * gr * inv255 );
+            float g = clamp01( G * gg * inv255 );
+            float b = clamp01( B * gb * inv255 );
+            // Color-correction matrix (sensor RGB -> display primaries).
+            float r2 = m[0] * r + m[1] * g + m[2] * b;
+            float g2 = m[3] * r + m[4] * g + m[5] * b;
+            float b2 = m[6] * r + m[7] * g + m[8] * b;
+            // Saturation about luma (linear, Rec.709), then gamma (LUT) + contrast about mid-grey.
+            const float yl = 0.2126f * r2 + 0.7152f * g2 + 0.0722f * b2;
+            r2 = clamp01( yl + sat * ( r2 - yl ) );
+            g2 = clamp01( yl + sat * ( g2 - yl ) );
+            b2 = clamp01( yl + sat * ( b2 - yl ) );
+            float rd = tone[ static_cast< int >( r2 * 1023.f ) ];
+            float gd = tone[ static_cast< int >( g2 * 1023.f ) ];
+            float bd = tone[ static_cast< int >( b2 * 1023.f ) ];
+            row[ x * 3 + 0 ] = to_u8( ( rd - 128.f ) * con + 128.f );
+            row[ x * 3 + 1 ] = to_u8( ( gd - 128.f ) * con + 128.f );
+            row[ x * 3 + 2 ] = to_u8( ( bd - 128.f ) * con + 128.f );
         }
         // Zero any padding columns so a narrower image sits cleanly in a wider output frame.
         for( int x = width; x < row_px; ++x )

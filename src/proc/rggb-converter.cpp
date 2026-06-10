@@ -85,13 +85,53 @@ namespace librealsense
 
         const int real_width = _output_width;          // real sensor width, e.g. 1288 (multiple of 4)
 
+        // Gray-world auto white balance: estimate the per-channel average from a sparse sample of
+        // the packed source (RGGB sites), then drive the R/B gains so the average is neutral - this
+        // removes the lighting colour cast (e.g. the blue tint of cool office light) automatically.
+        // EMA-smoothed across frames; computed host-side so it feeds both the CPU and CUDA debayer.
+        {
+            const int bl = _isp.black_level;
+            auto bval = [&]( int x, int y ) -> int {
+                int v = (int)source[ (size_t)y * src_stride + (size_t)( x >> 2 ) * 5 + ( x & 3 ) ] - bl;
+                return v < 0 ? 0 : v;
+            };
+            double sR = 0, sG = 0, sB = 0;
+            long n = 0;
+            const int step = 32;                                  // sample one RGGB cell every 32 px
+            for( int y = 0; y + 1 < height; y += step )
+                for( int x = 0; x + 1 < real_width; x += step )   // x,y even -> land on R sites
+                {
+                    sR += bval( x, y );                                   // R
+                    sG += ( bval( x + 1, y ) + bval( x, y + 1 ) ) * 0.5;  // (Gr + Gb) / 2
+                    sB += bval( x + 1, y + 1 );                           // B
+                    ++n;
+                }
+            if( n > 0 && sR > 1.0 && sB > 1.0 )
+            {
+                const double mR = sR / n, mG = sG / n, mB = sB / n;
+                auto clampg = []( float g ) { return g < 0.5f ? 0.5f : ( g > 4.f ? 4.f : g ); };
+                const float tR = clampg( float( mG / mR ) ), tB = clampg( float( mG / mB ) );
+                const float a = 0.1f;                              // EMA: converges in ~30 frames
+                _awb_gain_r += a * ( tR - _awb_gain_r );
+                _awb_gain_b += a * ( tB - _awb_gain_b );
+            }
+        }
+        rggb::isp_params isp = _isp;     // per-frame ISP with the auto-white-balance gains
+        isp.gain_r = _awb_gain_r;
+        isp.gain_g = 1.f;
+        isp.gain_b = _awb_gain_b;
+
 #ifdef RS2_USE_CUDA
         // GPU path: one fused kernel does RAW10 unpack + RGGB demosaic + gain + tone, writing the
         // output frame in place under zero-copy (no host round-trip). Output is tight (width*3).
         if( rsutils::rs2_is_cuda_available() )
         {
-            const rscuda::rggb_isp_params ip{ _isp.black_level, _isp.gain_r, _isp.gain_g, _isp.gain_b,
-                                              _isp.digital_gain, _isp.gamma, _isp.saturation, _isp.contrast };
+            rscuda::rggb_isp_params ip{};
+            ip.black_level = isp.black_level;
+            ip.gain_r = isp.gain_r;  ip.gain_g = isp.gain_g;  ip.gain_b = isp.gain_b;
+            ip.digital_gain = isp.digital_gain;  ip.gamma = isp.gamma;
+            ip.saturation = isp.saturation;  ip.contrast = isp.contrast;
+            for( int i = 0; i < 9; ++i ) ip.ccm[i] = isp.ccm[i];
             rscuda::rggb_debayer_raw10_cuda( source, src_stride, real_width, height, dest[0], width * 3, ip );
             return;
         }
@@ -99,6 +139,6 @@ namespace librealsense
 
         _bayer.resize( static_cast< size_t >( real_width ) * height );
         rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
-        rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], _isp, /*dst_stride_px*/ width );
+        rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], isp, /*dst_stride_px*/ width );
     }
 }
