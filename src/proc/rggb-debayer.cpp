@@ -60,6 +60,7 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
     const float gr = p.gain_r * p.digital_gain;
     const float gg = p.gain_g * p.digital_gain;
     const float gb = p.gain_b * p.digital_gain;
+    const float sat = p.saturation, con = p.contrast;
 
     // Black-level-subtracted, edge-clamped Bayer sample at (x,y).
     auto S = [&]( int x, int y ) -> int {
@@ -103,9 +104,19 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
                 R = ( S( x - 1, y - 1 ) + S( x + 1, y - 1 ) + S( x - 1, y + 1 ) + S( x + 1, y + 1 ) ) * 0.25f;
             }
 
-            row[ x * 3 + 0 ] = tone[ to_u8( R * gr ) ];
-            row[ x * 3 + 1 ] = tone[ to_u8( G * gg ) ];
-            row[ x * 3 + 2 ] = tone[ to_u8( B * gb ) ];
+            // White-balance gain + tone curve (display space), then saturation about luma and
+            // contrast about mid-grey - lifts the flat, greyish look of the raw OV9782 RGB.
+            float r = tone[ to_u8( R * gr ) ];
+            float g = tone[ to_u8( G * gg ) ];
+            float b = tone[ to_u8( B * gb ) ];
+            const float y = 0.299f * r + 0.587f * g + 0.114f * b;
+            r = y + sat * ( r - y );   g = y + sat * ( g - y );   b = y + sat * ( b - y );
+            r = ( r - 128.f ) * con + 128.f;
+            g = ( g - 128.f ) * con + 128.f;
+            b = ( b - 128.f ) * con + 128.f;
+            row[ x * 3 + 0 ] = to_u8( r );
+            row[ x * 3 + 1 ] = to_u8( g );
+            row[ x * 3 + 2 ] = to_u8( b );
         }
         // Zero any padding columns so a narrower image sits cleanly in a wider output frame.
         for( int x = width; x < row_px; ++x )

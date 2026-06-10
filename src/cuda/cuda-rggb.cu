@@ -22,13 +22,18 @@ __device__ __forceinline__ int bayer_at( const uint8_t * src, int stride, int x,
     return v < 0 ? 0 : v;
 }
 
-// Apply gain, clamp to [0,255], then encode with 1/gamma (sRGB-like tone curve).
-__device__ __forceinline__ unsigned char tone8( float v, float inv_g )
+// Apply gain, clamp to [0,255], then encode with 1/gamma (sRGB-like tone curve). Returns float
+// (display-space 0..255) so saturation/contrast can run before the final 8-bit quantization.
+__device__ __forceinline__ float tonef( float v, float inv_g )
 {
     if( v < 0.f )   v = 0.f;
     if( v > 255.f ) v = 255.f;
-    float o = 255.f * powf( v * ( 1.f / 255.f ), inv_g );
-    int i = (int)( o + 0.5f );
+    return 255.f * powf( v * ( 1.f / 255.f ), inv_g );
+}
+
+__device__ __forceinline__ unsigned char clamp_u8( float v )
+{
+    int i = (int)( v + 0.5f );
     return (unsigned char)( i < 0 ? 0 : ( i > 255 ? 255 : i ) );
 }
 
@@ -78,10 +83,20 @@ __global__ void kernel_rggb_debayer( const uint8_t * src, int src_stride, int wi
     const float gb = p.gain_b * p.digital_gain;
     const float inv_g = ( p.gamma > 0.f ) ? 1.f / p.gamma : 1.f;
 
+    float r = tonef( R * gr, inv_g );
+    float g = tonef( G * gg, inv_g );
+    float b = tonef( B * gb, inv_g );
+    // saturation about luma, then contrast about mid-grey (matches rggb-debayer.cpp)
+    const float yl = 0.299f * r + 0.587f * g + 0.114f * b;
+    r = yl + p.saturation * ( r - yl );  g = yl + p.saturation * ( g - yl );  b = yl + p.saturation * ( b - yl );
+    r = ( r - 128.f ) * p.contrast + 128.f;
+    g = ( g - 128.f ) * p.contrast + 128.f;
+    b = ( b - 128.f ) * p.contrast + 128.f;
+
     uint8_t * o = dst + (size_t)y * dst_stride + (size_t)x * 3;
-    o[0] = tone8( R * gr, inv_g );
-    o[1] = tone8( G * gg, inv_g );
-    o[2] = tone8( B * gb, inv_g );
+    o[0] = clamp_u8( r );
+    o[1] = clamp_u8( g );
+    o[2] = clamp_u8( b );
 }
 
 __global__ void kernel_remap_rgb8( const uint8_t * src, int src_w, int src_h, int src_stride,

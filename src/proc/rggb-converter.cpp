@@ -91,7 +91,7 @@ namespace librealsense
         if( rsutils::rs2_is_cuda_available() )
         {
             const rscuda::rggb_isp_params ip{ _isp.black_level, _isp.gain_r, _isp.gain_g, _isp.gain_b,
-                                              _isp.digital_gain, _isp.gamma };
+                                              _isp.digital_gain, _isp.gamma, _isp.saturation, _isp.contrast };
             rscuda::rggb_debayer_raw10_cuda( source, src_stride, real_width, height, dest[0], width * 3, ip );
             return;
         }

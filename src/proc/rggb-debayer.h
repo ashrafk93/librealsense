@@ -29,6 +29,8 @@ struct isp_params
     float digital_gain  = 1.8f;   // overall brightness multiplier applied before the tone curve
     float gamma         = 2.2f;   // display gamma; the sensor data is linear, so we encode with
                                   // 1/gamma (sRGB-like) - WITHOUT this the image looks very dark
+    float saturation    = 1.45f;  // chroma boost in display space (1 = neutral); OV9782 reads flat
+    float contrast      = 1.18f;  // contrast around mid-grey (1 = neutral); lifts the washed-out look
 };
 
 // Unpack MIPI RAW10 (4 px / 5 bytes) to 8-bit Bayer.

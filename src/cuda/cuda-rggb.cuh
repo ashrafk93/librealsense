@@ -30,6 +30,8 @@ namespace rscuda
         float gain_r, gain_g, gain_b;
         float digital_gain;
         float gamma;
+        float saturation;
+        float contrast;
     };
 
     // RAW10 (4 px / 5 bytes, RGGB) -> interleaved RGB8. src_stride/dst_stride are bytes per row.
