@@ -59,8 +59,12 @@ void unpack_raw10( const uint8_t * src, int src_stride, int real_width, int heig
 //   dst_stride_px: output row width in px (0 => contiguous = width). If > width, the extra
 //                  columns [width, dst_stride_px) are zeroed - lets a 1288-px image sit inside a
 //                  1612-px output frame without a profile-dimension change.
+//   y_begin,y_end: process only rows [y_begin, y_end) (y_end < 0 => height). Lets the caller split
+//                  the image across threads (the demosaic is the CPU hot path); reads clamp to the
+//                  full image at borders, each call writes only its own rows.
 void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int height,
-                    uint8_t * dst, const isp_params & p = {}, int dst_stride_px = 0 );
+                    uint8_t * dst, const isp_params & p = {}, int dst_stride_px = 0,
+                    int y_begin = 0, int y_end = -1 );
 
 }  // namespace rggb
 }  // namespace librealsense

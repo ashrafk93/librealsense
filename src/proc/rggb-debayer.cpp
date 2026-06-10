@@ -45,10 +45,13 @@ void unpack_raw10( const uint8_t * src, int src_stride, int real_width, int heig
 }
 
 void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int height,
-                    uint8_t * dst, const isp_params & p, int dst_stride_px )
+                    uint8_t * dst, const isp_params & p, int dst_stride_px,
+                    int y_begin, int y_end )
 {
     const int wmax = width - 1;
     const int hmax = height - 1;
+    const int yb = y_begin;
+    const int ye = ( y_end < 0 ) ? height : y_end;
     const int bl   = p.black_level;
     const int row_px = ( dst_stride_px > width ) ? dst_stride_px : width;
 
@@ -81,7 +84,7 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
         return v < 0 ? 0 : v;
     };
 
-    for( int y = 0; y < height; ++y )
+    for( int y = yb; y < ye; ++y )
     {
         uint8_t * row = dst + static_cast< size_t >( y ) * row_px * 3;
         const int yodd = y & 1;
