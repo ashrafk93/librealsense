@@ -143,7 +143,7 @@ namespace librealsense
             rscuda::rggb_isp_params ip{};
             ip.black_level = isp.black_level;
             ip.gain_r = isp.gain_r;  ip.gain_g = isp.gain_g;  ip.gain_b = isp.gain_b;
-            ip.digital_gain = isp.digital_gain;  ip.gamma = isp.gamma;
+            ip.digital_gain = isp.digital_gain;  ip.gamma = isp.gamma;  ip.s_curve = isp.s_curve;
             ip.saturation = isp.saturation;  ip.contrast = isp.contrast;
             for( int i = 0; i < 9; ++i ) ip.ccm[i] = isp.ccm[i];
             rscuda::rggb_debayer_raw10_cuda( source, src_stride, real_width, height, dest[0], width * 3, ip );

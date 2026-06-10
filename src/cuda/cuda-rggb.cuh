@@ -30,6 +30,7 @@ namespace rscuda
         float gain_r, gain_g, gain_b;
         float digital_gain;
         float gamma;
+        float s_curve;         // contrast S-curve strength baked after gamma (the "pop")
         float saturation;
         float contrast;
         float ccm[9];          // row-major 3x3 sensor-RGB -> display-RGB color-correction matrix

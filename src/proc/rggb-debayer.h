@@ -26,16 +26,17 @@ struct isp_params
     float gain_r        = 1.9f;   // white-balance gains (boost R/B relative to green)
     float gain_g        = 1.0f;
     float gain_b        = 1.6f;
-    float digital_gain  = 1.0f;   // brightness multiplier; black-point + gamma + contrast carry the
-                                  // tone now, so no extra boost is needed (auto-exposure sets exposure)
-    float gamma         = 2.0f;   // display gamma; the sensor data is linear, so we encode with
-                                  // 1/gamma (sRGB-like) - WITHOUT this the image looks very dark
-    float saturation    = 1.45f;  // chroma boost about luma (LINEAR, after CCM)
-    float contrast      = 1.45f;  // contrast about mid-grey - de-hazes the low-contrast raw (the raw
-                                  // only uses ~1/3 of the range), which was the real "washed" look
-    // Color-correction matrix. IDENTITY by validation: any aggressive CCM amplified the small
-    // residual tint left after white balance into a visible colour cast (verified by decoding the
-    // captured raw). White balance + saturation carry colour; identity keeps neutrals truly neutral.
+    float digital_gain  = 1.0f;   // brightness multiplier (auto-exposure sets the actual exposure)
+    float gamma         = 1.8f;   // display gamma (teammate-validated tone; brighter than 2.2)
+    float s_curve       = 0.6f;   // contrast S-curve baked into the tone LUT - the "pop"/contrast,
+                                  // f(x) = x + sc*x*(1-x)*(2x-1); replaces the plain contrast multiply
+    float saturation    = 1.20f;  // chroma boost about luma (LINEAR, after CCM). Kept LOW on purpose:
+                                  // blue is the OV9782's only strong colour channel, so high saturation
+                                  // just skews the image blue. Low = muted but neutral (the honest look).
+    float contrast      = 1.0f;   // separate contrast off - the S-curve handles contrast/de-haze
+    // Color-correction matrix. IDENTITY by validation: an aggressive CCM amplified the small residual
+    // tint left after white balance into a visible colour cast (verified by decoding the captured
+    // raw). White balance + saturation carry colour; identity keeps neutrals truly neutral.
     float ccm[9] = { 1.f, 0.f, 0.f,
                      0.f, 1.f, 0.f,
                      0.f, 0.f, 1.f };

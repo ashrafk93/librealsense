@@ -56,8 +56,13 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
     // crushed on a display. 1024-entry LUT indexed by the normalized [0,1] post-CCM value.
     uint8_t tone[1024];
     const float inv_g = ( p.gamma > 0.f ) ? 1.f / p.gamma : 1.f;
+    const float sc = p.s_curve;
     for( int i = 0; i < 1024; ++i )
-        tone[i] = to_u8( 255.f * std::pow( i / 1023.f, inv_g ) );
+    {
+        float x = std::pow( i / 1023.f, inv_g );
+        x = x + sc * x * ( 1.f - x ) * ( 2.f * x - 1.f );    // S-curve contrast (the "pop")
+        tone[i] = to_u8( 255.f * clamp01( x ) );
+    }
 
     const float gr = p.gain_r * p.digital_gain;
     const float gg = p.gain_g * p.digital_gain;

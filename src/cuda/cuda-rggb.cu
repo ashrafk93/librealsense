@@ -91,9 +91,11 @@ __global__ void kernel_rggb_debayer( const uint8_t * src, int src_stride, int wi
     r2 = clamp01( yl + p.saturation * ( r2 - yl ) );
     g2 = clamp01( yl + p.saturation * ( g2 - yl ) );
     b2 = clamp01( yl + p.saturation * ( b2 - yl ) );
-    float rd = 255.f * powf( r2, inv_g );
-    float gd = 255.f * powf( g2, inv_g );
-    float bd = 255.f * powf( b2, inv_g );
+    // gamma, then S-curve contrast (matches rggb-debayer.cpp's tone LUT)
+    float tr = powf( r2, inv_g ); tr = clamp01( tr + p.s_curve * tr * ( 1.f - tr ) * ( 2.f * tr - 1.f ) );
+    float tg = powf( g2, inv_g ); tg = clamp01( tg + p.s_curve * tg * ( 1.f - tg ) * ( 2.f * tg - 1.f ) );
+    float tb = powf( b2, inv_g ); tb = clamp01( tb + p.s_curve * tb * ( 1.f - tb ) * ( 2.f * tb - 1.f ) );
+    const float rd = 255.f * tr, gd = 255.f * tg, bd = 255.f * tb;
 
     uint8_t * o = dst + (size_t)y * dst_stride + (size_t)x * 3;
     o[0] = clamp_u8( ( rd - 128.f ) * p.contrast + 128.f );
