@@ -85,37 +85,46 @@ namespace librealsense
 
         const int real_width = _output_width;          // real sensor width, e.g. 1288 (multiple of 4)
 
-        // Gray-world auto white balance: estimate the per-channel average from a sparse sample of
-        // the packed source (RGGB sites), then drive the R/B gains so the average is neutral - this
-        // removes the lighting colour cast (e.g. the blue tint of cool office light) automatically.
-        // EMA-smoothed across frames; computed host-side so it feeds both the CPU and CUDA debayer.
+        // White-patch auto white balance: balance the brightest *unclipped* surfaces (the white/
+        // light objects) to neutral, so white reads as white. Gray-world (scene average) leaves a
+        // cast on white objects that are cooler than the average; white-patch targets them directly.
+        // Two sparse passes over the packed source: (1) find the brightest unclipped green, (2)
+        // average R/G/B over the top brightness band. EMA-smoothed; feeds CPU + CUDA debayer.
         {
             const int bl = _isp.black_level;
             auto bval = [&]( int x, int y ) -> int {
                 int v = (int)source[ (size_t)y * src_stride + (size_t)( x >> 2 ) * 5 + ( x & 3 ) ] - bl;
                 return v < 0 ? 0 : v;
             };
+            const int step = 16;          // sample one RGGB cell every 16 px
+            const int hi = 220;           // clip threshold: a channel at/above this is blown -> skip
+            int gmax = 1;                 // brightest unclipped green among the samples
+            for( int y = 0; y + 1 < height; y += step )
+                for( int x = 0; x + 1 < real_width; x += step )
+                {
+                    const int g = ( bval( x + 1, y ) + bval( x, y + 1 ) ) >> 1;
+                    if( g < hi && g > gmax ) gmax = g;
+                }
+            const int gthr = ( gmax * 3 ) / 5;   // top ~40% brightness band = light/white surfaces
             double sR = 0, sG = 0, sB = 0;
             long n = 0;
-            const int step = 32;                                  // sample one RGGB cell every 32 px
-            const int hi = 220, lo = 2;   // skip clipped highlights (e.g. a blown white wall, which
-                                          // reads neutral and skews gray-world) and near-black cells
             for( int y = 0; y + 1 < height; y += step )
                 for( int x = 0; x + 1 < real_width; x += step )   // x,y even -> land on R sites
                 {
                     const int rr  = bval( x, y );                          // R
                     const int gg2 = ( bval( x + 1, y ) + bval( x, y + 1 ) ) >> 1;  // (Gr + Gb) / 2
                     const int bb  = bval( x + 1, y + 1 );                  // B
-                    const int mx  = rr > gg2 ? ( rr > bb ? rr : bb ) : ( gg2 > bb ? gg2 : bb );
-                    if( mx >= hi || mx <= lo )                             // no reliable colour here
-                        continue;
+                    if( gg2 < gthr )         continue;                     // not a bright surface
+                    if( rr >= hi || gg2 >= hi || bb >= hi ) continue;      // any channel clipped
                     sR += rr;  sG += gg2;  sB += bb;  ++n;
                 }
-            if( n > 30 && sR > 1.0 && sB > 1.0 )   // enough mid-tone samples to trust the estimate
+            if( n > 20 && sR > 1.0 && sB > 1.0 )   // enough bright-surface samples to trust it
             {
                 const double mR = sR / n, mG = sG / n, mB = sB / n;
                 auto clampg = []( float g ) { return g < 0.5f ? 0.5f : ( g > 4.f ? 4.f : g ); };
-                const float tR = clampg( float( mG / mR ) ), tB = clampg( float( mG / mB ) );
+                // Slight warm bias (cut blue ~8%): pure-neutral balance under cool LED light still
+                // looks cold to the eye; this lands whites neutral-to-warm like the reference.
+                const float tR = clampg( float( mG / mR ) ), tB = clampg( float( mG / mB ) * 0.92f );
                 const float a = 0.1f;                              // EMA: converges in ~30 frames
                 _awb_gain_r += a * ( tR - _awb_gain_r );
                 _awb_gain_b += a * ( tB - _awb_gain_b );
@@ -145,5 +154,21 @@ namespace librealsense
         _bayer.resize( static_cast< size_t >( real_width ) * height );
         rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
         rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], isp, /*dst_stride_px*/ width );
+
+        // DEBUG: mean output RGB (whole-frame) - a green/blue cast shows as G or B notably > the
+        // others. Also echoes the live AWB gains. Sample sparsely; print ~every 90 frames.
+        {
+            long long oR = 0, oG = 0, oB = 0; long on = 0;
+            for( int y = 0; y < height; y += 16 )
+                for( int x = 0; x < real_width; x += 16 )
+                {
+                    const uint8_t * px = dest[0] + (size_t)y * width * 3 + (size_t)x * 3;
+                    oR += px[0]; oG += px[1]; oB += px[2]; ++on;
+                }
+            static int dc = 0;
+            if( on > 0 && ( dc++ % 90 ) == 0 )
+                fprintf( stderr, "[OUT] meanRGB = %lld %lld %lld   awb gr=%.3f gb=%.3f\n",
+                         oR / on, oG / on, oB / on, _awb_gain_r, _awb_gain_b );
+        }
     }
 }

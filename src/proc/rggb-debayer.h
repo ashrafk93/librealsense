@@ -26,16 +26,20 @@ struct isp_params
     float gain_r        = 1.9f;   // white-balance gains (boost R/B relative to green)
     float gain_g        = 1.0f;
     float gain_b        = 1.6f;
-    float digital_gain  = 1.8f;   // overall brightness multiplier applied before the tone curve
+    float digital_gain  = 1.35f;  // overall brightness multiplier; kept modest so highlights don't
+                                  // blow out and wash the colour (auto-exposure sets actual exposure)
     float gamma         = 2.2f;   // display gamma; the sensor data is linear, so we encode with
                                   // 1/gamma (sRGB-like) - WITHOUT this the image looks very dark
-    float saturation    = 1.40f;  // chroma boost about luma, applied in LINEAR space after the CCM
-    float contrast      = 1.18f;  // contrast around mid-grey (1 = neutral); lifts the washed-out look
-    // Color-correction matrix (sensor RGB -> display primaries): boosts R/B purity, suppresses
-    // green crosstalk. Row-major 3x3, applied to white-balanced, normalized [0,1] linear RGB.
-    float ccm[9] = {  1.5f, -0.4f, -0.1f,
-                     -0.1f,  1.2f, -0.1f,
-                     -0.1f, -0.4f,  1.5f };
+    float saturation    = 1.65f;  // chroma boost about luma (LINEAR, after CCM). Safe to push now the
+                                  // grey-cast is neutralized: it amplifies real colour, not a tint.
+    float contrast      = 1.22f;  // contrast around mid-grey (1 = neutral); lifts the washed-out look
+    // Color-correction matrix (sensor RGB -> display primaries). GENTLE: the aggressive prototype
+    // CCM (1.5 / -0.4) amplifies any residual green on near-neutral greys into an olive cast, so the
+    // off-diagonals are kept small. Row-major 3x3 (rows sum to 1 -> neutrals preserved), applied to
+    // white-balanced, normalized [0,1] linear RGB.
+    float ccm[9] = {  1.15f, -0.08f, -0.07f,
+                     -0.06f,  1.12f, -0.06f,
+                     -0.07f, -0.08f,  1.15f };
 };
 
 // Unpack MIPI RAW10 (4 px / 5 bytes) to 8-bit Bayer.
