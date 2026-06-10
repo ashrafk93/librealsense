@@ -7,7 +7,6 @@
 #include <src/stream.h>         // struct rs2_stream_profile (->profile)
 #include <librealsense2/hpp/rs_frame.hpp>   // rs2::video_stream_profile
 #include <cstdio>
-#include <chrono>
 #include <thread>
 #include <vector>
 
@@ -157,9 +156,7 @@ namespace librealsense
 #endif
 
         _bayer.resize( static_cast< size_t >( real_width ) * height );
-        auto _t0 = std::chrono::steady_clock::now();
         rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
-        auto _t1 = std::chrono::steady_clock::now();
         // Demosaic is the CPU hot path; split it across row bands (the Jetson has spare cores).
         {
             const int nthreads = 4;
@@ -176,14 +173,6 @@ namespace librealsense
             rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], isp, width,
                                  0, ( height < band ) ? height : band );
             for( auto & th : pool ) th.join();
-        }
-        auto _t2 = std::chrono::steady_clock::now();
-        static int _pdbg = 0;
-        if( ( _pdbg++ % 60 ) == 0 )
-        {
-            auto ms = []( auto a, auto b ){ return std::chrono::duration< double, std::milli >( b - a ).count(); };
-            fprintf( stderr, "[PERF] unpack=%.2fms debayer=%.2fms total=%.2fms (%dx%d)\n",
-                     ms(_t0,_t1), ms(_t1,_t2), ms(_t0,_t2), real_width, height );
         }
     }
 }
