@@ -122,9 +122,9 @@ namespace librealsense
             {
                 const double mR = sR / n, mG = sG / n, mB = sB / n;
                 auto clampg = []( float g ) { return g < 0.5f ? 0.5f : ( g > 4.f ? 4.f : g ); };
-                // Slight warm bias (cut blue ~8%): pure-neutral balance under cool LED light still
-                // looks cold to the eye; this lands whites neutral-to-warm like the reference.
-                const float tR = clampg( float( mG / mR ) ), tB = clampg( float( mG / mB ) * 0.92f );
+                // No warm bias: validated against the captured raw, the unbiased white-patch gains
+                // (gR~2.15, gB~1.72) land the bright surfaces neutral. A bias only re-introduces a tint.
+                const float tR = clampg( float( mG / mR ) ), tB = clampg( float( mG / mB ) );
                 const float a = 0.1f;                              // EMA: converges in ~30 frames
                 _awb_gain_r += a * ( tR - _awb_gain_r );
                 _awb_gain_b += a * ( tB - _awb_gain_b );
@@ -154,21 +154,5 @@ namespace librealsense
         _bayer.resize( static_cast< size_t >( real_width ) * height );
         rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
         rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], isp, /*dst_stride_px*/ width );
-
-        // DEBUG: mean output RGB (whole-frame) - a green/blue cast shows as G or B notably > the
-        // others. Also echoes the live AWB gains. Sample sparsely; print ~every 90 frames.
-        {
-            long long oR = 0, oG = 0, oB = 0; long on = 0;
-            for( int y = 0; y < height; y += 16 )
-                for( int x = 0; x < real_width; x += 16 )
-                {
-                    const uint8_t * px = dest[0] + (size_t)y * width * 3 + (size_t)x * 3;
-                    oR += px[0]; oG += px[1]; oB += px[2]; ++on;
-                }
-            static int dc = 0;
-            if( on > 0 && ( dc++ % 90 ) == 0 )
-                fprintf( stderr, "[OUT] meanRGB = %lld %lld %lld   awb gr=%.3f gb=%.3f\n",
-                         oR / on, oG / on, oB / on, _awb_gain_r, _awb_gain_b );
-        }
     }
 }

@@ -76,11 +76,12 @@ __global__ void kernel_rggb_debayer( const uint8_t * src, int src_stride, int wi
     const float gb = p.gain_b * p.digital_gain;
     const float inv_g = ( p.gamma > 0.f ) ? 1.f / p.gamma : 1.f;
     const float * m = p.ccm;
+    const float inv_range = 1.f / ( 255.f - (float)p.black_level );
 
     // white-balance + digital gain, normalized to [0,1] (matches rggb-debayer.cpp)
-    float r = clamp01( R * gr * ( 1.f / 255.f ) );
-    float g = clamp01( G * gg * ( 1.f / 255.f ) );
-    float b = clamp01( B * gb * ( 1.f / 255.f ) );
+    float r = clamp01( R * gr * inv_range );
+    float g = clamp01( G * gg * inv_range );
+    float b = clamp01( B * gb * inv_range );
     // color-correction matrix
     float r2 = m[0] * r + m[1] * g + m[2] * b;
     float g2 = m[3] * r + m[4] * g + m[5] * b;

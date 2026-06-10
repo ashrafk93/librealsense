@@ -64,7 +64,9 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
     const float gb = p.gain_b * p.digital_gain;
     const float sat = p.saturation, con = p.contrast;
     const float * m = p.ccm;
-    const float inv255 = 1.f / 255.f;
+    // Normalize the black-subtracted value to [0,1] using the post-black range (255 - black), so a
+    // full-scale sensor reading maps to 1.0 (matches the reference raw decode).
+    const float inv_range = 1.f / ( 255.f - (float)p.black_level );
 
     // Black-level-subtracted, edge-clamped Bayer sample at (x,y).
     auto S = [&]( int x, int y ) -> int {
@@ -109,9 +111,9 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
             }
 
             // White-balance + digital gain, normalized to [0,1].
-            float r = clamp01( R * gr * inv255 );
-            float g = clamp01( G * gg * inv255 );
-            float b = clamp01( B * gb * inv255 );
+            float r = clamp01( R * gr * inv_range );
+            float g = clamp01( G * gg * inv_range );
+            float b = clamp01( B * gb * inv_range );
             // Color-correction matrix (sensor RGB -> display primaries).
             float r2 = m[0] * r + m[1] * g + m[2] * b;
             float g2 = m[3] * r + m[4] * g + m[5] * b;
