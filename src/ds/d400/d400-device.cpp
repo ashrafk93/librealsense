@@ -65,7 +65,7 @@ namespace librealsense
         {fourcc('R','G','B','2'), RS2_FORMAT_BGR8},
         {fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
         {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
-        {fourcc('R','G','G','B'), RS2_FORMAT_RAW8}   // D401 GMSL dual-RGB: 8-bit RGGB Bayer (RAW8 CSI passthrough)
+        {fourcc('B','A','8','1'), RS2_FORMAT_RAW8}   // D401 GMSL dual-RGB: SBGGR8 8-bit Bayer (RAW8 CSI passthrough, driver PR #459)
 
     };
     std::map<fourcc::value_type, rs2_stream> d400_depth_fourcc_to_rs2_stream = {
@@ -82,7 +82,7 @@ namespace librealsense
         {fourcc('Z','1','6','H'), RS2_STREAM_DEPTH},
         {fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
         {fourcc('M','J','P','G'), RS2_STREAM_COLOR},
-        {fourcc('R','G','G','B'), RS2_STREAM_COLOR}   // D401 GMSL dual-RGB: expose each OV9782 imager as color
+        {fourcc('B','A','8','1'), RS2_STREAM_COLOR}   // D401 GMSL dual-RGB: SBGGR8, expose each OV9782 imager as color
     };
 
     std::vector<uint8_t> d400_device::send_receive_raw_data(const std::vector<uint8_t>& input)
@@ -722,7 +722,8 @@ namespace librealsense
                           { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1, 0, 0, 0, real_w } },
                         []() {
                             rggb::isp_params isp;
-                            isp.swap_rb = true;   // D401 GMSL delivers BGGR, not the wiki's RGGB
+                            isp.swap_rb = true;   // OV9782 is BGGR (driver declares SBGGR8); the base
+                                                  // demosaic is RGGB-pattern, so swap R<->B to correct it
                             return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288, isp );
                         }
                     );

@@ -28,7 +28,7 @@ namespace librealsense
          {rs_fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
          {rs_fourcc('R','W','1','6'), RS2_FORMAT_RAW16},
          {rs_fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
-         {rs_fourcc('R','G','G','B'), RS2_FORMAT_RAW8}    // D401 GMSL dual-RGB: 8-bit RGGB (RAW10 in disguise)
+         {rs_fourcc('B','A','8','1'), RS2_FORMAT_RAW8}    // D401 GMSL dual-RGB: SBGGR8 (driver PR #459), RAW10 in disguise
     };
     std::map<rs_fourcc::value_type, rs2_stream> d400_color_fourcc_to_rs2_stream = {
         {rs_fourcc('Y','U','Y','2'), RS2_STREAM_COLOR},
@@ -37,7 +37,7 @@ namespace librealsense
         {rs_fourcc('R','W','1','6'), RS2_STREAM_COLOR},
         {rs_fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
         {rs_fourcc('M','J','P','G'), RS2_STREAM_COLOR},
-        {rs_fourcc('R','G','G','B'), RS2_STREAM_COLOR}
+        {rs_fourcc('B','A','8','1'), RS2_STREAM_COLOR}   // D401 GMSL dual-RGB: SBGGR8 (driver PR #459)
     };
 
     d400_color::d400_color( std::shared_ptr< const d400_info > const & dev_info )
