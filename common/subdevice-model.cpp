@@ -1515,28 +1515,30 @@ namespace rs2
         if( product_line == "D500" && sensor_name == "Stereo Module" )
             return true;
 
-        // A Stereo Module that also carries COLOR streams whose resolutions are disjoint from the
-        // depth/IR resolutions (e.g. D401 GMSL dual-RGB: depth 1280x720 + color 1288x808) cannot be
-        // driven by a single shared resolution - each stream needs its own. (D405, whose color
-        // resolutions match depth, keeps the single-resolution UI: a common resolution exists.)
+        // A Stereo Module whose stream types share NO single common resolution cannot be driven by
+        // one shared resolution - each stream needs its own (e.g. D401 GMSL dual-RGB: depth 1280x720
+        // vs color 1288x808 are disjoint, even though IR also offers 1288x808). D405 / normal D4xx,
+        // where all stream types share a resolution, keep the single-resolution UI unchanged.
         if( sensor_name == "Stereo Module" )
         {
-            std::set< std::pair< int, int > > color_res, other_res;
+            std::map< rs2_stream, std::set< std::pair< int, int > > > res_by_type;
             for( auto && p : s->get_stream_profiles() )
-            {
                 if( auto v = p.as< rs2::video_stream_profile >() )
-                {
-                    auto r = std::make_pair( v.width(), v.height() );
-                    if( p.stream_type() == RS2_STREAM_COLOR ) color_res.insert( r );
-                    else                                      other_res.insert( r );
-                }
-            }
-            if( ! color_res.empty() && ! other_res.empty() )
+                    res_by_type[p.stream_type()].insert( std::make_pair( v.width(), v.height() ) );
+
+            if( res_by_type.size() > 1 )   // more than one stream type present
             {
-                for( auto & r : color_res )
-                    if( other_res.count( r ) )
-                        return false;   // a shared resolution exists -> single-resolution UI is fine
-                return true;            // disjoint -> needs per-stream resolution
+                std::set< std::pair< int, int > > common = res_by_type.begin()->second;
+                for( auto & kv : res_by_type )
+                {
+                    std::set< std::pair< int, int > > inter;
+                    for( auto & r : common )
+                        if( kv.second.count( r ) )
+                            inter.insert( r );
+                    common.swap( inter );
+                }
+                if( common.empty() )   // no resolution serves every stream type -> per-stream needed
+                    return true;
             }
         }
         return false;
