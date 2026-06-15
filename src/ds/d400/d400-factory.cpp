@@ -97,6 +97,21 @@ namespace librealsense
 
         std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
 
+        // D401 GMSL dual-RGB + depth coexistence (FW 5.17.3.151+): the two COLOR streams come from
+        // independent EP imagers (1288x808), decoupled from depth/IR (e.g. 1280x720). COLOR must NOT
+        // contradict another stream on resolution, else depth+color can't be requested together (the
+        // base rule rejects any width/height mismatch). Depth/IR still cross-check among themselves.
+        bool contradicts( const stream_profile_interface * a, const std::vector< stream_profile > & others ) const override
+        {
+            if( a->get_stream_type() == RS2_STREAM_COLOR )
+                return false;
+            std::vector< stream_profile > non_color;
+            for( auto & sp : others )
+                if( sp.stream != RS2_STREAM_COLOR )
+                    non_color.push_back( sp );
+            return device::contradicts( a, non_color );
+        }
+
         std::vector<tagged_profile> get_profiles_tags() const override
         {
             std::vector<tagged_profile> tags;
