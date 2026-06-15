@@ -1,6 +1,7 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2024 RealSense, Inc. All Rights Reserved.
 
+#include <set>
 #include "post-processing-filters-list.h"
 #include "post-processing-block-model.h"
 #ifdef BUILD_WITH_CLOSE_RANGE_DEPTH
@@ -1511,7 +1512,34 @@ namespace rs2
         std::string product_line = dev.get_info( RS2_CAMERA_INFO_PRODUCT_LINE );
         std::string sensor_name = s->get_info( RS2_CAMERA_INFO_NAME );
 
-        return product_line == "D500" && sensor_name == "Stereo Module";
+        if( product_line == "D500" && sensor_name == "Stereo Module" )
+            return true;
+
+        // A Stereo Module that also carries COLOR streams whose resolutions are disjoint from the
+        // depth/IR resolutions (e.g. D401 GMSL dual-RGB: depth 1280x720 + color 1288x808) cannot be
+        // driven by a single shared resolution - each stream needs its own. (D405, whose color
+        // resolutions match depth, keeps the single-resolution UI: a common resolution exists.)
+        if( sensor_name == "Stereo Module" )
+        {
+            std::set< std::pair< int, int > > color_res, other_res;
+            for( auto && p : s->get_stream_profiles() )
+            {
+                if( auto v = p.as< rs2::video_stream_profile >() )
+                {
+                    auto r = std::make_pair( v.width(), v.height() );
+                    if( p.stream_type() == RS2_STREAM_COLOR ) color_res.insert( r );
+                    else                                      other_res.insert( r );
+                }
+            }
+            if( ! color_res.empty() && ! other_res.empty() )
+            {
+                for( auto & r : color_res )
+                    if( other_res.count( r ) )
+                        return false;   // a shared resolution exists -> single-resolution UI is fine
+                return true;            // disjoint -> needs per-stream resolution
+            }
+        }
+        return false;
     }
 
     std::pair<int, int> subdevice_model::get_max_resolution(rs2_stream stream) const
