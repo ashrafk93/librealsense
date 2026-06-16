@@ -577,6 +577,41 @@ namespace rs2
         }
 
         /**
+        * Retrieve a GPU (CUDA) device pointer aliasing the frame data for zero-copy GPU
+        * consumption (e.g. binding the frame directly as a CUDA / TensorRT input without a
+        * host->device copy). Returns nullptr unless the SDK was built with
+        * BUILD_WITH_CUDA_ZEROCOPY and is running on an integrated GPU; otherwise fall back to
+        * get_data() + your own upload. Valid only while this frame is held.
+        * \return               GPU device pointer aliasing the frame data, or nullptr
+        */
+        const void* get_gpu_data() const
+        {
+            rs2_error* e = nullptr;
+            auto r = rs2_get_frame_gpu_data(frame_ref, &e);
+            error::handle(e);
+            return r;
+        }
+
+        /**
+        * Retrieve a GPU device pointer for the frame, uploading it if necessary. Always returns
+        * a usable device pointer on a CUDA build (zero-copy when the frame is GPU-mapped, else an
+        * SDK-managed host->device copy); returns nullptr on non-CUDA builds. If `copied` is
+        * non-null it is set to true when the SDK had to upload, false when it was zero-copy.
+        * Valid only while this frame is held.
+        * \param[out] copied  set to true if the SDK uploaded (a copy), false if zero-copy
+        * \return             GPU device pointer for the frame, or nullptr on non-CUDA builds
+        */
+        const void* get_gpu_data_or_upload( bool* copied = nullptr ) const
+        {
+            rs2_error* e = nullptr;
+            int c = 0;
+            auto r = rs2_get_frame_gpu_data_or_upload(frame_ref, &c, &e);
+            error::handle(e);
+            if( copied ) *copied = ( c != 0 );
+            return r;
+        }
+
+        /**
         * retrieve stream profile from frame handle
         * \return  stream_profile - the pointer to the stream profile
         */
