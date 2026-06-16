@@ -113,10 +113,11 @@ stream_profiles formats_converter::get_all_possible_profiles( const stream_profi
                     // targets are saved with format, type and sometimes index. Updating fps and resolution before using as key
                     for( const auto & target : pbf->get_target_info() )
                     {
-                        // When interleaved streams are seperated to two distinct streams (e.g. sent as DDS streams),
-                        // same converters are registered for both streams. We handle the relevant one based on index.
-                        // Currently for infrared streams only.
-                        if( source.stream == RS2_STREAM_INFRARED && raw_profile->get_stream_index() != target.index )
+                        // When a converter is registered per index for multi-stream sources (IR1/IR2,
+                        // or D401 GMSL dual-RGB color 0/1), match the raw profile's index to the
+                        // target's. (Single-stream color: raw index 0 == target index 0 → still matches.)
+                        if( ( source.stream == RS2_STREAM_INFRARED || source.stream == RS2_STREAM_COLOR )
+                            && raw_profile->get_stream_index() != target.index )
                             continue;
 
                         auto cloned_profile = clone_profile( raw_profile );
@@ -317,7 +318,14 @@ void formats_converter::update_target_profiles_data( const stream_profiles & fro
 
                 // Hack for L515 confidence.
                 // Requesting source resolution from the camera, getting frame size of target (*2 y axis resolution)
-                video_raw_profile->set_dims( video_from_profile->get_width(), video_from_profile->get_height() );
+                // Do NOT shrink the raw/source profile below its native resolution: a resolution-reducing
+                // converter (e.g. the D401 GMSL RGGB crop 1612 -> 1288) must keep the backend capturing at
+                // the full source resolution, otherwise the V4L2 buffer is sized for the (smaller) target and
+                // the packed raw data is truncated. For every non-reducing conversion (all others today) the
+                // target dims equal the native dims, so this guard is a no-op and behavior is unchanged.
+                if( ! ( video_raw_profile->get_width()  > video_from_profile->get_width()
+                        || video_raw_profile->get_height() > video_from_profile->get_height() ) )
+                    video_raw_profile->set_dims( video_from_profile->get_width(), video_from_profile->get_height() );
             }
         }
     }

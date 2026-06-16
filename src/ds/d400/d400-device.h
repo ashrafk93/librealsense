@@ -147,6 +147,7 @@ namespace librealsense
         std::shared_ptr<stream_interface> _left_ir_stream;
         std::shared_ptr<stream_interface> _right_ir_stream;
         std::shared_ptr<stream_interface> _color_stream;
+        std::shared_ptr<stream_interface> _color_stream2;   // D401 GMSL dual-RGB: 2nd color (right imager)
 
         uint8_t _depth_device_idx;
 

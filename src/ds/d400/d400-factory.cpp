@@ -97,6 +97,21 @@ namespace librealsense
 
         std::shared_ptr<matcher> create_matcher(const frame_holder& frame) const override;
 
+        // D401 GMSL dual-RGB + depth coexistence (FW 5.17.3.151+): the two COLOR streams come from
+        // independent EP imagers (1288x808), decoupled from depth/IR (e.g. 1280x720). COLOR must NOT
+        // contradict another stream on resolution, else depth+color can't be requested together (the
+        // base rule rejects any width/height mismatch). Depth/IR still cross-check among themselves.
+        bool contradicts( const stream_profile_interface * a, const std::vector< stream_profile > & others ) const override
+        {
+            if( a->get_stream_type() == RS2_STREAM_COLOR )
+                return false;
+            std::vector< stream_profile > non_color;
+            for( auto & sp : others )
+                if( sp.stream != RS2_STREAM_COLOR )
+                    non_color.push_back( sp );
+            return device::contradicts( a, non_color );
+        }
+
         std::vector<tagged_profile> get_profiles_tags() const override
         {
             std::vector<tagged_profile> tags;
@@ -1253,6 +1268,10 @@ namespace librealsense
     std::shared_ptr<matcher> rs401_gmsl_device::create_matcher(const frame_holder& frame) const
     {
         std::vector<stream_interface*> streams = { _depth_stream.get() , _left_ir_stream.get() , _right_ir_stream.get(), _color_stream.get() };
+        // D401 GMSL dual-RGB: the second color stream (right imager) must be known to the syncer,
+        // otherwise its frames have no matcher -> create_matcher recurses -> stack/heap corruption.
+        if( _color_stream2 )
+            streams.push_back( _color_stream2.get() );
         return matcher_factory::create(RS2_MATCHER_DEFAULT, streams);
     }
 

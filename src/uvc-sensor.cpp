@@ -12,6 +12,10 @@
 #include "platform/stream-profile-impl.h"
 #include <src/metadata-parser.h>
 #include <src/core/time-service.h>
+#include <map>
+#include <tuple>
+#include <set>
+#include <utility>
 #include <src/core/frame-continuation.h>
 #include <atomic>
 #include <cstdlib>
@@ -101,12 +105,17 @@ void uvc_sensor::verify_supported_requests( const stream_profiles & requests ) c
     // This method's aim is to send a relevant exception message when a user tries to stream
     // twice the same stream (at least) with different configurations (fps, resolution)
     std::map< rs2_stream, uint32_t > requests_map;
+    // Duplicate-stream detection keyed by stream type + index, so that multiple distinct streams
+    // of the same type (e.g. D401 GMSL dual-RGB: Color index 0 and 1) are allowed, while the same
+    // (type,index) requested twice with different config is still rejected.
+    std::set< std::pair< rs2_stream, int > > unique_streams;
     for( auto && req : requests )
     {
         requests_map[req->get_stream_type()] = req->get_framerate();
+        unique_streams.insert( { req->get_stream_type(), req->get_stream_index() } );
     }
 
-    if( requests_map.size() < requests.size() )
+    if( unique_streams.size() < requests.size() )
         throw( std::runtime_error( "Wrong configuration requested" ) );
 
     // D457 dev
@@ -148,6 +157,16 @@ void uvc_sensor::open( const stream_profiles & requests )
 
     verify_supported_requests( requests );
 
+    // When one device exposes more than one color stream (e.g. D401 GMSL dual-RGB) the streams
+    // share a single hardware frame counter, so each stream's frame number jumps by the number of
+    // color streams per interval - which makes the reported (hardware) FPS read 2x. Give each color
+    // stream its own software frame counter, mirroring the accel/gyro override below.
+    int color_stream_count = 0;
+    for( auto && rp : requests )
+        if( rp->get_stream_type() == RS2_STREAM_COLOR )
+            ++color_stream_count;
+    const bool per_stream_color_fn = ( color_stream_count > 1 );
+
     for( auto && req_profile : requests )
     {
         auto && req_profile_base = std::dynamic_pointer_cast< stream_profile_base >( req_profile );
@@ -161,7 +180,7 @@ void uvc_sensor::open( const stream_profiles & requests )
             auto zc_inflight = std::make_shared< std::atomic< int > >( 0 );
             _device->probe_and_commit(
                 req_profile_base->get_backend_profile(),
-                [this, req_profile_base, req_profile, last_frame_number, last_timestamp, zc_inflight](
+                [this, req_profile_base, req_profile, last_frame_number, last_timestamp, zc_inflight, per_stream_color_fn, color_fn = 0ull](
                     platform::stream_profile p,
                     platform::frame_object f,
                     std::function< void() > continuation ) mutable
@@ -201,6 +220,15 @@ void uvc_sensor::open( const stream_profiles & requests )
                             fr->additional_data.frame_number = ++_accel_counter;
                         else if( stream_type == 2 ) // 2 == Gyro
                             fr->additional_data.frame_number = ++_gyro_counter;
+                        frame_counter = fr->additional_data.frame_number;
+                    }
+
+                    // Dual color streams share one hardware frame counter; give each its own
+                    // per-stream software counter so the reported (hardware) FPS isn't doubled
+                    // (see per_stream_color_fn). Mirrors the accel/gyro override above.
+                    if( per_stream_color_fn && req_profile_base->get_stream_type() == RS2_STREAM_COLOR )
+                    {
+                        fr->additional_data.frame_number = ++color_fn;
                         frame_counter = fr->additional_data.frame_number;
                     }
 
@@ -540,6 +568,9 @@ stream_profiles uvc_sensor::init_stream_profiles()
     power on( std::dynamic_pointer_cast< uvc_sensor >( shared_from_this() ) );
 
     auto uvc_profiles = _device->get_profiles();
+    // Distinct stream index for otherwise-identical profiles from different backend pins (e.g.
+    // D401 GMSL dual-RGB: each imager node exposes the same RGGB). Else they share index 0 and merge.
+    std::map< std::tuple< rs2_stream, rs2_format, uint32_t, uint32_t, uint32_t >, int > index_by_profile;
     for( auto && p : uvc_profiles )
     {
         const auto && rs2_fmt = fourcc_to_rs2_format( p.format );
@@ -565,9 +596,11 @@ stream_profiles uvc_sensor::init_stream_profiles()
             if( ! profile )
                 throw librealsense::invalid_value_exception( "null pointer passed for argument \"profile\"." );
 
+            const auto rs2_strm = fourcc_to_rs2_stream( p.format );
             profile->set_dims( p.width, p.height );
-            profile->set_stream_type( fourcc_to_rs2_stream( p.format ) );
-            profile->set_stream_index( 0 );
+            profile->set_stream_type( rs2_strm );
+            profile->set_stream_index(
+                index_by_profile[ std::make_tuple( rs2_strm, rs2_fmt, p.width, p.height, p.fps ) ]++ );
             profile->set_format( rs2_fmt );
             profile->set_framerate( p.fps );
             video_profiles.insert( profile );

@@ -1,6 +1,7 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2024 RealSense, Inc. All Rights Reserved.
 
+#include <set>
 #include "post-processing-filters-list.h"
 #include "post-processing-block-model.h"
 #ifdef BUILD_WITH_CLOSE_RANGE_DEPTH
@@ -747,6 +748,11 @@ namespace rs2
 
                         if (stream_enabled[f.first])
                         {
+                            // On the dual-RGB configuration color and stereo
+                            // (depth/infrared) streams cannot be captured
+                            // together, so enabling one group disables the other.
+                            enforce_dual_color_stereo_exclusion(f.first);
+
                             // Find the stream type for this unique_id
                             rs2_stream stream_type = RS2_STREAM_ANY;
                             for (auto& p : profiles)
@@ -1485,6 +1491,57 @@ namespace rs2
         return is_cal_format;
     }
 
+    bool subdevice_model::is_dual_color_subdevice() const
+    {
+        // The dual-RGB configuration exposes two color streams within a single
+        // subdevice alongside the stereo streams. This is unique to that mode:
+        // standard devices expose color in a dedicated subdevice, and D405
+        // exposes only a single color stream on the depth sensor.
+        int color_streams = 0;
+        bool has_stereo = false;
+        for (auto&& p : profiles)
+        {
+            if (p.stream_type() == RS2_STREAM_COLOR)
+                ++color_streams;
+            else if (p.stream_type() == RS2_STREAM_INFRARED || p.stream_type() == RS2_STREAM_DEPTH)
+                has_stereo = true;
+        }
+        return color_streams >= 2 && has_stereo;
+    }
+
+    void subdevice_model::enforce_dual_color_stereo_exclusion(int just_enabled_unique_id)
+    {
+        if (!is_dual_color_subdevice())
+            return;
+
+        auto stream_type_of = [this](int unique_id) -> rs2_stream
+        {
+            for (auto&& p : profiles)
+                if (p.unique_id() == unique_id)
+                    return p.stream_type();
+            return RS2_STREAM_ANY;
+        };
+
+        auto is_color = [](rs2_stream st) { return st == RS2_STREAM_COLOR; };
+        auto is_stereo = [](rs2_stream st) { return st == RS2_STREAM_INFRARED || st == RS2_STREAM_DEPTH; };
+
+        rs2_stream enabled_type = stream_type_of(just_enabled_unique_id);
+        if (!is_color(enabled_type) && !is_stereo(enabled_type))
+            return;
+
+        // Disable any currently-enabled stream that belongs to the opposite group.
+        for (auto& other : stream_enabled)
+        {
+            if (other.first == just_enabled_unique_id || !other.second)
+                continue;
+
+            rs2_stream other_type = stream_type_of(other.first);
+            if ((is_color(enabled_type) && is_stereo(other_type)) ||
+                (is_stereo(enabled_type) && is_color(other_type)))
+                other.second = false;
+        }
+    }
+
     bool subdevice_model::is_depth_calibration_profile() const
     {
         // Check if D555 at depth resolution of 1280x800
@@ -1532,7 +1589,36 @@ namespace rs2
         std::string product_line = dev.get_info( RS2_CAMERA_INFO_PRODUCT_LINE );
         std::string sensor_name = s->get_info( RS2_CAMERA_INFO_NAME );
 
-        return product_line == "D500" && sensor_name == "Stereo Module";
+        if( product_line == "D500" && sensor_name == "Stereo Module" )
+            return true;
+
+        // A Stereo Module whose stream types share NO single common resolution cannot be driven by
+        // one shared resolution - each stream needs its own (e.g. D401 GMSL dual-RGB: depth 1280x720
+        // vs color 1288x808 are disjoint, even though IR also offers 1288x808). D405 / normal D4xx,
+        // where all stream types share a resolution, keep the single-resolution UI unchanged.
+        if( sensor_name == "Stereo Module" )
+        {
+            std::map< rs2_stream, std::set< std::pair< int, int > > > res_by_type;
+            for( auto && p : s->get_stream_profiles() )
+                if( auto v = p.as< rs2::video_stream_profile >() )
+                    res_by_type[p.stream_type()].insert( std::make_pair( v.width(), v.height() ) );
+
+            if( res_by_type.size() > 1 )   // more than one stream type present
+            {
+                std::set< std::pair< int, int > > common = res_by_type.begin()->second;
+                for( auto & kv : res_by_type )
+                {
+                    std::set< std::pair< int, int > > inter;
+                    for( auto & r : common )
+                        if( kv.second.count( r ) )
+                            inter.insert( r );
+                    common.swap( inter );
+                }
+                if( common.empty() )   // no resolution serves every stream type -> per-stream needed
+                    return true;
+            }
+        }
+        return false;
     }
 
     std::pair<int, int> subdevice_model::get_max_resolution(rs2_stream stream) const

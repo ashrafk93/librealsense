@@ -264,6 +264,13 @@ namespace rs2
         std::pair<int, int> get_max_resolution(rs2_stream stream) const;
         void sort_resolutions(std::vector<std::pair<int, int>>& resolutions) const;
         bool is_ir_calibration_profile() const;
+        // True when this subdevice exposes the dual-RGB configuration (two color
+        // streams alongside the stereo streams), where color and stereo
+        // (depth/infrared) cannot be captured simultaneously.
+        bool is_dual_color_subdevice() const;
+        // Enforce the dual-RGB mutual-exclusion policy: enabling a color stream
+        // disables the stereo streams and vice versa.
+        void enforce_dual_color_stereo_exclusion(int just_enabled_unique_id);
         void set_extrinsics_from_depth_if_needed();
         bool is_post_processing_enabled_in_config_file() const;
         void avoid_streaming_on_embedded_filters_not_matching_configuration() const;
