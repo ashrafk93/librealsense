@@ -114,8 +114,9 @@ stream_profiles formats_converter::get_all_possible_profiles( const stream_profi
                     for( const auto & target : pbf->get_target_info() )
                     {
                         // When a converter declares multiple indexed targets for one source stream (e.g. interleaved
-                        // infrared split into IR1/IR2, or the two color pins routed to Color 1/2), match each raw
-                        // profile to the target whose index equals the raw stream index.
+                        // infrared split into IR1/IR2, or dual-RGB color pins routed to distinct Color streams -
+                        // D500 Color 1/2, D401 GMSL Color 0/1), match each raw profile to the target whose index
+                        // equals the raw stream index. (Single-stream color: raw index 0 == target index 0 → still matches.)
                         if( ( source.stream == RS2_STREAM_INFRARED || source.stream == RS2_STREAM_COLOR )
                             && raw_profile->get_stream_index() != target.index )
                             continue;
@@ -328,7 +329,14 @@ void formats_converter::update_target_profiles_data( const stream_profiles & fro
 
                 // Hack for L515 confidence.
                 // Requesting source resolution from the camera, getting frame size of target (*2 y axis resolution)
-                video_raw_profile->set_dims( video_from_profile->get_width(), video_from_profile->get_height() );
+                // Do NOT shrink the raw/source profile below its native resolution: a resolution-reducing
+                // converter (e.g. the D401 GMSL RGGB crop 1612 -> 1288) must keep the backend capturing at
+                // the full source resolution, otherwise the V4L2 buffer is sized for the (smaller) target and
+                // the packed raw data is truncated. For every non-reducing conversion (all others today) the
+                // target dims equal the native dims, so this guard is a no-op and behavior is unchanged.
+                if( ! ( video_raw_profile->get_width()  > video_from_profile->get_width()
+                        || video_raw_profile->get_height() > video_from_profile->get_height() ) )
+                    video_raw_profile->set_dims( video_from_profile->get_width(), video_from_profile->get_height() );
             }
         }
     }

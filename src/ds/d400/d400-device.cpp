@@ -25,6 +25,8 @@
 #include <src/proc/y8i-to-y8y8-mipi.h>
 #include <src/proc/y12i-to-y16y16.h>
 #include <src/proc/y12i-to-y16y16-mipi.h>
+#include <src/proc/rggb-converter.h>
+#include <src/proc/dual-rgb-rectify-filter.h>
 #include <src/proc/color-formats-converter.h>
 
 #include <src/hdr-config.h>
@@ -34,6 +36,7 @@
 #include <rsutils/lazy.h>
 #include <rsutils/type/fourcc.h>
 using rsutils::type::fourcc;
+#include <set>
 
 #include <rsutils/string/hexdump.h>
 #include <regex>
@@ -62,7 +65,8 @@ namespace librealsense
         {fourcc('Z','1','6',' '), RS2_FORMAT_Z16},
         {fourcc('R','G','B','2'), RS2_FORMAT_BGR8},
         {fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
-        {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16}
+        {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
+        {fourcc('B','A','8','1'), RS2_FORMAT_RAW8}   // D401 GMSL dual-RGB: SBGGR8 8-bit Bayer (RAW8 CSI passthrough, driver PR #459)
 
     };
     std::map<fourcc::value_type, rs2_stream> d400_depth_fourcc_to_rs2_stream = {
@@ -78,8 +82,38 @@ namespace librealsense
         {fourcc('Z','1','6',' '), RS2_STREAM_DEPTH},
         {fourcc('Z','1','6','H'), RS2_STREAM_DEPTH},
         {fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
-        {fourcc('M','J','P','G'), RS2_STREAM_COLOR}
+        {fourcc('M','J','P','G'), RS2_STREAM_COLOR},
+        {fourcc('B','A','8','1'), RS2_STREAM_COLOR}   // D401 GMSL dual-RGB: SBGGR8, expose each OV9782 imager as color
     };
+
+    // D401 GMSL dual-RGB stream-id resolver. The two OV9782 imagers each arrive on a separate backend pin,
+    // both advertising identical SBGGR8 (fourcc BA81). Rank the BA81 color pins by ascending pin_index and
+    // route them to Color 0 / Color 1 (distinct streams), mirroring the IR1/IR2 split. This uses the upstream
+    // per-pin _stream_id_resolver mechanism (cf. d500_dual_rgb::resolve_color_stream); it replaces the POC's
+    // global index_by_profile auto-increment, which is now obsoleted by _stream_id_resolver.
+    static void resolve_d401_color_stream( const std::vector< platform::stream_profile > & all,
+                                           const platform::stream_profile & p, rs2_stream & type, int & index )
+    {
+        const auto ba81 = fourcc( 'B', 'A', '8', '1' );
+        if( p.format != ba81 )
+            return;  // not a D401 color pin - leave type/index as resolved by the fourcc map
+
+        std::set< uint32_t > color_pins;
+        for( auto & q : all )
+            if( q.format == ba81 )
+                color_pins.insert( q.pin_index );
+
+        int rank = 0;
+        for( auto cp : color_pins )
+        {
+            if( cp == p.pin_index )
+                break;
+            ++rank;
+        }
+
+        type = RS2_STREAM_COLOR;
+        index = rank;   // Color 0 (left imager), Color 1 (right)
+    }
 
     std::vector<uint8_t> d400_device::send_receive_raw_data(const std::vector<uint8_t>& input)
     {
@@ -167,7 +201,12 @@ namespace librealsense
 
     processing_blocks d400_depth_sensor::get_recommended_processing_blocks() const
     {
-        return get_ds_depth_recommended_proccesing_blocks();
+        auto res = get_ds_depth_recommended_proccesing_blocks();
+        // D401 GMSL dual-RGB: rectify the two color streams (default-on, toggleable in the viewer's
+        // Post-Processing). The filter self-configures from the color profiles' SDK calibration.
+        if( _owner->_pid == ds::RS401_GMSL_PID )
+            res.push_back( std::make_shared< dual_rgb_rectify_filter >() );
+        return res;
     }
 
     rs2_intrinsics d400_depth_sensor::get_intrinsics( const stream_profile & profile ) const
@@ -261,7 +300,11 @@ namespace librealsense
             }
             else if (p->get_stream_type() == RS2_STREAM_COLOR)
             {
-                assign_stream(_owner->_color_stream, p);
+                // D401 GMSL dual-RGB: color index 0 = left imager, index 1 = right (distinct streams).
+                if (p->get_stream_index() == 1 && _owner->_color_stream2)
+                    assign_stream(_owner->_color_stream2, p);
+                else
+                    assign_stream(_owner->_color_stream, p);
             }
             auto&& vid_profile = dynamic_cast<video_stream_profile_interface*>(p.get());
 
@@ -691,6 +734,33 @@ namespace librealsense
                     { {RS2_FORMAT_Y16, RS2_STREAM_INFRARED, 1}, {RS2_FORMAT_Y16, RS2_STREAM_INFRARED, 2} },
                     []() {return std::make_shared<y12i_to_y16y16_mipi>(); }
                 );
+
+                // D401 GMSL dual-RGB POC: the two OV9782 imagers stream 8-bit RGGB Bayer via the
+                // FW RAW8 CSI passthrough. Expose each as a color stream - crop the transport
+                // padding (1612 -> 1288 px) and demosaic RGGB -> RGB8. The per-imager stream index
+                // (0/1) is carried through from the source profile, mirroring the IR1/IR2 split.
+                if( _pid == RS401_GMSL_PID )
+                {
+                    // Route the two identical BGGR color pins to Color 0 / Color 1 (ascending pin order).
+                    raw_depth_sensor->set_stream_id_resolver( resolve_d401_color_stream );
+
+                    // Two color targets: index 0 = left imager, index 1 = right. The resolver above tags
+                    // the two RGGB sources 0/1; formats-converter matches source index to target index.
+                    // resolution_transform advertises the real width (padded 1612 -> 1288); the
+                    // converter allocates + emits at 1288 to match (see rggb_converter::prepare_frame).
+                    static const auto real_w = []( uint32_t & w, uint32_t & ) { w = 1288; };
+                    depth_sensor.register_processing_block(
+                        { { RS2_FORMAT_RAW8, RS2_STREAM_COLOR } },
+                        { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0, 0, 0, 0, real_w },
+                          { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1, 0, 0, 0, real_w } },
+                        []() {
+                            rggb::isp_params isp;
+                            isp.swap_rb = true;   // OV9782 is BGGR (driver declares SBGGR8); the base
+                                                  // demosaic is RGGB-pattern, so swap R<->B to correct it
+                            return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, 1288, isp );
+                        }
+                    );
+                }
             }
 
             
