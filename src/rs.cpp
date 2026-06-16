@@ -72,6 +72,10 @@
 #include "eth-config-device.h"
 #include "embedded-filter-interface.h"
 
+#ifdef RS2_USE_CUDA_ZEROCOPY
+#include "cuda/cuda-frame-memory.h"  // rs_frame_zc_device_ptr for rs2_get_frame_gpu_data
+#endif
+
 #include <src/core/time-service.h>
 #include <rsutils/string/from.h>
 #include <rsutils/type/eth-config.h>
@@ -1464,6 +1468,30 @@ const void* rs2_get_frame_data(const rs2_frame* frame_ref, rs2_error** error) BE
 {
     VALIDATE_NOT_NULL(frame_ref);
     return ((frame_interface*)frame_ref)->get_frame_data();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, frame_ref)
+
+const void* rs2_get_frame_gpu_data(const rs2_frame* frame_ref, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(frame_ref);
+#ifdef RS2_USE_CUDA_ZEROCOPY
+    // The frame buffer is CUDA-mapped only under zero-copy on an integrated GPU; resolve its
+    // device alias. Returns null otherwise -> caller falls back to rs2_get_frame_data + upload.
+    return librealsense::rs_frame_zc_device_ptr( ( (frame_interface*)frame_ref )->get_frame_data() );
+#else
+    // Not a zero-copy build: no GPU alias exists. Symbol stays present for ABI stability.
+    return nullptr;
+#endif
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, frame_ref)
+
+const void* rs2_get_frame_gpu_data_or_upload(const rs2_frame* frame_ref, int* copied, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(frame_ref);
+    bool c = false;
+    auto p = ((frame_interface*)frame_ref)->get_gpu_data_or_upload(&c);
+    if (copied) *copied = c ? 1 : 0;
+    return p;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, frame_ref)
 
