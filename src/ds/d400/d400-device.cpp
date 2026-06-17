@@ -711,6 +711,11 @@ namespace librealsense
                 // (0/1) is carried through from the source profile, mirroring the IR1/IR2 split.
                 if( _pid == RS401_GMSL_PID )
                 {
+                    // Enable per-profile stream indexing only for this device, so init_stream_profiles
+                    // gives the two same-{type,format,res,fps} color imagers distinct indices (0/1).
+                    // Every other D4xx keeps the stock indexing (gated to RS401_GMSL_PID here).
+                    raw_depth_sensor->set_unique_stream_index_per_profile( true );
+
                     // Two color targets: index 0 = left imager, index 1 = right. Backend tags the
                     // two RGGB sources 0/1; formats-converter matches source index to target index.
                     // resolution_transform advertises the real width (padded 1612 -> 1288); the

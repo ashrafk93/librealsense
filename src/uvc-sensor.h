@@ -36,6 +36,12 @@ public:
     platform::usb_spec get_usb_specification() const { return _device->get_usb_specification(); }
     std::string get_device_path() const { return _device->get_device_location(); }
 
+    // D401 GMSL dual-RGB exposes two streams with identical {type,format,res,fps} from different
+    // backend pins (the two color imagers), so that device needs a per-profile stream index and
+    // (type,index)-keyed request validation. OFF by default: every other camera keeps the stock
+    // behavior (all profiles index 0; the device layer assigns IR1/IR2 etc.).
+    void set_unique_stream_index_per_profile( bool enable ) { _unique_stream_index_per_profile = enable; }
+
     template< class T >
     auto invoke_powered( T action ) -> decltype( action( *static_cast< platform::uvc_device * >( nullptr ) ) )
     {
@@ -67,6 +73,7 @@ private:
     void reset_streaming();
     std::atomic<int64_t> _gyro_counter;
     std::atomic<int64_t> _accel_counter;
+    bool _unique_stream_index_per_profile = false;  // see set_unique_stream_index_per_profile()
 
 
     struct power

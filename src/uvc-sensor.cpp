@@ -105,9 +105,9 @@ void uvc_sensor::verify_supported_requests( const stream_profiles & requests ) c
     // This method's aim is to send a relevant exception message when a user tries to stream
     // twice the same stream (at least) with different configurations (fps, resolution)
     std::map< rs2_stream, uint32_t > requests_map;
-    // Duplicate-stream detection keyed by stream type + index, so that multiple distinct streams
-    // of the same type (e.g. D401 GMSL dual-RGB: Color index 0 and 1) are allowed, while the same
-    // (type,index) requested twice with different config is still rejected.
+    // Only the GMSL dual-RGB device legitimately has multiple distinct streams of the same type
+    // (Color index 0 and 1), so key duplicate-detection by (type,index) there. Every other camera
+    // keeps the stock by-type check (a single sensor never exposes two streams of one type).
     std::set< std::pair< rs2_stream, int > > unique_streams;
     for( auto && req : requests )
     {
@@ -115,7 +115,8 @@ void uvc_sensor::verify_supported_requests( const stream_profiles & requests ) c
         unique_streams.insert( { req->get_stream_type(), req->get_stream_index() } );
     }
 
-    if( unique_streams.size() < requests.size() )
+    const size_t distinct = _unique_stream_index_per_profile ? unique_streams.size() : requests_map.size();
+    if( distinct < requests.size() )
         throw( std::runtime_error( "Wrong configuration requested" ) );
 
     // D457 dev
@@ -599,8 +600,13 @@ stream_profiles uvc_sensor::init_stream_profiles()
             const auto rs2_strm = fourcc_to_rs2_stream( p.format );
             profile->set_dims( p.width, p.height );
             profile->set_stream_type( rs2_strm );
+            // Stock behavior is index 0 (the device layer then tags IR1/IR2 etc.). Only the GMSL
+            // dual-RGB device, which exposes two same-{type,format,res,fps} color streams from
+            // different pins, needs a distinct per-profile index here.
             profile->set_stream_index(
-                index_by_profile[ std::make_tuple( rs2_strm, rs2_fmt, p.width, p.height, p.fps ) ]++ );
+                _unique_stream_index_per_profile
+                    ? index_by_profile[ std::make_tuple( rs2_strm, rs2_fmt, p.width, p.height, p.fps ) ]++
+                    : 0 );
             profile->set_format( rs2_fmt );
             profile->set_framerate( p.fps );
             video_profiles.insert( profile );
