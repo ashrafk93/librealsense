@@ -2060,6 +2060,16 @@ int rs2_is_frame_extendable_to(const rs2_frame* f, rs2_extension extension_type,
     case RS2_EXTENSION_LABELED_POINTS         : return VALIDATE_INTERFACE_NO_THROW((frame_interface*)f, librealsense::labeled_points) != nullptr;
     case RS2_EXTENSION_INFERENCE_FRAME        : return VALIDATE_INTERFACE_NO_THROW((frame_interface*)f, librealsense::inference_frame) != nullptr;
     case RS2_EXTENSION_OBJECT_DETECTION_FRAME : return VALIDATE_INTERFACE_NO_THROW((frame_interface*)f, librealsense::object_detection_frame) != nullptr;
+    case RS2_EXTENSION_GPU_FRAME              :
+        // A frame is extendable to gpu_frame only when its pixels truly reside in GPU-accessible
+        // (zero-copy) memory, i.e. a CUDA device pointer aliasing the frame data resolves. This
+        // mirrors gl::gpu_frame (rs2_gl_is_frame_extendable_to) and lets callers branch on
+        // f.as<gpu_frame>() to choose zero-copy vs. their own upload.
+#ifdef RS2_USE_CUDA_ZEROCOPY
+        return rs_frame_zc_device_ptr( ((frame_interface*)f)->get_frame_data() ) != nullptr;
+#else
+        return false;
+#endif
 
     default:
         return false;

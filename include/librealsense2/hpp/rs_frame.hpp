@@ -577,22 +577,6 @@ namespace rs2
         }
 
         /**
-        * Retrieve a GPU (CUDA) device pointer aliasing the frame data for zero-copy GPU
-        * consumption (e.g. binding the frame directly as a CUDA / TensorRT input without a
-        * host->device copy). Returns nullptr unless the SDK was built with
-        * BUILD_WITH_CUDA_ZEROCOPY and is running on an integrated GPU; otherwise fall back to
-        * get_data() + your own upload. Valid only while this frame is held.
-        * \return               GPU device pointer aliasing the frame data, or nullptr
-        */
-        const void* get_gpu_data() const
-        {
-            rs2_error* e = nullptr;
-            auto r = rs2_get_frame_gpu_data(frame_ref, &e);
-            error::handle(e);
-            return r;
-        }
-
-        /**
         * Retrieve a GPU device pointer for the frame, uploading it if necessary. Always returns
         * a usable device pointer on a CUDA build (zero-copy when the frame is GPU-mapped, else an
         * SDK-managed host->device copy); returns nullptr on non-CUDA builds. If `copied` is
@@ -1039,6 +1023,50 @@ namespace rs2
         {
             rs2_error * e = nullptr;
             auto r = rs2_depth_stereo_frame_get_baseline(get(), &e);
+            error::handle(e);
+            return r;
+        }
+    };
+
+    /**
+    * GPU-Frame extension: present when the frame's pixels reside in GPU-accessible (zero-copy)
+    * memory. Reach it with frame::as<gpu_frame>() — the cast is null unless the SDK was built with
+    * BUILD_WITH_CUDA_ZEROCOPY and the frame is GPU-resident (integrated GPU / Jetson). This mirrors
+    * rs2::gl::gpu_frame: get_data() on the base frame keeps returning the HOST pointer (the viewer,
+    * recording, pyrealsense2/OpenCV and any CPU code still use it); the GPU device pointer is a
+    * SEPARATE accessor on this extension. Typical use:
+    *
+    *     auto color = frames.get_color_frame();
+    *     const void * host = color.get_data();              // host pointer, always valid
+    *     if( auto gf = color.as<rs2::gpu_frame>() )          // true only when GPU-resident
+    *         feed_cuda( gf.get_gpu_data() );                 // device pointer, no host->device copy
+    *     else
+    *         feed_cuda( color.get_gpu_data_or_upload() );    // not zero-copy: upload (a copy)
+    */
+    class gpu_frame : public frame
+    {
+    public:
+        gpu_frame(const frame& f)
+            : frame(f)
+        {
+            rs2_error* e = nullptr;
+            if (!f || (rs2_is_frame_extendable_to(f.get(), RS2_EXTENSION_GPU_FRAME, &e) == 0 && !e))
+            {
+                reset();
+            }
+            error::handle(e);
+        }
+
+        /**
+        * Retrieve the CUDA device pointer aliasing the frame data for zero-copy GPU consumption
+        * (e.g. binding the frame directly as a CUDA / TensorRT / NPP input with no host->device
+        * copy). The frame must stay alive (hold it) until the GPU work completes.
+        * \return  GPU device pointer aliasing the frame data
+        */
+        const void* get_gpu_data() const
+        {
+            rs2_error* e = nullptr;
+            auto r = rs2_get_frame_gpu_data(get(), &e);
             error::handle(e);
             return r;
         }

@@ -188,7 +188,8 @@ int run_rgb_nn( int seconds, int width, int height, bool dual )
                 const unsigned char * rgb_dev = nullptr;
                 if( method == M_GET_GPU_DATA )
                 {
-                    rgb_dev = static_cast< const unsigned char * >( color.get_gpu_data() );
+                    if( auto gf = color.as< rs2::gpu_frame >() )  // zero-copy extension cast
+                        rgb_dev = static_cast< const unsigned char * >( gf.get_gpu_data() );
                     if( rgb_dev ) r.gpu_used = true;
                 }
                 else if( method == M_OR_UPLOAD )

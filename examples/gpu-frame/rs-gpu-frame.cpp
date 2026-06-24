@@ -3,13 +3,19 @@
 
 // rs-gpu-frame
 // ------------
-// Demonstrates rs2::frame::get_gpu_data() — the zero-copy GPU pointer API.
+// Demonstrates the rs2::gpu_frame extension — the zero-copy GPU pointer API.
+//
+// This mirrors the rs2::gl::gpu_frame pattern: get_data() on the base frame always returns the
+// HOST pointer, and the GPU device pointer is reached through a separate extension you cast to
+// with frame::as<rs2::gpu_frame>(). The cast succeeds only when the frame's pixels actually live
+// in GPU-accessible memory.
 //
 // On a build with BUILD_WITH_CUDA_ZEROCOPY running on an integrated GPU (Jetson), a frame's
-// pixels live in GPU-mapped memory, so get_gpu_data() returns a CUDA device pointer that
-// aliases the frame. You can hand that pointer straight to a CUDA kernel / TensorRT / NPP
-// without a host->device copy. In every other configuration it returns null and you fall
-// back to get_data() + your own upload — so the same code is correct everywhere.
+// pixels live in GPU-mapped memory, so frame.as<gpu_frame>() is non-null and get_gpu_data()
+// returns a CUDA device pointer that aliases the frame. You can hand that pointer straight to a
+// CUDA kernel / TensorRT / NPP without a host->device copy. In every other configuration the
+// cast is null and you fall back to get_gpu_data_or_upload() (an SDK-managed copy) or your own
+// upload — so the same code is correct everywhere.
 //
 // This example needs no CUDA toolchain to build: it only shows the API and the decision
 // pattern. The commented block marks exactly where a GPU consumer would use the pointer.
@@ -32,16 +38,17 @@ try
     auto frames = pipe.wait_for_frames();
     auto color = frames.get_color_frame();
 
-    const void * host_ptr = color.get_data();      // always valid (CPU pointer)
-    const void * gpu_ptr  = color.get_gpu_data();  // device pointer, or null if unavailable
+    const void * host_ptr = color.get_data();  // always valid (CPU pointer) — unchanged contract
 
     std::cout << "Color frame " << color.get_width() << "x" << color.get_height()
-              << "  host=" << host_ptr << "  gpu=" << gpu_ptr << "\n";
+              << "  host=" << host_ptr << "\n";
 
-    if( gpu_ptr )
+    // Cast to the GPU-frame extension. Non-null only when the frame is GPU-resident (zero-copy).
+    if( auto gf = color.as<rs2::gpu_frame>() )
     {
-        std::cout << "Zero-copy GPU pointer available — a CUDA/TensorRT consumer can read the\n"
-                     "frame in place, no host->device copy.\n";
+        const void * gpu_ptr = gf.get_gpu_data();  // device pointer aliasing the frame, no copy
+        std::cout << "Zero-copy: frame.as<gpu_frame>() succeeded  gpu=" << gpu_ptr << "\n"
+                     "A CUDA/TensorRT consumer can read the frame in place, no host->device copy.\n";
         // --- where a GPU consumer would use it (pseudo-code) ---
         //   my_cuda_preprocess<<<grid, block>>>( (const uint8_t*)gpu_ptr, width, height );
         //   tensorrt_context->setTensorAddress( "input", (void*)gpu_ptr );
@@ -50,8 +57,10 @@ try
     }
     else
     {
-        std::cout << "No GPU pointer (discrete GPU, or non-zero-copy build) — upload yourself:\n"
-                     "  cudaMemcpy(d_input, host_ptr, size, cudaMemcpyHostToDevice);\n";
+        std::cout << "Not GPU-resident (discrete GPU, or non-zero-copy build).\n";
+        // Either upload yourself from host_ptr, or let the SDK manage the device copy:
+        //   bool copied = false;
+        //   const void * gpu_ptr = color.get_gpu_data_or_upload( &copied );  // always a device ptr on CUDA
     }
 
     pipe.stop();
