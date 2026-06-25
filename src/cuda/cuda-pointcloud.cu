@@ -86,8 +86,15 @@ void rscuda::pointcloud_cuda_helper::deproject_depth_cuda( float * points, const
     // Zero-copy fast path: when the frame buffers are CUDA pinned+mapped (integrated GPU),
     // the kernel reads depth and writes points directly in the frame memory -- no H2D/D2H.
     // try_device_ptr returns nullptr otherwise, and we fall back to the staging buffers.
+    // Gated to zero-copy builds so a plain CUDA build keeps the original staging path
+    // verbatim (no per-frame cudaPointerGetAttributes probing).
+#ifdef RS2_USE_CUDA_ZEROCOPY
     uint16_t * depth_dev  = rscuda::try_device_ptr<uint16_t>( depth );
     float *    points_dev = rscuda::try_device_ptr<float>( points );
+#else
+    uint16_t * depth_dev  = nullptr;
+    float *    points_dev = nullptr;
+#endif
     const bool depth_mapped  = ( depth_dev  != nullptr );
     const bool points_mapped = ( points_dev != nullptr );
 
