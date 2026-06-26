@@ -95,6 +95,17 @@ void * rs_frame_zc_device_ptr( const void * host_ptr )
                 return const_cast< void * >( host_ptr );
             if( attr.devicePointer )
                 return attr.devicePointer;
+            // Mapped pinned host memory (cudaHostAllocMapped / cudaHostRegisterMapped): some
+            // Jetson L4T CUDA driver versions leave cudaPointerGetAttributes().devicePointer
+            // null even though the buffer IS device-mapped (verified on Orin / L4T R36.5).
+            // cudaHostGetDevicePointer is the canonical accessor and resolves the alias on
+            // those drivers; without this, zero-copy silently degrades to the upload path.
+            if( attr.type == cudaMemoryTypeHost )
+            {
+                void * dptr = nullptr;
+                if( cudaHostGetDevicePointer( &dptr, const_cast< void * >( host_ptr ), 0 ) == cudaSuccess && dptr )
+                    return dptr;
+            }
         }
         cudaGetLastError();  // clear error, caller falls back to copy
     }
