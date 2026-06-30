@@ -7,7 +7,7 @@
 
 #### MIT License 
 
-| Component | Home Page | License| Copyright |
+| Component | Home Page | License| Copyright |11
 | ------- | ------- | ------- | ------- |
 | easyloggingpp | https://github.com/abumq/easyloggingpp | MIT License | Copyright (c) 2012-present @abumq (Majid Q.) |
 | GLAD | https://glad.dav1d.de/, https://github.com/Dav1dde/glad | MIT License | Copyright (c) 2013-2022 David Herberth |
