@@ -64,7 +64,7 @@ RealSense stereo depth products use stereo vision to calculate depth, providing 
 
 Here are some examples of the supported models:
 
-| Product | Image | Description |
+| Product | Image | Description |11
 |---------|-------|-------------|
 | [**D555 PoE**](https://realsenseai.com/ruggedized-industrial-stereo-depth/d555-poe/) | <img src="https://realsenseai.com/wp-content/uploads/2025/07/D555.png" width="1000"> | The RealSense™ Depth Camera D555 introduces Power over Ethernet (PoE) interface on chip, expanding our portfolio of USB and GMSL/FAKRA products. |
 | [**D457 GMSL/FAKRA**](https://realsenseai.com/ruggedized-industrial-stereo-depth/d457-gmsl-fakra/) | <img src="https://realsenseai.com/wp-content/uploads/2025/07/D457.png" width="1000"> | The RealSense™ Depth Camera D457 is our first GMSL/FAKRA high bandwidth stereo camera. The D457 has an IP65 grade enclosure protecting it from dust ingress and projected water. |
