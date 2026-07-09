@@ -1,5 +1,5 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2025 RealSense, Inc. All Rights Reserved.
+// Copyright(c) 2026 RealSense, Inc. All Rights Reserved.
 
 #include "cuda-frame-memory.h"
 
@@ -8,6 +8,13 @@
 #ifdef RS2_USE_CUDA
 #include <cuda_runtime.h>
 #include <rsutils/accelerators/gpu.h>
+// cudaPointerAttributes::type was named ::memoryType before CUDA 11.0. The CUDA arch list in
+// CMake/cuda_config.cmake still supports pre-11 toolkits, so read the field portably.
+#if CUDART_VERSION >= 11000
+    #define RS_CUDA_MEMTYPE( a ) ( (a).type )
+#else
+    #define RS_CUDA_MEMTYPE( a ) ( (a).memoryType )
+#endif
 #endif
 
 #ifdef _MSC_VER
@@ -72,10 +79,17 @@ void rs_frame_zc_free( void * p )
 #if defined( RS2_USE_CUDA ) && defined( RS2_USE_CUDA_ZEROCOPY )
     if( rs_frame_zc_enabled() )
     {
-        // rs_frame_zc_enabled() is process-constant, so anything allocated while it was
-        // true came from cudaHostAlloc and must be released with cudaFreeHost.
-        cudaFreeHost( p );
-        return;
+        // rs_frame_zc_alloc() normally returns cudaHostAlloc memory, but it falls back to
+        // std::malloc if cudaHostAlloc fails. Freeing a malloc'd pointer with cudaFreeHost is
+        // undefined, so probe the pointer: only CUDA-registered host memory goes to cudaFreeHost;
+        // an unregistered (malloc fallback) pointer falls through to std::free.
+        cudaPointerAttributes attr{};
+        if( cudaPointerGetAttributes( &attr, p ) == cudaSuccess && RS_CUDA_MEMTYPE( attr ) == cudaMemoryTypeHost )
+        {
+            cudaFreeHost( p );
+            return;
+        }
+        cudaGetLastError();  // not CUDA host memory (malloc fallback) -> std::free below
     }
 #endif
     std::free( p );
@@ -93,7 +107,7 @@ void * rs_frame_zc_device_ptr( const void * host_ptr )
         cudaPointerAttributes attr{};
         if( cudaPointerGetAttributes( &attr, host_ptr ) == cudaSuccess )
         {
-            if( attr.type == cudaMemoryTypeManaged )
+            if( RS_CUDA_MEMTYPE( attr ) == cudaMemoryTypeManaged )
                 return const_cast< void * >( host_ptr );
             if( attr.devicePointer )
                 return attr.devicePointer;
@@ -102,7 +116,7 @@ void * rs_frame_zc_device_ptr( const void * host_ptr )
             // null even though the buffer IS device-mapped (verified on Orin / L4T R36.5).
             // cudaHostGetDevicePointer is the canonical accessor and resolves the alias on
             // those drivers; without this, zero-copy silently degrades to the upload path.
-            if( attr.type == cudaMemoryTypeHost )
+            if( RS_CUDA_MEMTYPE( attr ) == cudaMemoryTypeHost )
             {
                 void * dptr = nullptr;
                 if( cudaHostGetDevicePointer( &dptr, const_cast< void * >( host_ptr ), 0 ) == cudaSuccess && dptr )

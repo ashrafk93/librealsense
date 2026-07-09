@@ -53,6 +53,8 @@ public:
     frame& operator=(frame&& r)
     {
         data = std::move(r.data);
+        _data_size = r._data_size;   // move the logical size with the data (continuation-backed
+        r._data_size = 0;            // zero-copy frames have empty `data`, so this is their size)
         owner = r.owner;
         ref_count = r.ref_count.exchange(0);
         _kept = r._kept.exchange(false);
@@ -88,6 +90,9 @@ public:
     frame_header const & get_header() const override { return additional_data; }
     bool find_metadata( rs2_frame_metadata_value, rs2_metadata_type * p_output_value ) const override;
     int get_frame_data_size() const override;
+    // Record the logical payload size at allocation (see _data_size). Called by the frame archive
+    // so continuation-backed frames (zero-copy, requires_memory=false) still report their size.
+    void set_data_size( size_t size ) { _data_size = size; }
     const uint8_t * get_frame_data() const override;
     const void * get_gpu_data_or_upload( bool * copied ) override;
     rs2_time_t get_frame_timestamp() const override;
@@ -147,6 +152,11 @@ private:
     // Reused across pool recycling; (re)allocated on growth; freed in the destructor.
     void * _gpu_upload_buffer = nullptr;
     size_t _gpu_upload_capacity = 0;
+    // Logical byte-size of the pixel payload as requested at allocation. Normally equals
+    // data.size(); but for continuation-backed frames (e.g. zero-copy capture, allocated with
+    // requires_memory=false) `data` is empty while the pixels live in an external buffer, so we
+    // keep the intended size here and get_frame_data_size() returns it. See get_frame_data().
+    size_t _data_size = 0;
 };
 
 

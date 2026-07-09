@@ -14,6 +14,14 @@
 #pragma comment(lib, "cudart_static")
 #endif
 
+// cudaPointerAttributes::type was named ::memoryType before CUDA 11.0. The CUDA arch list in
+// CMake/cuda_config.cmake still supports pre-11 toolkits, so read the field portably.
+#if CUDART_VERSION >= 11000
+    #define RS_CUDA_MEMTYPE( a ) ( (a).type )
+#else
+    #define RS_CUDA_MEMTYPE( a ) ( (a).memoryType )
+#endif
+
 // Throws std::runtime_error with a descriptive message if a CUDA call returns non-success.
 #define RS_CUDA_CHECK(expr) do {                                                                     \
     cudaError_t _rs_cuda_err = (expr);                                                               \
@@ -55,10 +63,18 @@ namespace rscuda
         cudaPointerAttributes attr{};
         if (host && cudaPointerGetAttributes(&attr, host) == cudaSuccess)
         {
-            if (attr.type == cudaMemoryTypeManaged)
+            if (RS_CUDA_MEMTYPE(attr) == cudaMemoryTypeManaged)
                 return static_cast<T*>(const_cast<void*>(host));
             if (attr.devicePointer)
                 return static_cast<T*>(attr.devicePointer);
+            // Some Jetson L4T CUDA drivers leave attr.devicePointer null for mapped pinned
+            // memory even though it IS device-mapped; cudaHostGetDevicePointer resolves the alias.
+            if (RS_CUDA_MEMTYPE(attr) == cudaMemoryTypeHost)
+            {
+                void* dptr = nullptr;
+                if (cudaHostGetDevicePointer(&dptr, const_cast<void*>(host), 0) == cudaSuccess && dptr)
+                    return static_cast<T*>(dptr);
+            }
         }
         cudaGetLastError();
 #endif

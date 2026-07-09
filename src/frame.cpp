@@ -127,7 +127,10 @@ bool frame::find_metadata( rs2_frame_metadata_value frame_metadata, rs2_metadata
 
 int frame::get_frame_data_size() const
 {
-    return (int)data.size();
+    // Continuation-backed frames (e.g. zero-copy capture) do not own `data` -- their pixels live
+    // in an external buffer reached via get_frame_data(). `data` is empty for them, so return the
+    // logical size recorded at allocation. For ordinary frames data.size() == _data_size.
+    return (int)( data.empty() ? _data_size : data.size() );
 }
 
 const uint8_t * frame::get_frame_data() const

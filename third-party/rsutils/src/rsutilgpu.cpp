@@ -147,6 +147,7 @@ namespace rsutils {
 #endif
 
         bool integrated = false;
+        bool probed = false;  // did we actually read the INTEGRATED attribute?
         if( cu_init && cu_dev_get && cu_dev_attr && cu_init( 0 ) == 0 )
         {
             int dev = 0;
@@ -154,6 +155,7 @@ namespace rsutils {
             if( cu_dev_get( &dev, 0 ) == 0
                 && cu_dev_attr( &value, CU_DEVICE_ATTRIBUTE_INTEGRATED, dev ) == 0 )
             {
+                probed = true;
                 integrated = ( value != 0 );
             }
         }
@@ -164,7 +166,12 @@ namespace rsutils {
         dlclose( handle );
 #endif
 
-        if( integrated )
+        // Distinguish a genuine discrete GPU from a probe that could not run (missing driver
+        // symbols, cuInit/cuDeviceGet failure) - both leave `integrated` false, but only the
+        // former is really "discrete". Otherwise diagnostics are misleading.
+        if( ! probed )
+            LOG_INFO( "Could not probe CUDA device integrated attribute (driver/symbol/device unavailable) - zero-copy GPU path disabled." );
+        else if( integrated )
             LOG_INFO( "CUDA device is integrated (unified memory) - zero-copy GPU path eligible." );
         else
             LOG_INFO( "CUDA device is discrete - zero-copy GPU path disabled (would be a loss over PCIe)." );
