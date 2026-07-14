@@ -259,15 +259,16 @@ const void* rs2_get_frame_gpu_data(const rs2_frame* frame, rs2_error** error);
 
 /**
 * Retrieve a GPU (CUDA) device pointer for the frame, uploading it if necessary. Unlike
-* rs2_get_frame_gpu_data() (which returns NULL when true zero-copy is unavailable), this always
-* returns a usable device pointer on a CUDA build: zero-copy when the frame is GPU-mapped, or an
+* rs2_get_frame_gpu_data() (which returns NULL when true zero-copy is unavailable), on a CUDA build
+* this returns a usable device pointer whenever it can: zero-copy when the frame is GPU-mapped, or an
 * SDK-managed host->device copy otherwise. `copied` (if non-null) is set to 0 when the pointer
-* was zero-copy and 1 when the SDK uploaded. Returns NULL on non-CUDA builds. The pointer is
-* valid only while the frame is held.
+* was zero-copy and 1 when the SDK uploaded. Returns NULL on non-CUDA builds, and also on a CUDA
+* build if the upload allocation/copy fails (e.g. out of device memory) -- so callers must still
+* check for NULL. The pointer is valid only while the frame is held.
 * \param[in] frame      handle returned from a callback
 * \param[out] copied    if non-null, set to 1 if the SDK uploaded (a copy), 0 if zero-copy
 * \param[out] error     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
-* \return               GPU device pointer for the frame, or NULL on non-CUDA builds
+* \return               GPU device pointer for the frame, or NULL (non-CUDA build, or a failed upload)
 */
 const void* rs2_get_frame_gpu_data_or_upload(const rs2_frame* frame, int* copied, rs2_error** error);
 

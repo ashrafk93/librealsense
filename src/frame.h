@@ -12,6 +12,7 @@
 #include "cuda/cuda-frame-memory.h"  // rs_frame_gpu_free for the cached GPU upload buffer
 #endif
 #include <atomic>
+#include <mutex>
 #include <vector>
 #include <memory>
 #include "archive.h"
@@ -152,6 +153,12 @@ private:
     // Reused across pool recycling; (re)allocated on growth; freed in the destructor.
     void * _gpu_upload_buffer = nullptr;
     size_t _gpu_upload_capacity = 0;
+    // A frame is a ref-counted shared handle; the docs invite multiple consumers to read one frame,
+    // so two threads may call get_gpu_data_or_upload() concurrently. Serialize the (re)allocate +
+    // copy of the cached buffer above so they can't double-free / hand out a freed device pointer.
+    // Never moved (each frame keeps its own), like the atomics above. Cheap when the upload path is
+    // unused (true zero-copy takes a lock-free early return).
+    std::mutex _gpu_upload_mutex;
     // Logical byte-size of the pixel payload as requested at allocation. Normally equals
     // data.size(); but for continuation-backed frames (e.g. zero-copy capture, allocated with
     // requires_memory=false) `data` is empty while the pixels live in an external buffer, so we

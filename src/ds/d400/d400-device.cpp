@@ -287,8 +287,12 @@ namespace librealsense
             out.height = out_h;
             out.fx  = in.fx * sx;
             out.fy  = in.fy * sy;
-            out.ppx = ( in.ppx - (float)cx ) * sx;   // shift principal point by the crop origin, then scale
-            out.ppy = ( in.ppy - (float)cy ) * sy;
+            // Shift the principal point into crop coordinates, then scale. crop_scale_rgb8 samples
+            // with the pixel-center convention (src = (out+0.5)/scale - 0.5), so carry the matching
+            // +0.5/-0.5 half-pixel terms; otherwise ppx/ppy are biased by 0.5*(sx-1) (~0.3 px at the
+            // smallest resolution). fx/fy need no such term (focal length is origin-independent).
+            out.ppx = ( in.ppx - (float)cx + 0.5f ) * sx - 0.5f;
+            out.ppy = ( in.ppy - (float)cy + 0.5f ) * sy - 0.5f;
             return out;
         }
 

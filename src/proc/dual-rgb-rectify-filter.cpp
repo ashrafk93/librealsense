@@ -3,6 +3,7 @@
 
 #include "dual-rgb-rectify-filter.h"
 #include <librealsense2/hpp/rs_processing.hpp>
+#include <algorithm>
 #include <cstring>
 
 #ifdef RS2_USE_CUDA
@@ -11,11 +12,6 @@
 #endif
 
 namespace librealsense {
-
-namespace {
-const int REAL_W = 1288;   // real OV9782 width (color frames are advertised padded to 1612)
-const int REAL_H = 808;
-}  // namespace
 
 dual_rgb_rectify_filter::dual_rgb_rectify_filter()
     : stream_filter_processing_block( "RGB Rectification" )
@@ -27,11 +23,18 @@ dual_rgb_rectify_filter::dual_rgb_rectify_filter()
 
 dual_rgb_rectify_filter::~dual_rgb_rectify_filter()
 {
+    free_device_maps();
+}
+
+void dual_rgb_rectify_filter::free_device_maps()
+{
 #ifdef RS2_USE_CUDA
     for( int i = 0; i < 2; ++i )
     {
         rscuda::rggb_cuda_free( _dmap_sx[i] );
         rscuda::rggb_cuda_free( _dmap_sy[i] );
+        _dmap_sx[i] = nullptr;
+        _dmap_sy[i] = nullptr;
     }
 #endif
 }
@@ -41,18 +44,24 @@ void dual_rgb_rectify_filter::ensure_maps()
     if( ! _p0 || ! _p1 )
         return;
 
+    // Both color eyes stream at the same selected output resolution; build the rectification at
+    // that geometry. The color profile intrinsics are already resolution-correct -- for the D401
+    // GMSL get_color_intrinsics reports the native 1288x808 calibration transformed by the same
+    // center-crop + bilinear-scale the image path applies (rggb_converter / crop_scale_rgb8), so we
+    // use them as-is. (The old path hardcoded the native 1288x808 size, which no advertised
+    // resolution matches -> the map geometry never lined up with the frame and rectify never ran.)
+    const int out_w = _p0.width(), out_h = _p0.height();
+    if( out_w <= 0 || out_h <= 0 )
+        return;
+
     rs2_intrinsics inL = _p0.get_intrinsics();
     rs2_intrinsics inR = _p1.get_intrinsics();
 
-    // Color intrinsics are reported at the padded width; rescale to the real image width
-    // (fx/fy/ppx by the width ratio, ppy unchanged) -> consistent square, centered intrinsics.
-    const float s = float( REAL_W ) / float( inL.width );
-    inL.width = REAL_W; inL.fx *= s; inL.fy *= s; inL.ppx *= s;
-    inR.width = REAL_W; inR.fx *= s; inR.fy *= s; inR.ppx *= s;
-
     rs2_extrinsics lr = _p0.get_extrinsics_to( _p1 );   // left -> right (carries the baseline)
 
-    _rc = rect::compute( inL, inR, lr, REAL_W, REAL_H );
+    _rc = rect::compute( inL, inR, lr, out_w, out_h );
+    _maps_w = out_w;   // remember the geometry these tables were built for, so a resolution change
+    _maps_h = out_h;   // invalidates them (see process_frame) instead of cutting the frame.
     _ready = true;
 
 #ifdef RS2_USE_CUDA
@@ -76,6 +85,18 @@ rs2::frame dual_rgb_rectify_filter::process_frame( const rs2::frame_source & sou
         return f;
 
     const int idx = vf.get_profile().stream_index();
+
+    // If the stream resolution changed since the maps were built, they are for the old geometry and
+    // would remap into only part of the frame (e.g. 848-wide maps into a 1280 frame -> right ~34%
+    // black). Drop the cached maps + captured profiles so they rebuild at the new size.
+    if( _ready && ( vf.get_width() != _maps_w || vf.get_height() != _maps_h ) )
+    {
+        free_device_maps();
+        _p0 = rs2::video_stream_profile{};
+        _p1 = rs2::video_stream_profile{};
+        _ready = false;
+    }
+
     if( auto vsp = vf.get_profile().as< rs2::video_stream_profile >() )
     {
         if( idx == 0 && ! _p0 ) _p0 = vsp;
@@ -118,12 +139,15 @@ rs2::frame dual_rgb_rectify_filter::process_frame( const rs2::frame_source & sou
     // output frame (any padding columns stay zero), so the stream's advertised geometry is unchanged.
     _tmp.resize( (size_t)t.w * t.h * 3 );
     rect::remap_rgb8( static_cast< const uint8_t * >( vf.get_data() ), t.w, h, w * 3, t, _tmp.data() );
-    for( int y = 0; y < h; ++y )
+    const int rows = std::min( h, t.h );   // never read past the (t.h-row) remap scratch
+    for( int y = 0; y < rows; ++y )
     {
         std::memcpy( dst + (size_t)y * dstride, _tmp.data() + (size_t)y * t.w * 3, (size_t)t.w * 3 );
         if( w > t.w )
             std::memset( dst + (size_t)y * dstride + t.w * 3, 0, (size_t)( w - t.w ) * 3 );
     }
+    for( int y = rows; y < h; ++y )        // frame taller than the table: zero the remaining rows
+        std::memset( dst + (size_t)y * dstride, 0, (size_t)w * 3 );
     return tgt;
 }
 

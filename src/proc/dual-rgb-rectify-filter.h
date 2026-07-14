@@ -25,11 +25,14 @@ protected:
 
 private:
     void ensure_maps();
+    void free_device_maps();               // release the uploaded CUDA remap tables (no-op w/o CUDA)
 
     rs2::video_stream_profile _p0, _p1;   // captured per-eye color profiles (for calibration)
     bool                      _ready = false;
+    int                       _maps_w = 0; // output geometry the current maps were built for; a frame
+    int                       _maps_h = 0; // at a different size invalidates and rebuilds them
     rect::rectification       _rc;
-    std::vector< uint8_t >    _tmp;        // scratch for the rectified (real-width) image
+    std::vector< uint8_t >    _tmp;        // scratch for the rectified image
 
     // CUDA: the remap tables uploaded to the device once (indexed by eye, 0=left/1=right). Plain
     // void* so the header stays CUDA-free; populated/used/freed only under RS2_USE_CUDA.

@@ -66,6 +66,10 @@ void * rs_frame_zc_alloc( std::size_t bytes )
         if( cudaHostAlloc( &p, bytes + RS_ZC_TAIL_PAD, cudaHostAllocMapped | cudaHostAllocPortable ) == cudaSuccess )
             return p;
         cudaGetLastError();  // clear sticky error before falling back
+        // The malloc fallback still feeds the zero-copy-aware NEON consumers, which over-read/write
+        // a partial block past the logical end -- keep the same trailing slack the cudaHostAlloc
+        // path has, or an exactly-sized allocation can fault exactly as the CUDA path did.
+        return std::malloc( bytes + RS_ZC_TAIL_PAD );
     }
 #endif
     return std::malloc( bytes );
@@ -84,11 +88,17 @@ void rs_frame_zc_free( void * p )
         // undefined, so probe the pointer: only CUDA-registered host memory goes to cudaFreeHost;
         // an unregistered (malloc fallback) pointer falls through to std::free.
         cudaPointerAttributes attr{};
-        if( cudaPointerGetAttributes( &attr, p ) == cudaSuccess && RS_CUDA_MEMTYPE( attr ) == cudaMemoryTypeHost )
+        cudaError_t st = cudaPointerGetAttributes( &attr, p );
+        if( st == cudaSuccess && RS_CUDA_MEMTYPE( attr ) == cudaMemoryTypeHost )
         {
             cudaFreeHost( p );
             return;
         }
+        // CUDA 11+ reports a malloc-fallback pointer as cudaMemoryTypeUnregistered; pre-11 the query
+        // errors for unregistered memory. Either way it is plain host memory -> std::free. Only if
+        // the query itself fails unexpectedly (e.g. CUDA context already torn down during shutdown)
+        // could a genuinely-pinned pointer reach std::free; that is a shutdown-race edge, and
+        // std::free is the correct choice for the common (padded malloc) case.
         cudaGetLastError();  // not CUDA host memory (malloc fallback) -> std::free below
     }
 #endif
