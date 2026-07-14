@@ -5,6 +5,7 @@
 
 #include <cstddef>   // size_t
 #include <cmath>     // std::pow
+#include <cstring>   // std::memcpy
 
 namespace librealsense {
 namespace rggb {
@@ -146,6 +147,79 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
             row[ x * 3 + 0 ] = 0;
             row[ x * 3 + 1 ] = 0;
             row[ x * 3 + 2 ] = 0;
+        }
+    }
+}
+
+void crop_rect_for_output( int src_w, int src_h, int out_w, int out_h,
+                           int * crop_x, int * crop_y, int * crop_w, int * crop_h )
+{
+    // Centered crop matching the output aspect ratio (so the subsequent scale doesn't stretch).
+    // Compare src_w*out_h vs out_w*src_h to avoid float rounding: target "wider" than source ->
+    // crop the height; "narrower" -> crop the width.
+    int cw = src_w, ch = src_h;
+    const long long src_ar = (long long)src_w * out_h;   // src_w/src_h  vs
+    const long long out_ar = (long long)out_w * src_h;   // out_w/out_h
+    if( out_ar > src_ar )                                // output is wider -> limit by width, crop height
+        ch = (int)( ( (long long)src_w * out_h ) / out_w );
+    else if( out_ar < src_ar )                           // output is narrower/taller -> crop width
+        cw = (int)( ( (long long)src_h * out_w ) / out_h );
+    if( cw > src_w ) cw = src_w;
+    if( ch > src_h ) ch = src_h;
+    if( cw < 1 ) cw = 1;
+    if( ch < 1 ) ch = 1;
+    *crop_w = cw; *crop_h = ch;
+    *crop_x = ( src_w - cw ) / 2;
+    *crop_y = ( src_h - ch ) / 2;
+}
+
+void crop_scale_rgb8( const uint8_t * src, int src_w, int src_h, int src_stride_px,
+                      uint8_t * dst, int out_w, int out_h, int y_begin, int y_end )
+{
+    if( y_end < 0 ) y_end = out_h;
+
+    int cx, cy, cw, ch;
+    crop_rect_for_output( src_w, src_h, out_w, out_h, &cx, &cy, &cw, &ch );
+
+    // Fast path: crop already equals output (e.g. native res requested) -> straight row copy.
+    if( cw == out_w && ch == out_h )
+    {
+        for( int y = y_begin; y < y_end; ++y )
+        {
+            const uint8_t * s = src + ( (size_t)( cy + y ) * src_stride_px + cx ) * 3;
+            std::memcpy( dst + (size_t)y * out_w * 3, s, (size_t)out_w * 3 );
+        }
+        return;
+    }
+
+    // Bilinear scale of the crop rect [cx,cx+cw) x [cy,cy+ch) -> out_w x out_h. Map output pixel
+    // centers back into the crop (the +0.5/-0.5 keeps the sampling centered, no half-pixel shift).
+    const float sx = (float)cw / (float)out_w;
+    const float sy = (float)ch / (float)out_h;
+    for( int oy = y_begin; oy < y_end; ++oy )
+    {
+        float fy = ( oy + 0.5f ) * sy - 0.5f;
+        int   y0 = (int)( fy < 0.f ? 0.f : fy );
+        if( y0 > ch - 1 ) y0 = ch - 1;
+        int   y1 = ( y0 + 1 < ch ) ? y0 + 1 : y0;
+        float wy = fy - (float)y0; if( wy < 0.f ) wy = 0.f;
+        const uint8_t * r0 = src + ( (size_t)( cy + y0 ) * src_stride_px + cx ) * 3;
+        const uint8_t * r1 = src + ( (size_t)( cy + y1 ) * src_stride_px + cx ) * 3;
+        uint8_t * orow = dst + (size_t)oy * out_w * 3;
+        for( int ox = 0; ox < out_w; ++ox )
+        {
+            float fx = ( ox + 0.5f ) * sx - 0.5f;
+            int   x0 = (int)( fx < 0.f ? 0.f : fx );
+            if( x0 > cw - 1 ) x0 = cw - 1;
+            int   x1 = ( x0 + 1 < cw ) ? x0 + 1 : x0;
+            float wx = fx - (float)x0; if( wx < 0.f ) wx = 0.f;
+            for( int c = 0; c < 3; ++c )
+            {
+                float top = r0[ x0 * 3 + c ] * ( 1.f - wx ) + r0[ x1 * 3 + c ] * wx;
+                float bot = r1[ x0 * 3 + c ] * ( 1.f - wx ) + r1[ x1 * 3 + c ] * wx;
+                float v   = top * ( 1.f - wy ) + bot * wy;
+                orow[ ox * 3 + c ] = (uint8_t)( v < 0.f ? 0.f : ( v > 255.f ? 255.f : v + 0.5f ) );
+            }
         }
     }
 }

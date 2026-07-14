@@ -137,6 +137,40 @@ __global__ void kernel_remap_rgb8( const uint8_t * src, int src_w, int src_h, in
     }
 }
 
+// Bilinear scale of a crop rectangle [crop_x,crop_x+crop_w) x [crop_y,crop_y+crop_h) within an
+// interleaved RGB8 source to out_w x out_h. Output pixel centers map back into the crop (the
+// +0.5/-0.5 keeps sampling centered). Mirrors rggb::crop_scale_rgb8 on the CPU.
+__global__ void kernel_crop_scale_rgb8( const uint8_t * src, int src_stride,
+                                        int crop_x, int crop_y, int crop_w, int crop_h,
+                                        int out_w, int out_h, uint8_t * dst, int dst_stride )
+{
+    const int u = blockIdx.x * blockDim.x + threadIdx.x;
+    const int v = blockIdx.y * blockDim.y + threadIdx.y;
+    if( u >= out_w || v >= out_h )
+        return;
+
+    const float sx = (float)crop_w / (float)out_w;
+    const float sy = (float)crop_h / (float)out_h;
+    float fx = ( u + 0.5f ) * sx - 0.5f; if( fx < 0.f ) fx = 0.f;
+    float fy = ( v + 0.5f ) * sy - 0.5f; if( fy < 0.f ) fy = 0.f;
+    int x0 = (int)fx; if( x0 > crop_w - 1 ) x0 = crop_w - 1;
+    int y0 = (int)fy; if( y0 > crop_h - 1 ) y0 = crop_h - 1;
+    const int x1 = ( x0 + 1 < crop_w ) ? x0 + 1 : x0;
+    const int y1 = ( y0 + 1 < crop_h ) ? y0 + 1 : y0;
+    const float ax = fx - x0, ay = fy - y0;
+    const uint8_t * p00 = src + (size_t)( crop_y + y0 ) * src_stride + (size_t)( crop_x + x0 ) * 3;
+    const uint8_t * p01 = src + (size_t)( crop_y + y0 ) * src_stride + (size_t)( crop_x + x1 ) * 3;
+    const uint8_t * p10 = src + (size_t)( crop_y + y1 ) * src_stride + (size_t)( crop_x + x0 ) * 3;
+    const uint8_t * p11 = src + (size_t)( crop_y + y1 ) * src_stride + (size_t)( crop_x + x1 ) * 3;
+    uint8_t * o = dst + (size_t)v * dst_stride + (size_t)u * 3;
+    for( int ch = 0; ch < 3; ++ch )
+    {
+        float top = p00[ch] * ( 1 - ax ) + p01[ch] * ax;
+        float bot = p10[ch] * ( 1 - ax ) + p11[ch] * ax;
+        o[ch] = (uint8_t)( top * ( 1 - ay ) + bot * ay + 0.5f );
+    }
+}
+
 // 32x8 = 256 threads/block; x warp-aligned so consecutive lanes hit consecutive columns.
 inline dim3 block_2d() { return dim3( rscuda::THREADS_IN_WARP, 8 ); }
 inline dim3 grid_2d( int w, int h, dim3 b ) { return dim3( ( w + b.x - 1 ) / b.x, ( h + b.y - 1 ) / b.y ); }
@@ -167,6 +201,62 @@ void rscuda::rggb_debayer_raw10_cuda( const uint8_t * h_src, int src_stride, int
     const dim3 block = block_2d();
     const dim3 grid  = grid_2d( width, height, block );
     kernel_rggb_debayer<<< grid, block >>>( src_dev, src_stride, width, height, dst_dev, dst_stride, isp );
+    RS_CUDA_CHECK( cudaGetLastError() );
+
+    if( s_dst )
+        RS_CUDA_CHECK( cudaMemcpy( h_dst, dst_dev, dst_bytes, cudaMemcpyDeviceToHost ) );
+    else
+        RS_CUDA_CHECK( cudaStreamSynchronize( 0 ) );   // mapped output: ensure CPU sees the writes
+}
+
+void rscuda::rggb_debayer_scale_raw10_cuda( const uint8_t * h_src, int src_stride, int native_w, int native_h,
+                                            const rscuda::rggb_isp_params & isp,
+                                            uint8_t * h_dst, int out_w, int out_h )
+{
+    const int native_stride = native_w * 3;
+    const int dst_stride     = out_w * 3;
+    const size_t src_bytes    = (size_t)src_stride    * native_h;
+    const size_t native_bytes = (size_t)native_stride * native_h;
+    const size_t dst_bytes    = (size_t)dst_stride    * out_h;
+
+    // Source (RAW10) and destination (RGB8) may be zero-copy mapped frame buffers; native RGB is an
+    // intermediate device scratch either way.
+    uint8_t * src_dev = rscuda::try_device_ptr<uint8_t>( h_src );
+    uint8_t * dst_dev = rscuda::try_device_ptr<uint8_t>( h_dst );
+    std::shared_ptr<uint8_t> s_src, s_dst;
+    if( !src_dev )
+    {
+        s_src = rscuda::alloc_dev<uint8_t>( (int)src_bytes );
+        RS_CUDA_CHECK( cudaMemcpy( s_src.get(), h_src, src_bytes, cudaMemcpyHostToDevice ) );
+        src_dev = s_src.get();
+    }
+    if( !dst_dev )
+    {
+        s_dst = rscuda::alloc_dev<uint8_t>( (int)dst_bytes );
+        dst_dev = s_dst.get();
+    }
+    auto native = rscuda::alloc_dev<uint8_t>( (int)native_bytes );
+
+    const dim3 block = block_2d();
+    // 1) RAW10 -> demosaic + tone into the native RGB scratch.
+    kernel_rggb_debayer<<< grid_2d( native_w, native_h, block ), block >>>(
+        src_dev, src_stride, native_w, native_h, native.get(), native_stride, isp );
+    RS_CUDA_CHECK( cudaGetLastError() );
+
+    // 2) Centered crop-to-aspect (same math as rggb::crop_rect_for_output) + bilinear scale -> dst.
+    int cw = native_w, ch = native_h;
+    const long long src_ar = (long long)native_w * out_h;
+    const long long out_ar = (long long)out_w * native_h;
+    if( out_ar > src_ar )      ch = (int)( ( (long long)native_w * out_h ) / out_w );
+    else if( out_ar < src_ar ) cw = (int)( ( (long long)native_h * out_w ) / out_h );
+    if( cw > native_w ) cw = native_w;
+    if( ch > native_h ) ch = native_h;
+    if( cw < 1 ) cw = 1;
+    if( ch < 1 ) ch = 1;
+    const int cx = ( native_w - cw ) / 2, cy = ( native_h - ch ) / 2;
+
+    kernel_crop_scale_rgb8<<< grid_2d( out_w, out_h, block ), block >>>(
+        native.get(), native_stride, cx, cy, cw, ch, out_w, out_h, dst_dev, dst_stride );
     RS_CUDA_CHECK( cudaGetLastError() );
 
     if( s_dst )

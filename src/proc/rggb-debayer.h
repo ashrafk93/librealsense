@@ -66,5 +66,25 @@ void debayer_rggb8( const uint8_t * bayer, int bayer_stride, int width, int heig
                     uint8_t * dst, const isp_params & p = {}, int dst_stride_px = 0,
                     int y_begin = 0, int y_end = -1 );
 
+// Center-crop an interleaved RGB8 image to the target aspect ratio, then bilinear-scale that crop
+// to out_w x out_h. The D401 color always arrives at one native resolution (e.g. 1288x808); this
+// produces the user-selected output resolutions without stretching (crop-to-aspect preserves
+// geometry, at the cost of a little FOV on the longer axis). A no-op fast copy when the crop
+// already equals the output size.
+//   src            : interleaved RGB8, top-left origin
+//   src_w, src_h   : native image size in px
+//   src_stride_px  : source row width in px (>= src_w)
+//   dst            : RGB8 output, tight (out_w*3 bytes/row)
+//   out_w, out_h   : target output size in px
+//   y_begin,y_end  : output rows to fill [y_begin,y_end) (y_end<0 => out_h); lets callers thread it.
+void crop_scale_rgb8( const uint8_t * src, int src_w, int src_h, int src_stride_px,
+                      uint8_t * dst, int out_w, int out_h, int y_begin = 0, int y_end = -1 );
+
+// Given a native size and a target output size, compute the centered crop rectangle (matching the
+// output aspect ratio) that crop_scale_rgb8 uses. Exposed so the device layer can derive the
+// per-resolution color intrinsics (crop offset + scale factor) consistently with the image path.
+void crop_rect_for_output( int src_w, int src_h, int out_w, int out_h,
+                           int * crop_x, int * crop_y, int * crop_w, int * crop_h );
+
 }  // namespace rggb
 }  // namespace librealsense

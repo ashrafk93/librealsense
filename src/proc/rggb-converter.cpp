@@ -35,31 +35,28 @@ namespace librealsense
             }
             else
             {
-                _src_width = _output_width;
+                _src_width = _native_width;
             }
 
             _target_stream_profile = p.clone( p.stream_type(), p.stream_index(), _target_format );
             _target_bpp = get_image_bpp( _target_format ) / 8;
 
-            // Set the target profile dims to the real (cropped) width, matching the advertised
-            // resolution (registration's resolution_transform) and the frame allocated in
-            // prepare_frame() -> advertised, profile, and produced frame are all _output_width.
+            // Set the target profile dims to the requested OUTPUT resolution (crop-to-aspect +
+            // scale from the native sensor image). This matches the advertised resolution
+            // (registration's resolution_transform) and the frame allocated in prepare_frame().
             auto target_spi = (stream_profile_interface *)_target_stream_profile.get()->profile;
             if( auto target_vspi = dynamic_cast< video_stream_profile_interface * >( target_spi ) )
-                target_vspi->set_dims( static_cast< uint32_t >( _output_width ),
-                                       static_cast< uint32_t >( _src_height ) );
+                target_vspi->set_dims( static_cast< uint32_t >( _out_width ),
+                                       static_cast< uint32_t >( _out_height ) );
         }
     }
 
     rs2::frame rggb_converter::prepare_frame( const rs2::frame_source & source, const rs2::frame & f )
     {
         init_profiles_info( &f );
-        auto vf = f.as< rs2::video_frame >();
-        const int h = vf ? vf.get_height() : _src_height;
-        // Allocate the output at the real width (_output_width), NOT the source's padded width
-        // (the base prepare_frame uses the source frame width, which keeps the padding).
+        // Allocate the output at the requested resolution (out_width x out_height), tight stride.
         return source.allocate_video_frame( _target_stream_profile, f, _target_bpp,
-                                            _output_width, h, _output_width * _target_bpp, _extension_type );
+                                            _out_width, _out_height, _out_width * _target_bpp, _extension_type );
     }
 
     rs2::frame rggb_converter::process_frame( const rs2::frame_source & source, const rs2::frame & f )
@@ -74,18 +71,20 @@ namespace librealsense
     }
 
     void rggb_converter::process_function( uint8_t * const dest[], const uint8_t * source,
-                                           int width, int height, int /*actual_size*/, int /*input_size*/ )
+                                           int /*width*/, int /*height*/, int /*actual_size*/, int /*input_size*/ )
     {
         // The 'RGGB 8-bit' node actually carries MIPI RAW10 (4 px / 5 bytes). Recover the row
         // stride from the frame's real byte count (fallback: 64-byte-aligned source width), unpack
-        // RAW10 -> 8-bit Bayer at the real sensor width, then demosaic into the output frame. The
-        // output keeps the advertised width (e.g. 1612); the real image (e.g. 1288) sits on the
-        // left and the remaining columns are zeroed (see debayer_rggb8's dst_stride_px).
+        // RAW10 -> 8-bit Bayer at the native sensor width, demosaic to native RGB, then center-crop
+        // to the output aspect ratio and bilinear-scale to the requested output resolution.
         int src_stride = ( _src_width + 63 ) & ~63;
         if( _src_data_size > 0 && _src_height > 0 && ( _src_data_size % _src_height ) == 0 )
             src_stride = _src_data_size / _src_height;
 
-        const int real_width = _output_width;          // real sensor width, e.g. 1288 (multiple of 4)
+        const int native_w = _native_width;   // real sensor width, e.g. 1288 (multiple of 4)
+        const int native_h = _src_height;      // native rows, e.g. 808
+        const int real_width = native_w;       // AWB samples the native image
+        const int height = native_h;           // AWB/debayer iterate native rows
 
         // White-patch auto white balance: balance the brightest *unclipped* surfaces (the white/
         // light objects) to neutral, so white reads as white. Gray-world (scene average) leaves a
@@ -138,9 +137,11 @@ namespace librealsense
         isp.gain_g = 1.f;
         isp.gain_b = _awb_gain_b;
 
+        (void)real_width; (void)height;  // aliases for the AWB loop above; native_w/native_h below
+
 #ifdef RS2_USE_CUDA
-        // GPU path: one fused kernel does RAW10 unpack + RGGB demosaic + gain + tone, writing the
-        // output frame in place under zero-copy (no host round-trip). Output is tight (width*3).
+        // GPU path: fused RAW10 unpack + demosaic + tone to native RGB, then crop-to-aspect +
+        // bilinear scale, writing the output frame in place under zero-copy (no host round-trip).
         if( rsutils::rs2_is_cuda_available() )
         {
             rscuda::rggb_isp_params ip{};
@@ -150,28 +151,50 @@ namespace librealsense
             ip.saturation = isp.saturation;  ip.contrast = isp.contrast;
             ip.swap_rb = isp.swap_rb ? 1 : 0;
             for( int i = 0; i < 9; ++i ) ip.ccm[i] = isp.ccm[i];
-            rscuda::rggb_debayer_raw10_cuda( source, src_stride, real_width, height, dest[0], width * 3, ip );
+            rscuda::rggb_debayer_scale_raw10_cuda( source, src_stride, native_w, native_h, ip,
+                                                   dest[0], _out_width, _out_height );
             return;
         }
 #endif
 
-        _bayer.resize( static_cast< size_t >( real_width ) * height );
-        rggb::unpack_raw10( source, src_stride, real_width, height, _bayer.data() );
+        // CPU: demosaic to native RGB scratch, then crop-to-aspect + scale to the output frame.
+        _bayer.resize( static_cast< size_t >( native_w ) * native_h );
+        rggb::unpack_raw10( source, src_stride, native_w, native_h, _bayer.data() );
+        _rgb_native.resize( static_cast< size_t >( native_w ) * native_h * 3 );
         // Demosaic is the CPU hot path; split it across row bands (the Jetson has spare cores).
         {
             const int nthreads = 4;
-            const int band = ( height + nthreads - 1 ) / nthreads;
+            const int band = ( native_h + nthreads - 1 ) / nthreads;
             std::vector< std::thread > pool;
             for( int t = 1; t < nthreads; ++t )
             {
-                const int b0 = t * band, b1 = ( height < b0 + band ) ? height : b0 + band;
+                const int b0 = t * band, b1 = ( native_h < b0 + band ) ? native_h : b0 + band;
                 if( b0 >= b1 ) break;
                 pool.emplace_back( [&, b0, b1]() {
-                    rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], isp, width, b0, b1 );
+                    rggb::debayer_rggb8( _bayer.data(), native_w, native_w, native_h,
+                                         _rgb_native.data(), isp, native_w, b0, b1 );
                 } );
             }
-            rggb::debayer_rggb8( _bayer.data(), real_width, real_width, height, dest[0], isp, width,
-                                 0, ( height < band ) ? height : band );
+            rggb::debayer_rggb8( _bayer.data(), native_w, native_w, native_h,
+                                 _rgb_native.data(), isp, native_w, 0, ( native_h < band ) ? native_h : band );
+            for( auto & th : pool ) th.join();
+        }
+        // Crop-to-aspect + bilinear scale native RGB -> output frame (threaded over output rows).
+        {
+            const int nthreads = 4;
+            const int band = ( _out_height + nthreads - 1 ) / nthreads;
+            std::vector< std::thread > pool;
+            for( int t = 1; t < nthreads; ++t )
+            {
+                const int b0 = t * band, b1 = ( _out_height < b0 + band ) ? _out_height : b0 + band;
+                if( b0 >= b1 ) break;
+                pool.emplace_back( [&, b0, b1]() {
+                    rggb::crop_scale_rgb8( _rgb_native.data(), native_w, native_h, native_w,
+                                           dest[0], _out_width, _out_height, b0, b1 );
+                } );
+            }
+            rggb::crop_scale_rgb8( _rgb_native.data(), native_w, native_h, native_w,
+                                   dest[0], _out_width, _out_height, 0, ( _out_height < band ) ? _out_height : band );
             for( auto & th : pool ) th.join();
         }
     }

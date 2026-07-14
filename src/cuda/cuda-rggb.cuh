@@ -42,6 +42,14 @@ namespace rscuda
     void rggb_debayer_raw10_cuda( const uint8_t * src, int src_stride, int width, int height,
                                   uint8_t * dst, int dst_stride, const rggb_isp_params & isp );
 
+    // RAW10 -> demosaic to native RGB8 (native_w x native_h), then center-crop to the output aspect
+    // ratio and bilinear-scale to out_w x out_h, written tightly into dst (out_w*3 bytes/row). Used
+    // for the user-selectable dual-RGB output resolutions (crop-to-aspect + scale, no stretch).
+    // dst may be a zero-copy mapped frame buffer; a device scratch holds the native RGB in between.
+    void rggb_debayer_scale_raw10_cuda( const uint8_t * src, int src_stride, int native_w, int native_h,
+                                        const rggb_isp_params & isp,
+                                        uint8_t * dst, int out_w, int out_h );
+
     // Bilinear remap of an interleaved RGB8 image. sx_dev/sy_dev are DEVICE pointers (out_w*out_h
     // floats each) holding, per output pixel, the source pixel to sample (out-of-range -> black).
     void rggb_remap_rgb8_cuda( const uint8_t * src, int src_w, int src_h, int src_stride,
