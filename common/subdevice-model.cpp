@@ -1,6 +1,7 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2024 RealSense, Inc. All Rights Reserved.
 
+#include <set>
 #include "post-processing-filters-list.h"
 #include "post-processing-block-model.h"
 #ifdef BUILD_WITH_CLOSE_RANGE_DEPTH
@@ -812,6 +813,10 @@ namespace rs2
 
                         if (stream_enabled[f.first])
                         {
+                            // The two imagers stream mono IR (Y8) OR Bayer color (BA81), not both,
+                            // so enabling a color stream disables IR and vice versa (depth is free).
+                            enforce_dual_color_ir_exclusion(f.first);
+
                             // Find the stream type for this unique_id
                             rs2_stream stream_type = RS2_STREAM_ANY;
                             for (auto& p : profiles)
@@ -1552,6 +1557,70 @@ namespace rs2
             }
         }
         return is_cal_format;
+    }
+
+    bool subdevice_model::is_dual_color_subdevice() const
+    {
+        // The color<->IR imager conflict is specific to the D401 GMSL dual-RGB, where the two OV9782
+        // imagers each stream mono IR OR Bayer color (never both). Gate strictly on that product id
+        // (0xABCC == RS401_GMSL_PID, the same gate d400-device.cpp uses for the whole feature) so
+        // this stays a no-op on EVERY other camera -- standard D4xx (color on a separate sensor /
+        // single color) never reach the color>=2 check anyway, but the D500 dual-RGB (separate color
+        // sensors, 2 colors + stereo on one sensor) would, and it has no such imager conflict.
+        if (!dev.supports(RS2_CAMERA_INFO_PRODUCT_ID))
+            return false;
+        int pid = 0;
+        try { pid = std::stoi(dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID), nullptr, 16); }
+        catch (...) { return false; }
+        if (pid != 0xABCC)   // RS401_GMSL_PID
+            return false;
+
+        // Structural sanity: this subdevice actually exposes the dual-RGB config (two color streams
+        // alongside the stereo streams) rather than, say, the plain depth sensor of the same device.
+        int color_streams = 0;
+        bool has_stereo = false;
+        for (auto&& p : profiles)
+        {
+            if (p.stream_type() == RS2_STREAM_COLOR)
+                ++color_streams;
+            else if (p.stream_type() == RS2_STREAM_INFRARED || p.stream_type() == RS2_STREAM_DEPTH)
+                has_stereo = true;
+        }
+        return color_streams >= 2 && has_stereo;
+    }
+
+    void subdevice_model::enforce_dual_color_ir_exclusion(int just_enabled_unique_id)
+    {
+        if (!is_dual_color_subdevice())
+            return;
+
+        auto stream_type_of = [this](int unique_id) -> rs2_stream
+        {
+            for (auto&& p : profiles)
+                if (p.unique_id() == unique_id)
+                    return p.stream_type();
+            return RS2_STREAM_ANY;
+        };
+
+        auto is_color = [](rs2_stream st) { return st == RS2_STREAM_COLOR; };
+        auto is_ir    = [](rs2_stream st) { return st == RS2_STREAM_INFRARED; };
+
+        rs2_stream enabled_type = stream_type_of(just_enabled_unique_id);
+        // Only color<->IR conflict (the two imagers stream mono IR OR Bayer color, not both). Depth
+        // is a separate node - enabling it clears nothing, and it survives enabling color or IR.
+        if (!is_color(enabled_type) && !is_ir(enabled_type))
+            return;
+
+        for (auto& other : stream_enabled)
+        {
+            if (other.first == just_enabled_unique_id || !other.second)
+                continue;
+
+            rs2_stream other_type = stream_type_of(other.first);
+            if ((is_color(enabled_type) && is_ir(other_type)) ||
+                (is_ir(enabled_type) && is_color(other_type)))
+                other.second = false;   // color and IR share the imagers -> mutually exclusive
+        }
     }
 
     bool subdevice_model::is_depth_calibration_profile() const

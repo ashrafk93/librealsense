@@ -577,13 +577,15 @@ namespace rs2
         }
 
         /**
-        * Retrieve a GPU device pointer for the frame, uploading it if necessary. Always returns
-        * a usable device pointer on a CUDA build (zero-copy when the frame is GPU-mapped, else an
-        * SDK-managed host->device copy); returns nullptr on non-CUDA builds. If `copied` is
-        * non-null it is set to true when the SDK had to upload, false when it was zero-copy.
-        * Valid only while this frame is held.
+        * Retrieve a GPU device pointer for the frame, uploading it if necessary. On a CUDA build
+        * returns a usable device pointer whenever it can (zero-copy when the frame is GPU-mapped,
+        * else an SDK-managed host->device copy); returns nullptr on non-CUDA builds, and also if an
+        * upload fails on a CUDA build (e.g. out of device memory), so check the result. If `copied`
+        * is non-null it is set to true when the SDK had to upload, false when it was zero-copy.
+        * Safe to call concurrently on the same frame (the upload is internally serialized). Valid
+        * only while this frame is held.
         * \param[out] copied  set to true if the SDK uploaded (a copy), false if zero-copy
-        * \return             GPU device pointer for the frame, or nullptr on non-CUDA builds
+        * \return             GPU device pointer for the frame, or nullptr (non-CUDA, or failed upload)
         */
         const void* get_gpu_data_or_upload( bool* copied = nullptr ) const
         {

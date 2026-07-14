@@ -25,6 +25,8 @@
 #include <src/proc/y8i-to-y8y8-mipi.h>
 #include <src/proc/y12i-to-y16y16.h>
 #include <src/proc/y12i-to-y16y16-mipi.h>
+#include <src/proc/rggb-converter.h>
+#include <src/proc/dual-rgb-rectify-filter.h>
 #include <src/proc/color-formats-converter.h>
 
 #include <src/hdr-config.h>
@@ -34,6 +36,7 @@
 #include <rsutils/lazy.h>
 #include <rsutils/type/fourcc.h>
 using rsutils::type::fourcc;
+#include <set>
 
 #include <rsutils/string/hexdump.h>
 #include <regex>
@@ -62,7 +65,8 @@ namespace librealsense
         {fourcc('Z','1','6',' '), RS2_FORMAT_Z16},
         {fourcc('R','G','B','2'), RS2_FORMAT_BGR8},
         {fourcc('M','J','P','G'), RS2_FORMAT_MJPEG},
-        {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16}
+        {fourcc('B','Y','R','2'), RS2_FORMAT_RAW16},
+        {fourcc('B','A','8','1'), RS2_FORMAT_RAW8}   // D401 GMSL dual-RGB: SBGGR8 8-bit Bayer (RAW8 CSI passthrough, driver PR #459)
 
     };
     std::map<fourcc::value_type, rs2_stream> d400_depth_fourcc_to_rs2_stream = {
@@ -78,8 +82,38 @@ namespace librealsense
         {fourcc('Z','1','6',' '), RS2_STREAM_DEPTH},
         {fourcc('Z','1','6','H'), RS2_STREAM_DEPTH},
         {fourcc('B','Y','R','2'), RS2_STREAM_COLOR},
-        {fourcc('M','J','P','G'), RS2_STREAM_COLOR}
+        {fourcc('M','J','P','G'), RS2_STREAM_COLOR},
+        {fourcc('B','A','8','1'), RS2_STREAM_COLOR}   // D401 GMSL dual-RGB: SBGGR8, expose each OV9782 imager as color
     };
+
+    // D401 GMSL dual-RGB stream-id resolver. The two OV9782 imagers each arrive on a separate backend pin,
+    // both advertising identical SBGGR8 (fourcc BA81). Rank the BA81 color pins by ascending pin_index and
+    // route them to Color 0 / Color 1 (distinct streams), mirroring the IR1/IR2 split. This uses the upstream
+    // per-pin _stream_id_resolver mechanism (cf. d500_dual_rgb::resolve_color_stream); it replaces the POC's
+    // global index_by_profile auto-increment, which is now obsoleted by _stream_id_resolver.
+    static void resolve_d401_color_stream( const std::vector< platform::stream_profile > & all,
+                                           const platform::stream_profile & p, rs2_stream & type, int & index )
+    {
+        const auto ba81 = fourcc( 'B', 'A', '8', '1' );
+        if( p.format != ba81 )
+            return;  // not a D401 color pin - leave type/index as resolved by the fourcc map
+
+        std::set< uint32_t > color_pins;
+        for( auto & q : all )
+            if( q.format == ba81 )
+                color_pins.insert( q.pin_index );
+
+        int rank = 0;
+        for( auto cp : color_pins )
+        {
+            if( cp == p.pin_index )
+                break;
+            ++rank;
+        }
+
+        type = RS2_STREAM_COLOR;
+        index = rank;   // Color 0 (left imager), Color 1 (right)
+    }
 
     std::vector<uint8_t> d400_device::send_receive_raw_data(const std::vector<uint8_t>& input)
     {
@@ -167,7 +201,12 @@ namespace librealsense
 
     processing_blocks d400_depth_sensor::get_recommended_processing_blocks() const
     {
-        return get_ds_depth_recommended_proccesing_blocks();
+        auto res = get_ds_depth_recommended_proccesing_blocks();
+        // D401 GMSL dual-RGB: rectify the two color streams (default-on, toggleable in the viewer's
+        // Post-Processing). The filter self-configures from the color profiles' SDK calibration.
+        if( _owner->_pid == ds::RS401_GMSL_PID )
+            res.push_back( std::make_shared< dual_rgb_rectify_filter >() );
+        return res;
     }
 
     rs2_intrinsics d400_depth_sensor::get_intrinsics( const stream_profile & profile ) const
@@ -222,7 +261,42 @@ namespace librealsense
 
     rs2_intrinsics d400_depth_sensor::get_color_intrinsics( const stream_profile & profile ) const
     {
-        if( _owner->_pid == ds::RS405_PID || _owner->_pid == ds::RS401_GMSL_PID )
+        if( _owner->_pid == ds::RS401_GMSL_PID )
+        {
+            // D401 dual-RGB: every output resolution is produced by demosaicing the native 1288x808
+            // image, center-cropping to the output aspect ratio, then bilinear-scaling (see
+            // rggb_converter / rggb::crop_scale_rgb8). So a non-native resolution's intrinsics are
+            // the NATIVE intrinsics transformed by that crop + scale -- NOT a plain resize of the
+            // calibration (which get_d405_color_stream_intrinsic would give and which ignores the
+            // crop). Compute native, then apply crop-offset + scale-factor consistently with the
+            // image path so rectify / deprojection / pointcloud stay correct at every resolution.
+            const int native_w = 1288, native_h = 808;
+            rs2_intrinsics in = ds::get_d405_color_stream_intrinsic( *_owner->_color_calib_table_raw,
+                                                                     native_w, native_h );
+            const int out_w = (int)profile.width, out_h = (int)profile.height;
+            if( out_w == native_w && out_h == native_h )
+                return in;
+
+            int cx, cy, cw, ch;
+            rggb::crop_rect_for_output( native_w, native_h, out_w, out_h, &cx, &cy, &cw, &ch );
+            const float sx = (float)out_w / (float)cw;
+            const float sy = (float)out_h / (float)ch;
+
+            rs2_intrinsics out = in;                 // model + distortion coeffs are unchanged
+            out.width  = out_w;
+            out.height = out_h;
+            out.fx  = in.fx * sx;
+            out.fy  = in.fy * sy;
+            // Shift the principal point into crop coordinates, then scale. crop_scale_rgb8 samples
+            // with the pixel-center convention (src = (out+0.5)/scale - 0.5), so carry the matching
+            // +0.5/-0.5 half-pixel terms; otherwise ppx/ppy are biased by 0.5*(sx-1) (~0.3 px at the
+            // smallest resolution). fx/fy need no such term (focal length is origin-independent).
+            out.ppx = ( in.ppx - (float)cx + 0.5f ) * sx - 0.5f;
+            out.ppy = ( in.ppy - (float)cy + 0.5f ) * sy - 0.5f;
+            return out;
+        }
+
+        if( _owner->_pid == ds::RS405_PID )
             return ds::get_d405_color_stream_intrinsic( *_owner->_color_calib_table_raw,
                                                         profile.width,
                                                         profile.height );
@@ -261,7 +335,11 @@ namespace librealsense
             }
             else if (p->get_stream_type() == RS2_STREAM_COLOR)
             {
-                assign_stream(_owner->_color_stream, p);
+                // D401 GMSL dual-RGB: color index 0 = left imager, index 1 = right (distinct streams).
+                if (p->get_stream_index() == 1 && _owner->_color_stream2)
+                    assign_stream(_owner->_color_stream2, p);
+                else
+                    assign_stream(_owner->_color_stream, p);
             }
             auto&& vid_profile = dynamic_cast<video_stream_profile_interface*>(p.get());
 
@@ -691,6 +769,58 @@ namespace librealsense
                     { {RS2_FORMAT_Y16, RS2_STREAM_INFRARED, 1}, {RS2_FORMAT_Y16, RS2_STREAM_INFRARED, 2} },
                     []() {return std::make_shared<y12i_to_y16y16_mipi>(); }
                 );
+
+                // D401 GMSL dual-RGB POC: the two OV9782 imagers stream 8-bit RGGB Bayer via the
+                // FW RAW8 CSI passthrough. Expose each as a color stream - crop the transport
+                // padding (1612 -> 1288 px) and demosaic RGGB -> RGB8. The per-imager stream index
+                // (0/1) is carried through from the source profile, mirroring the IR1/IR2 split.
+                if( _pid == RS401_GMSL_PID )
+                {
+                    // Route the two identical BGGR color pins to Color 0 / Color 1 (ascending pin order).
+                    raw_depth_sensor->set_stream_id_resolver( resolve_d401_color_stream );
+
+                    // The camera always delivers one native color resolution (1288x808 after the
+                    // 1612 transport crop). For the user we expose the standard resolutions too: each
+                    // is produced by demosaicing to native then center-cropping to that aspect ratio
+                    // and bilinear-scaling (crop-to-aspect + scale, no stretch; see rggb_converter /
+                    // cuda-rggb). We mirror the depth resolution set so the viewer offers one shared
+                    // resolution across depth + Color 0/1 (no per-stream resolution UI needed).
+                    //
+                    // resolution_transform is a plain function pointer (no captures), so each output
+                    // resolution needs its own captureless transform; the converter factory (a
+                    // std::function) captures the target size. Index 0 = left imager, 1 = right; the
+                    // resolver tags the two RGGB sources 0/1 and formats-converter matches by index.
+                    static const int NATIVE_W = 1288;
+                    struct color_res { int w, h; void ( *xf )( uint32_t &, uint32_t & ); };
+                    // Mirror the depth resolution set exactly (top out at 1280x720, not the native
+                    // 1288x808) so color shares every resolution with depth/IR. That keeps the viewer
+                    // on a single shared Resolution dropdown and lets depth + IR + Color 0/1 always be
+                    // selected together (depth has no 1288x808 mode). The native 1288x808 is still the
+                    // internal capture/demosaic size; 1280x720 is its center-cropped 16:9 output.
+                    static const color_res color_resolutions[] = {
+                        { 1280, 720, []( uint32_t & w, uint32_t & h ) { w = 1280; h = 720; } },
+                        {  848, 480, []( uint32_t & w, uint32_t & h ) { w =  848; h = 480; } },
+                        {  640, 480, []( uint32_t & w, uint32_t & h ) { w =  640; h = 480; } },
+                        {  640, 360, []( uint32_t & w, uint32_t & h ) { w =  640; h = 360; } },
+                        {  480, 270, []( uint32_t & w, uint32_t & h ) { w =  480; h = 270; } },
+                        {  424, 240, []( uint32_t & w, uint32_t & h ) { w =  424; h = 240; } },
+                    };
+                    for( auto & r : color_resolutions )
+                    {
+                        const int rw = r.w, rh = r.h;
+                        depth_sensor.register_processing_block(
+                            { { RS2_FORMAT_RAW8, RS2_STREAM_COLOR } },
+                            { { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 0, 0, 0, 0, r.xf },
+                              { RS2_FORMAT_RGB8, RS2_STREAM_COLOR, 1, 0, 0, 0, r.xf } },
+                            [rw, rh]() {
+                                rggb::isp_params isp;
+                                isp.swap_rb = true;   // OV9782 is BGGR (driver declares SBGGR8); the base
+                                                      // demosaic is RGGB-pattern, so swap R<->B to correct it
+                                return std::make_shared< rggb_converter >( RS2_FORMAT_RGB8, NATIVE_W, rw, rh, isp );
+                            }
+                        );
+                    }
+                }
             }
 
             

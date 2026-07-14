@@ -267,6 +267,15 @@ namespace rs2
         std::pair<int, int> get_max_resolution(rs2_stream stream) const;
         void sort_resolutions(std::vector<std::pair<int, int>>& resolutions) const;
         bool is_ir_calibration_profile() const;
+        // True when this subdevice exposes the dual-RGB configuration (two color streams alongside
+        // the stereo IR streams). On the D401 GMSL the two imagers each stream mono IR (Y8) OR Bayer
+        // color (BA81) - not both - so color and infrared are mutually exclusive on the imager nodes;
+        // depth is a separate node and coexists with either group.
+        bool is_dual_color_subdevice() const;
+        // Enforce the color/IR mutual exclusion on the dual-RGB subdevice: enabling a color stream
+        // disables the infrared streams and vice versa. Depth is left untouched (it can coexist with
+        // either dual-RGB or stereo-IR).
+        void enforce_dual_color_ir_exclusion(int just_enabled_unique_id);
         void set_extrinsics_from_depth_if_needed();
         bool is_post_processing_enabled_in_config_file() const;
         void avoid_streaming_on_embedded_filters_not_matching_configuration() const;

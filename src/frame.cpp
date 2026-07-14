@@ -156,12 +156,17 @@ const void * frame::get_gpu_data_or_upload( bool * copied )
         return z;
     }
   #endif
-    // Otherwise upload to the frame's cached device buffer (a real, SDK-managed copy).
-    if( void * dev = rs_frame_gpu_upload( &_gpu_upload_buffer, &_gpu_upload_capacity,
-                                          get_frame_data(), static_cast< size_t >( get_frame_data_size() ) ) )
+    // Otherwise upload to the frame's cached device buffer (a real, SDK-managed copy). Lock: the
+    // same frame may be uploaded from multiple threads, and rs_frame_gpu_upload mutates the cached
+    // buffer/capacity (cudaMalloc/cudaFree) -- serialize so growth can't race into a double-free.
     {
-        if( copied ) *copied = true;
-        return dev;
+        std::lock_guard< std::mutex > lock( _gpu_upload_mutex );
+        if( void * dev = rs_frame_gpu_upload( &_gpu_upload_buffer, &_gpu_upload_capacity,
+                                              get_frame_data(), static_cast< size_t >( get_frame_data_size() ) ) )
+        {
+            if( copied ) *copied = true;
+            return dev;
+        }
     }
 #endif
     if( copied ) *copied = false;
