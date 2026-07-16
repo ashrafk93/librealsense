@@ -5,7 +5,7 @@ This project welcomes third-party code via GitHub pull requests.
 You are welcome to propose and discuss enhancements using project [issues](https://github.com/realsenseai/librealsense/issues).
 
 > **Branching Policy**:
-> The `master` branch is considered stable, at all times.dd
+> The `master` branch is considered stable, at all times.dd223
 > The `development` branch is the one where all contributions must be merged before being promoted to master.
 > If you plan to propose a patch, please commit into the `development` branch, or its own feature branch. 
 
