@@ -45,20 +45,44 @@ function(get_fastdds)
     set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/fastdds/fastdds_install)
     set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/fastdds/fastdds_install)
 
+    # Get fastdds
+    FetchContent_MakeAvailable(fastdds)
+
     # GCC 14 / libstdc++-15 (Ubuntu 26.04 "resolute") removed transitive <cstdint>
     # includes from many std headers. FastDDS 2.10.4 uses uint8_t (e.g. in
     # DDSFilterCompoundCondition.hpp) without explicitly including <cstdint>,
-    # which fails to compile. Force-include <cstdint> in every FastDDS
-    # translation unit; harmless on older toolchains. add_compile_options is
-    # directory-scoped, so only targets added below (FastDDS via FetchContent)
-    # inherit it -- librealsense's own compilation is unaffected.
+    # which fails to compile. Force-include <cstdint> ONLY for FastDDS's own
+    # targets, and only for their CXX translation units -- <cstdint> is a C++
+    # header, so applying the flag directory-wide (via add_compile_options)
+    # breaks C compilation elsewhere in the tree (e.g. third-party/glad/glad.c
+    # linked into realsense2-gl fatal-errors with "cstdint: No such file").
+    #
+    # We discover FastDDS's targets by walking BUILDSYSTEM_TARGETS under its
+    # source dir instead of hardcoding a list, so a future FastDDS bump that
+    # adds new libraries won't silently regress resolute.
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        add_compile_options(-include cstdint)
+        set(_fastdds_all_targets)
+        set(_fastdds_pending "${fastdds_SOURCE_DIR}")
+        while(_fastdds_pending)
+            list(POP_FRONT _fastdds_pending _dir)
+            get_property(_here_targets DIRECTORY "${_dir}" PROPERTY BUILDSYSTEM_TARGETS)
+            list(APPEND _fastdds_all_targets ${_here_targets})
+            get_property(_here_subdirs DIRECTORY "${_dir}" PROPERTY SUBDIRECTORIES)
+            list(APPEND _fastdds_pending ${_here_subdirs})
+        endwhile()
+
+        foreach(_fastdds_tgt ${_fastdds_all_targets})
+            # Only compilable targets support target_compile_options PRIVATE;
+            # INTERFACE / UTILITY targets have no sources of their own and
+            # would fatal on the call.
+            get_target_property(_fastdds_tgt_type ${_fastdds_tgt} TYPE)
+            if(_fastdds_tgt_type MATCHES "^(STATIC|SHARED|MODULE|OBJECT)_LIBRARY$|^EXECUTABLE$")
+                target_compile_options(${_fastdds_tgt} PRIVATE
+                                       $<$<COMPILE_LANGUAGE:CXX>:-include cstdint>)
+            endif()
+        endforeach()
     endif()
 
-    # Get fastdds
-    FetchContent_MakeAvailable(fastdds)
-    
     # Mark new options from FetchContent as advanced options
     mark_as_advanced(FETCHCONTENT_SOURCE_DIR_FASTDDS)
     mark_as_advanced(FETCHCONTENT_UPDATES_DISCONNECTED_FASTDDS)
