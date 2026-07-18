@@ -61,10 +61,15 @@ function(get_fastdds)
     # source dir instead of hardcoding a list, so a future FastDDS bump that
     # adds new libraries won't silently regress resolute.
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # BFS over FastDDS's directory tree. list(GET)+list(REMOVE_AT) is used
+        # instead of list(POP_FRONT) so the block stays compatible with the
+        # librealsense-wide cmake_minimum_required(3.10) even if this file's
+        # own 3.16.3 requirement is ever relaxed.
         set(_fastdds_all_targets)
         set(_fastdds_pending "${fastdds_SOURCE_DIR}")
         while(_fastdds_pending)
-            list(POP_FRONT _fastdds_pending _dir)
+            list(GET _fastdds_pending 0 _dir)
+            list(REMOVE_AT _fastdds_pending 0)
             get_property(_here_targets DIRECTORY "${_dir}" PROPERTY BUILDSYSTEM_TARGETS)
             list(APPEND _fastdds_all_targets ${_here_targets})
             get_property(_here_subdirs DIRECTORY "${_dir}" PROPERTY SUBDIRECTORIES)
