@@ -806,8 +806,7 @@ namespace rs2
                 {
                     auto tmp = stream_enabled;
                     label = rsutils::string::from() << stream_display_names[f.first] << "##" << f.first;
-                    // Grey out streams that can't run in the current D401 GMSL color mode (IR while a
-                    // raw color is active; the raw-only Color 1 while an ISP color / IR is active).
+                    // Grey out streams invalid in the current D401 GMSL mode (see is_stream_mode_locked).
                     const bool mode_locked = is_stream_mode_locked(f.first);
                     if (mode_locked) ImGui::BeginDisabled();
                     if (ImGui::Checkbox(label.c_str(), &stream_enabled[f.first]))
@@ -817,8 +816,7 @@ namespace rs2
 
                         if (stream_enabled[f.first])
                         {
-                            // The D401 GMSL streams one mode at a time (raw dual-RGB vs ISP color+IR);
-                            // reconcile the other streams' enabled/format state to that mode.
+                            // D401 GMSL streams one mode at a time; reconcile the other streams.
                             if( is_dual_color_subdevice() )
                                 enforce_dual_color_ir_exclusion(f.first);
 
@@ -885,8 +883,7 @@ namespace rs2
                     if (RsImGui::CustomComboBox(label.c_str(), &ui.selected_format_id[f.first], formats_chars.data(),
                         static_cast<int>(formats_chars.size())))
                     {
-                        // Changing the color format can flip the D401 GMSL between raw dual-RGB
-                        // (RGB8) and ISP color modes; reconcile the other streams to the new mode.
+                        // Color format can flip raw (RGB8) <-> ISP mode; reconcile the other streams.
                         if (is_dual_color_subdevice() && stream_enabled[f.first])
                             enforce_dual_color_ir_exclusion(f.first);
                     }
@@ -1099,8 +1096,7 @@ namespace rs2
                     if (RsImGui::CustomComboBox(label.c_str(), &ui.selected_format_id[f.first], formats_chars.data(),
                         static_cast<int>(formats_chars.size())))
                     {
-                        // Changing the color format can flip the D401 GMSL between raw dual-RGB
-                        // (RGB8) and ISP color modes; reconcile the other streams to the new mode.
+                        // Color format can flip raw (RGB8) <-> ISP mode; reconcile the other streams.
                         if (is_dual_color_subdevice() && stream_enabled[f.first])
                             enforce_dual_color_ir_exclusion(f.first);
                     }
@@ -1610,9 +1606,7 @@ namespace rs2
 
     bool subdevice_model::color_uid_is_raw(int unique_id) const
     {
-        // The raw / dual-RGB color path (BA81 -> rggb) surfaces as RS2_FORMAT_RGB8; the ISP color
-        // formats (YUYV/BGR8/RGBA8/BGRA8) come from the FW's processed color. Verified on the D401
-        // GMSL: BGR8/YUYV + IR1 + IR2 + Depth all stream, RGB8 + IR does not.
+        // Raw/dual-RGB color surfaces as RGB8 (BA81->rggb); ISP color is YUYV/BGR8/RGBA8/BGRA8.
         bool is_color = false;
         for (auto&& p : profiles)
             if (p.unique_id() == unique_id) { is_color = ( p.stream_type() == RS2_STREAM_COLOR ); break; }
@@ -1661,8 +1655,7 @@ namespace rs2
 
         if (is_color(changed_unique_id) && color_uid_is_raw(changed_unique_id))
         {
-            // Entering RAW / dual-RGB mode: no mono IR, and both color pins are Bayer -> couple the
-            // other color to RGB8 (can't have one imager ISP while the other is raw).
+            // Raw mode: drop mono IR; couple the other color to RGB8 (no ISP+raw imager mix).
             for (auto& o : stream_enabled)
             {
                 if (o.first == changed_unique_id || !o.second) continue;

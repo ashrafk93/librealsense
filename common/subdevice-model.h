@@ -281,9 +281,8 @@ namespace rs2
         //                    the raw-only Color 1 is unavailable.
         // Depth is a separate node and coexists with either mode.
         bool color_uid_is_raw(int unique_id) const;   // color stream currently in the raw RGB8 format
-        // Reconcile the single-mode invariant after `changed_unique_id` was toggled or had its format
-        // changed: uncheck the streams that can't coexist with it, and couple the two color pins to the
-        // same (raw) format. (Name kept for the call site; now covers color<->color coupling too.)
+        // Reconcile the single-mode invariant after `changed_unique_id` toggled or changed format:
+        // uncheck streams that can't coexist with it and couple the two color pins to the same format.
         void enforce_dual_color_ir_exclusion(int changed_unique_id);
         // True when `unique_id`'s checkbox should be greyed out given the current mode (IR while a raw
         // color is active; the raw-only Color 1 while an ISP color or IR is active).
