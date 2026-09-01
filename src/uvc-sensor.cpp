@@ -259,9 +259,11 @@ void uvc_sensor::open( const stream_profiles & requests )
                     if( val_in_range( req_profile_base->get_format(), { RS2_FORMAT_MJPEG } ) || is_perception )
                         expected_size = f.frame_size;
 
-                    // D401 GMSL dual-RGB color is packed MIPI RAW10 (pBAA) but sized at 16 bpp (unpacked)
-                    // here, so copy the packed payload verbatim; the rggb converter unpacks it downstream.
-                    if( req_profile_base->get_format() == RS2_FORMAT_RAW10
+                    // D401 GMSL dual-RGB (per_stream_color_fn, set only for that path) color is packed MIPI
+                    // RAW10 (pBAA) but sized at 16 bpp (unpacked) here; copy the packed payload verbatim,
+                    // the rggb converter unpacks it downstream.
+                    if( per_stream_color_fn
+                        && req_profile_base->get_format() == RS2_FORMAT_RAW10
                         && req_profile_base->get_stream_type() == RS2_STREAM_COLOR )
                         expected_size = f.frame_size;
 
