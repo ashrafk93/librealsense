@@ -55,8 +55,11 @@ public:
     static void join_pending_stops( std::shared_ptr< std::vector< std::unique_ptr< device_model > > > device_models );
 
 private:
+    void draw_consent_popup( ux_window & window );
+
     std::thread _thread;
     std::atomic< bool > _uploading{ false };
+    bool _consented = false;
 };
 
 

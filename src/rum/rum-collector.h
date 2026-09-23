@@ -82,6 +82,9 @@ private:
         std::map< std::string, int > filters;                            // recommended filter name -> use count
     };
 
+    // Only record_device adds; every other recorder attributes to an already-known device or drops.
+    device_stat * find_device( std::string const & device_key );
+
     mutable std::mutex _mutex;
     bool _merged_from_disk = false;  // fold the prior on-disk report in once per process, not per flush
     std::string const _source_id;   // loaded from rum.json or created at construction; stable across runs

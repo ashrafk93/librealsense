@@ -2,13 +2,25 @@
 // Copyright(c) 2026 RealSense, Inc. All Rights Reserved.
 
 #ifdef ENABLE_STATS
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <bcrypt.h>
+#else
+#include <openssl/evp.h>  // linked with libcurl on every non-Windows platform
+#endif
 #include "../rs-config.h"        // config_file, configurations::stats
-#include "../device-model.h"     // configurations, device_model
+#include "../device-model.h"     // configurations, device_model, light_blue
+#include "../model-views.h"      // hyperlink
 #include "../ux-window.h"        // ux_window (consent popup font)
 #include "../subdevice-model.h"  // subdevice_model::wait_for_stop
 #include <librealsense2/rs.hpp>  // rs2::rum::is_cloud_enabled, rs2::rum::get_report_path
 #include <rsutils/os/atomic-write-file.h>
 #include <rsutils/json.h>
+#include <rsutils/string/hexdump.h>
+#include <rsutils/string/from.h>
 #include <imgui.h>
 #include <fstream>
 #include <sstream>
@@ -34,16 +46,17 @@ void rum_uploader::start() {}
 void rum_uploader::upload_async( std::string, std::function< void( bool ) > ) {}
 rum_uploader::~rum_uploader() {}
 void rum_uploader::upload_data( ux_window & ) {}
+void rum_uploader::draw_consent_popup( ux_window & ) {}
 void rum_uploader::join_pending_stops( std::shared_ptr< std::vector< std::unique_ptr< device_model > > > ) {}
 
 #else  // ENABLE_STATS
 
 
 // ---- tunables ----
-// No production endpoint yet; upload to the local dev-server stub (see dev-server/) for now.
-// TODO: use the real cloud endpoint once it exists.
-static char const * RUM_ENDPOINT = "http://127.0.0.1:8080/v1/rum";
+static char const * RUM_ENDPOINT = "https://telemetry.realsenseai.com/v1/rum";
+static char const * PRIVACY_POLICY_URL = "https://realsenseai.github.io/librealsense/privacy-policy.html";
 static char const * CONSENT_POPUP_ID = "Help improve RealSense";
+static char const * CONSENT_TITLE = "RealSense collects usage data to improve SDK performance and functionality.";
 static const int  DEFAULT_UPLOAD_INTERVAL_HOURS = 24;   // 0 disables the throttle
 static const int  SECONDS_PER_HOUR = 3600;
 
@@ -81,6 +94,27 @@ bool rum_uploader::saved_report_has_usage()
 }
 
 
+static std::string sha256_hex( std::string const & data )
+{
+    unsigned char digest[32];
+#ifdef _WIN32
+    bool ok = BCRYPT_SUCCESS( BCryptHash( BCRYPT_SHA256_ALG_HANDLE, nullptr, 0,
+                                          (PUCHAR)data.data(), (ULONG)data.size(),
+                                          digest, (ULONG)sizeof( digest ) ) );
+#else
+    unsigned int digest_size = 0;
+    EVP_MD const * md = EVP_sha256();
+    bool ok = md && ( EVP_Digest( data.data(), data.size(), digest, &digest_size, md, nullptr ) == 1 );
+#endif
+    if( ! ok )
+    {
+        LOG_ERROR( "SHA-256 of the RUM report failed" );
+        return std::string();
+    }
+    return rsutils::string::from() << rsutils::string::hexdump( digest, sizeof( digest ) );
+}
+
+
 bool rum_uploader::upload( std::string const & json_report )
 {
     // Refuse to send without consent, so no caller can leak data by forgetting to check.
@@ -90,9 +124,10 @@ bool rum_uploader::upload( std::string const & json_report )
         return false;
     }
 
-    // All HTTP/curl lives in http_uploader; we just hand it the endpoint and body.
+    // The server answers 403 unless this header carries the body's SHA-256.
     http::http_uploader uploader;
-    return uploader.upload( RUM_ENDPOINT, json_report );
+    return uploader.upload( RUM_ENDPOINT, json_report,
+                            "x-amz-content-sha256: " + sha256_hex( json_report ) );
 }
 
 
@@ -174,39 +209,63 @@ rum_uploader::~rum_uploader()
 }
 
 
-static void draw_consent_popup( rum_uploader & uploader, ux_window & window )
+void rum_uploader::draw_consent_popup( ux_window & window )
 {
-    return;  // TODO: remove this when server side is ready
-    ImGui::SetNextWindowSize( { 460.f, 0.f } );
+    auto const & style = ImGui::GetStyle();
+    // Wide enough that the title line never wraps - measured in the font it is drawn with.
+    ImGui::PushFont( window.get_large_font() );
+    float const title_width = ImGui::CalcTextSize( CONSENT_TITLE ).x;
+    ImGui::PopFont();
+    ImGui::SetNextWindowSize( { title_width + style.WindowPadding.x * 2, 0.f } );
     if( ! ImGui::BeginPopupModal( CONSENT_POPUP_ID, nullptr,
         ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove ) )
         return;
 
     ImGui::PushFont( window.get_large_font() );
-    ImGui::Text( "%s", CONSENT_POPUP_ID );
+    ImGui::TextUnformatted( CONSENT_TITLE );
     ImGui::PopFont();
+    ImGui::TextWrapped( "This is entirely voluntary and does not include images, video, or personally identifying details." );
+    ImGui::Spacing();
+    // The default frame color equals the popup background, which would leave the box invisible.
+    ImGui::PushStyleColor( ImGuiCol_FrameBg, button_color );
+    ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( style.FramePadding.x, 1.f ) );  // box the height of the text
+    ImGui::Checkbox( "##rum_consent", &_consented );
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
+    ImGui::SameLine( 0.f, style.ItemInnerSpacing.x );
+    ImGui::TextWrapped( "I consent to the collection and processing of information as described in the Privacy Policy." );
+    if( ImGui::IsItemClicked() )
+        _consented = ! _consented;  // clicking the text toggles the box too
+    ImGui::Spacing();
+    ImGui::TextWrapped( "You can change this any time in Settings > Online Services." );
+    ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextWrapped( "Share anonymous usage statistics (devices, stream configs, options, "
-                        "and errors) to help us prioritize fixes and features." );
-    ImGui::Spacing();
-    ImGui::TextWrapped( "No personal data, serial numbers, or image content is ever collected. "
-                        "You can change this any time in Settings > Online Services." );
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    if( ImGui::Button( "Yes, enable", ImVec2( 150, 30 ) ) )
+    RsImGui::RsImButton( [&]()
     {
-        config_file::instance().set( configurations::stats::rum_cloud_enabled, true );
-        uploader.start();  // upload any saved report now (e.g. re-consent after a reset); no-op on a true first run
+        if( ImGui::Button( "Accept", ImVec2( 110, 26 ) ) )
+        {
+            // save now: the upload thread reads consent from disk
+            config_file::instance().set_and_save( configurations::stats::rum_cloud_enabled, true );
+            start();
+            ImGui::CloseCurrentPopup();
+        }
+    }, ! _consented );
+    ImGui::SameLine();
+    if( ImGui::Button( "Decline", ImVec2( 110, 26 ) ) )
+    {
+        config_file::instance().set_and_save( configurations::stats::rum_cloud_enabled, false );
         ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
-    if( ImGui::Button( "No thanks", ImVec2( 150, 30 ) ) )
-    {
-        config_file::instance().set( configurations::stats::rum_cloud_enabled, false );
-        ImGui::CloseCurrentPopup();
-    }
+    ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0.f, 0.f, 0.f, 0.f ) );
+    ImGui::PushStyleColor( ImGuiCol_ButtonHovered, ImVec4( 0.f, 0.f, 0.f, 0.f ) );
+    ImGui::PushStyleColor( ImGuiCol_ButtonActive, ImVec4( 0.f, 0.f, 0.f, 0.f ) );
+    ImGui::PushStyleColor( ImGuiCol_Text, light_blue );
+    ImGui::SetCursorPosX( ImGui::GetWindowContentRegionMax().x
+                          - ImGui::CalcTextSize( "Privacy Policy" ).x - style.FramePadding.x * 2 );
+    hyperlink( window, "Privacy Policy", PRIVACY_POLICY_URL );
+    ImGui::PopStyleColor( 4 );
     ImGui::EndPopup();
 }
 
@@ -223,7 +282,7 @@ void rum_uploader::upload_data( ux_window & window )
             start();  // background-upload the previous session's saved report
         startup_done = true;
     }
-    draw_consent_popup( *this, window );
+    draw_consent_popup( window );
 }
 
 

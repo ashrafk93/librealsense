@@ -14,6 +14,7 @@
 #include "measurement.h"
 #include "updates-model.h"
 #include "bag-conversion-helper.h"
+#include "assistant/assistant-model.h"
 #ifdef ENABLE_STATS
 #include "rum-uploader/rum-uploader.h"
 #endif
@@ -164,6 +165,7 @@ namespace rs2
         rs2::rum_uploader _rum_uploader;  // owns the "Upload now" worker; joins itself in its dtor
 #endif
         std::shared_ptr<notifications_model> not_model = std::make_shared<notifications_model>();
+        std::shared_ptr<assistant_model> assistant = std::make_shared<assistant_model>();
         bool is_3d_view = false;
         bool paused = false;
         bool metric_system = true;
@@ -240,7 +242,7 @@ namespace rs2
         bool _support_ir_reflectivity;
 
     private:
-        void get_frame_objects_container( rs2::frame & frame, std::shared_ptr< atomic_objects_in_frame > & objects );
+        std::shared_ptr< subdevice_model > get_frame_subdevice( rs2::frame const & frame ) const;
         rs2::rect project_color_bbox_to_depth( const rs2::rect &    color_bbox,
                                                const uint16_t *     depth_data,
                                                float                depth_scale,
@@ -250,6 +252,11 @@ namespace rs2
                                                const rs2_extrinsics & depth_to_color,
                                                const rs2::rect &    depth_frame_rect );
         void process_object_detection_frames( std::map< int, rs2::frame > & last_frames );
+        void update_device_detections( rs2::object_detection_frame const & odf,
+                                       rs2::video_frame const & cf,
+                                       rs2::depth_frame const & df,
+                                       std::shared_ptr< atomic_objects_in_frame > const & objects );
+        int od_color_stream_index( device_model const * dev_model ) const;
 
         void check_permissions();
         void hide_common_options();
@@ -268,13 +275,18 @@ namespace rs2
         std::map<int, rect> get_interpolated_layout(const std::map<int, rect>& l);
         void show_icon(ImFont* font_18, const char* label_str, const char* text, int x, int y,
                        int id, const ImVec4& color, const std::string& tooltip = "");
+        struct ruler_bounds { float min; float max; };
         void draw_color_ruler(const mouse_info& mouse,
                               const stream_model& s_model,
                               const rect& stream_rect,
                               std::vector<rgb_per_distance> rgb_per_distance_vec,
-                              float ruler_length,
+                              const ruler_bounds& bounds,
                               const std::string& ruler_units);
-        float calculate_ruler_max_distance(const std::vector<float>& distances) const;
+        // Takes distances by value so the caller can std::move — nth_element
+        // partitions in place, avoiding a per-frame copy. Not const: updates
+        // the ruler smoothing state that lives on s_model.
+        ruler_bounds calculate_ruler_bounds(std::vector<float> distances,
+                                            stream_model& s_model);
 
         void set_export_popup(ImFont* large_font, ImFont* font, rect stream_rect, std::string& error_message, config_file& temp_cfg);
         void init_depth_uid(int& selected_depth_source, std::vector<std::string>& depth_sources_str, std::vector<int>& depth_sources);

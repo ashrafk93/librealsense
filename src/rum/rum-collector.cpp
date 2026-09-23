@@ -159,7 +159,7 @@ void rum_collector::record_device( std::string const & device_key,
                                    std::string const & serial )
 {
     std::lock_guard< std::mutex > lk( _mutex );
-    auto & d = _devices[device_key];
+    auto & d = _devices[device_key];  // create entry if doesn't exist
     d.connection = connection;
     d.fw_version = fw_version;
     d.mipi_driver_version = mipi_driver_version;
@@ -169,24 +169,36 @@ void rum_collector::record_device( std::string const & device_key,
 }
 
 
+rum_collector::device_stat * rum_collector::find_device( std::string const & device_key )
+{
+    auto it = _devices.find( device_key );
+    return it == _devices.end() ? nullptr : &it->second;
+}
+
+
 void rum_collector::record_stream( std::string const & device_key, std::string const & stream_label )
 {
     std::lock_guard< std::mutex > lk( _mutex );
-    ++_devices[device_key].streams[stream_label].count;
+    if( auto * d = find_device( device_key ) )
+        ++d->streams[stream_label].count;
 }
 
 
 void rum_collector::record_stream_duration( std::string const & device_key, std::string const & stream_label, double seconds )
 {
     std::lock_guard< std::mutex > lk( _mutex );
-    _devices[device_key].streams[stream_label].duration_seconds += seconds;
+    if( auto * d = find_device( device_key ) )
+        d->streams[stream_label].duration_seconds += seconds;
 }
 
 
 void rum_collector::record_option_change( std::string const & device_key, std::string const & option, float value )
 {
     std::lock_guard< std::mutex > lk( _mutex );
-    auto & entry = _devices[device_key].options[option];
+    auto * d = find_device( device_key );
+    if( ! d )
+        return;
+    auto & entry = d->options[option];
     ++entry.first;
     entry.second = value;
 }
@@ -202,8 +214,10 @@ void rum_collector::add_recommended_filter( std::string const & name )
 void rum_collector::record_filter( std::string const & device_key, std::string const & name )
 {
     std::lock_guard< std::mutex > lk( _mutex );
-    if( _recommended_filters.count( name ) )   // ignore viewer/internal blocks
-        ++_devices[device_key].filters[name];
+    if( ! _recommended_filters.count( name ) )   // ignore viewer/internal blocks
+        return;
+    if( auto * d = find_device( device_key ) )
+        ++d->filters[name];
 }
 
 

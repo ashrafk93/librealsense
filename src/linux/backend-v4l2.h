@@ -432,6 +432,7 @@ namespace librealsense
             static std::vector<node_info> collect_uvc_nodes(const std::vector<path_and_identifier>& v4l_videos,
                                                             const std::vector<std::pair <std::string, std::string>>& v4l_to_dev_video_paths);
             static std::vector<node_info> match_video_with_metadata_nodes(const std::vector<node_info>& uvc_nodes);
+            static void sort_nodes_by_streaming_interface(std::vector<node_info>& nodes);
             static bool get_info_from_v4l_video_path(const std::string& v4l_video_path, const std::string& dev_name, uvc_device_info& info, bool is_mipi_rs_enum_nodes_empty,
                                                  camera_identifier_v4l_mipi& mipi_id);
             static std::vector<node_info> get_mipi_rs_enum_nodes();

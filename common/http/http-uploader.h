@@ -16,9 +16,9 @@ namespace rs2
         {
         public:
             // POST json_body to url as "application/json"; true on success.
-            bool upload( const std::string & url, const std::string & json_body )
+            bool upload( const std::string & url, const std::string & json_body, const std::string & extra_header = {} )
             {
-                return _curl.post_json( url, json_body );
+                return _curl.post_json( url, json_body, extra_header );
             }
 
         private:

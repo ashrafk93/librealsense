@@ -110,22 +110,29 @@ macro(global_set_flags)
         include(CMake/external_pybind11.cmake)
     endif()
 
-    if(CHECK_FOR_UPDATES)
+    if(CHECK_FOR_UPDATES OR ENABLE_AI_ASSISTANT)
         if (ANDROID_NDK_TOOLCHAIN_INCLUDED)
-            message(STATUS "Android build do not support CHECK_FOR_UPDATES flag, turning it off..")
+            message(STATUS "Android build do not support CHECK_FOR_UPDATES/ENABLE_AI_ASSISTANT flags, turning them off..")
             set(CHECK_FOR_UPDATES false)
+            set(ENABLE_AI_ASSISTANT false)
         elseif (NOT BUILD_GRAPHICAL_EXAMPLES)
-            message(STATUS "CHECK_FOR_UPDATES depends on BUILD_GRAPHICAL_EXAMPLES flag, turning it off..")
+            message(STATUS "CHECK_FOR_UPDATES/ENABLE_AI_ASSISTANT depend on BUILD_GRAPHICAL_EXAMPLES flag, turning them off..")
             set(CHECK_FOR_UPDATES false)
+            set(ENABLE_AI_ASSISTANT false)
         else()
-            add_definitions(-DCHECK_FOR_UPDATES)
+            if(CHECK_FOR_UPDATES)
+                add_definitions(-DCHECK_FOR_UPDATES)
+            endif()
+            if(ENABLE_AI_ASSISTANT)
+                add_definitions(-DENABLE_AI_ASSISTANT)
+            endif()
         endif()
     endif()
 
-    # libcurl is needed by sw-update (CHECK_FOR_UPDATES) and RUM cloud upload (ENABLE_STATS).
-    # BUILD_WITH_LIBCURL is the derived "curl is linked" guard - gates the shared "Online Services"
-    # viewer tab that hosts both features.
-    if(CHECK_FOR_UPDATES OR ENABLE_STATS)
+    # libcurl is needed by sw-update (CHECK_FOR_UPDATES), the AI Assistant chat client
+    # (ENABLE_AI_ASSISTANT), and RUM cloud upload (ENABLE_STATS). BUILD_WITH_LIBCURL is the derived
+    # "curl is linked" guard - gates the shared "Online Services" viewer tab that hosts these features.
+    if(CHECK_FOR_UPDATES OR ENABLE_AI_ASSISTANT OR ENABLE_STATS)
         include(CMake/external_libcurl.cmake)
         add_definitions(-DBUILD_WITH_LIBCURL)
     endif()

@@ -57,6 +57,6 @@ an immediate upload from **Settings → Online Services → "Upload now"**.
 The startup upload is throttled to at most once per `rum_upload_interval_hours` (default 24, `0`
 disables the throttle). This is read from `realsense-config.json` and is not exposed in the UI.
 
-The production ingest endpoint is not live yet, so uploads currently target a local dev-server
-stub (`tools/rum-uploader/dev-server/rum_dev_server.py`) — see its header for how to run and
-point the viewer at it.
+Reports are POSTed to `https://telemetry.realsenseai.com/v1/rum`. A local dev-server stub
+(`tools/rum-uploader/dev-server/rum_dev_server.py`) is available for development — see its
+header for how to run and point the viewer at it.

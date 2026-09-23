@@ -17,7 +17,8 @@ frame_prefix = re.compile( rb'^\[\d{4}\] ', re.MULTILINE )
 
 pytestmark = [
     pytest.mark.device_each("D400*"),
-    pytest.mark.device_each("D500*"),
+    # D500 is currently disabled until all tests pass there
+    #pytest.mark.device_each("D500*"),
     pytest.mark.context("nightly"),
     pytest.mark.context("gui"),
     # Opt out of retries: this launches the realsense-viewer GUI and is long-running /

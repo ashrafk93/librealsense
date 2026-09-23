@@ -204,11 +204,12 @@ namespace librealsense
         catch (...) {}
 
         double gyro_scale_factor = get_gyro_default_scale();
+        double accel_scale_factor = get_accel_default_scale();
         bool high_accuracy = is_imu_high_accuracy();
         motion_ep->register_processing_block(
             { {RS2_FORMAT_MOTION_XYZ32F} },
             { {RS2_FORMAT_MOTION_XYZ32F, RS2_STREAM_ACCEL}, {RS2_FORMAT_MOTION_XYZ32F, RS2_STREAM_GYRO} },
-            [mm_calib, high_accuracy, mm_correct_opt, gyro_scale_factor, gyro_sensitivity_option]()
+            [mm_calib, high_accuracy, mm_correct_opt, gyro_scale_factor, accel_scale_factor, gyro_sensitivity_option]()
             {
                 double scale = gyro_scale_factor;
                 if( gyro_sensitivity_option )
@@ -222,7 +223,7 @@ namespace librealsense
                         LOG_WARNING( "Failed to read gyro sensitivity; using the fallback scale: " << e.what() );
                     }
                 }
-                return std::make_shared< motion_to_accel_gyro >( mm_calib, mm_correct_opt, scale, high_accuracy );
+                return std::make_shared< motion_to_accel_gyro >( mm_calib, mm_correct_opt, scale, accel_scale_factor, high_accuracy );
         });
 
         return motion_ep;

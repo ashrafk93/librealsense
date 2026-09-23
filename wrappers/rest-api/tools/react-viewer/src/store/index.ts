@@ -8,10 +8,16 @@ import type {
   IMUData,
   ViewMode,
   DeviceState,
+  AdvancedControls,
+  ControlGroup,
+  SensorFilters,
   FirmwareState,
   SensorStreamConfig,
   SensorConfig,
 } from '../api/types'
+
+// Tracks the in-flight legacy-chatbot request so `stopChatMessage` can abort it.
+let currentChatAbortController: AbortController | null = null
 
 // Map to track pending stop operations by "deviceId:sensorId" key
 // Used to await completion before allowing a new start
@@ -19,6 +25,20 @@ const pendingStopPromises = new Map<string, Promise<void>>()
 
 // Enumerations are unordered across connections; only the newest response may be applied.
 let _fetchSeq = 0
+
+type States = { deviceStates: Record<string, DeviceState> }
+
+/** Update one device's state, leaving the others alone; a device that is gone is a no-op. */
+function patchDevice(state: States, deviceId: string, patch: (ds: DeviceState) => Partial<DeviceState>) {
+  const ds = state.deviceStates[deviceId]
+  return ds ? { deviceStates: { ...state.deviceStates, [deviceId]: { ...ds, ...patch(ds) } } } : state
+}
+
+/** Same, for one control group; a group that is not loaded is a no-op. */
+function patchGroup(state: States, deviceId: string, key: string, patch: (g: ControlGroup) => ControlGroup) {
+  return patchDevice(state, deviceId, (ds) =>
+    ds.controls[key] ? { controls: { ...ds.controls, [key]: patch(ds.controls[key]) } } : {})
+}
 
 // Server sends point-cloud buffers as base64 strings over Socket.IO; the
 // ArrayBuffer branch is here for a future binary-attachment transport.
@@ -105,6 +125,7 @@ function buildSensorConfigs(sensors: SensorInfo[]): Record<string, SensorConfig>
   return sensorConfigs
 }
 import { apiClient } from '../api/client'
+import { optionLabel } from '../api/types'
 import {
   checkChatAvailability,
   sendChatMessage as sendChatMessageApi,
@@ -113,6 +134,8 @@ import {
   type ChatResponse,
 } from '../api/chat'
 import type { ProposedSettings } from '../utils/chatPrompt'
+import type { AssistantChatMessage, AssistantFileAttachment } from '../api/assistantChat'
+import { createAssistantSlice } from './assistantSlice'
 
 interface IMUHistory {
   accel: { timestamp: number; x: number; y: number; z: number }[]
@@ -133,6 +156,11 @@ interface AppState {
   checkFirmwareUpdates: (deviceId: string) => Promise<string | undefined>
   updateFirmwareFromFile: (deviceId: string, file: File) => Promise<void>
   updateFirmwareFromRecommended: (deviceId: string) => Promise<void>
+  toggleAdvancedMode: (deviceId: string, enable: boolean) => Promise<void>
+  fetchDeviceControls: (deviceId: string) => Promise<void>
+  setControl: (deviceId: string, key: string, optionId: string, value: number | boolean | string) => Promise<void>
+  setControlEnabled: (deviceId: string, key: string, enabled: boolean) => Promise<void>
+  setPostProcessing: (deviceId: string, sensorId: string, enabled: boolean) => Promise<void>
 
   // Device activation (multi-select support)
   toggleDeviceActive: (device: DeviceInfo) => Promise<void>
@@ -144,15 +172,7 @@ interface AppState {
   // Per-device sensors fetch
   fetchSensors: (deviceId: string) => Promise<void>
 
-  // Per-device options
-  setOption: (
-    deviceId: string,
-    sensorId: string,
-    optionId: string,
-    value: number | boolean | string
-  ) => Promise<void>
-
-  // Per-device stream configuration  
+  // Per-device stream configuration
   updateStreamConfig: (deviceId: string, config: StreamConfig) => void
   updateSensorConfig: (deviceId: string, sensorId: string, config: Partial<SensorConfig>) => void
 
@@ -182,9 +202,29 @@ interface AppState {
   toggleChat: () => void
   checkChatAvailability: () => Promise<void>
   sendChatMessage: (content: string) => Promise<void>
+  stopChatMessage: () => void
   applyProposedSettings: () => Promise<void>
   dismissProposedSettings: () => void
   clearChat: () => void
+
+  // RealSense AI Assistant state (hosted, anonymous product Q&A — separate from the chat slice above)
+  isAssistantOpen: boolean
+  isAssistantOnline: boolean
+  isAssistantLoading: boolean
+  assistantMessages: AssistantChatMessage[]
+  assistantConversationId: string | null
+  assistantSize: 'compact' | 'wide'
+  toggleAssistant: () => void
+  pingAssistantHealth: () => Promise<void>
+  sendAssistantMessage: (
+    content: string,
+    attachments?: { imageDataUris?: string[]; fileDataUris?: AssistantFileAttachment[] }
+  ) => Promise<void>
+  regenerateLastAssistantMessage: () => Promise<void>
+  stopAssistantMessage: () => void
+  sendAssistantReaction: (value: 1 | -1) => Promise<boolean>
+  clearAssistantChat: () => void
+  toggleAssistantSize: () => void
 
   // Error handling
   error: string | null
@@ -233,7 +273,9 @@ async function performFirmwareUpdate(
   }
 }
 
-export const useAppStore = create<AppState>()((set, get) => ({
+export type { AppState }
+
+export const useAppStore = create<AppState>()((set, get, api) => ({
   // Connection state
   isConnected: false,
   setConnected: (connected) => set({ isConnected: connected }),
@@ -289,6 +331,104 @@ export const useAppStore = create<AppState>()((set, get) => ({
     return result
   },
 
+  toggleAdvancedMode: async (deviceId: string, enable: boolean) => {
+    try {
+      // Restarts the device on the backend; wait, then refresh device + sensors + status.
+      await apiClient.setAdvancedMode(deviceId, enable)
+      await get().fetchDevices(true)
+      await get().fetchSensors(deviceId)
+      await get().fetchDeviceControls(deviceId)
+    } catch (error) {
+      set({ error: `Failed to ${enable ? 'enable' : 'disable'} advanced mode: ${error instanceof Error ? error.message : 'unknown error'}` })
+    }
+  },
+
+  // The colorizer, the advanced controls and each sensor's filters have their own
+  // endpoints rather than riding a sensor's option list. Rebuilt wholesale so groups that
+  // stopped existing drop out, while a single source failing leaves its section empty.
+  fetchDeviceControls: async (deviceId: string) => {
+    const sensors = get().deviceStates[deviceId]?.sensors || []
+    // The controls exist only while advanced mode is on - the device refuses to read them
+    // otherwise - so its state decides whether to ask at all.
+    const advancedMode = await apiClient.getAdvancedMode(deviceId).catch(() => undefined)
+    const [colorizer, advanced, ...perSensor] = await Promise.all([
+      apiClient.getColorizerOptions(deviceId).catch(() => [] as OptionInfo[]),
+      advancedMode?.enabled
+        ? apiClient.getAdvancedControls(deviceId).catch(() => ({} as AdvancedControls))
+        : ({} as AdvancedControls),
+      ...sensors.map((s) => apiClient.getSensorFilters(deviceId, s.sensor_id).catch(() => ({} as SensorFilters))),
+    ])
+    // The colorizer and the advanced controls belong to the device rather than to a
+    // sensor, but the C++ viewer draws them with the depth sensor's controls, so they are
+    // stored against it.
+    const depthSensorId = sensors.find(
+      (s) => s.supported_stream_profiles.some((p) => p.stream_type.toLowerCase() === 'depth')
+    )?.sensor_id ?? ''
+    const groups: Record<string, ControlGroup> = {
+      colorizer: { section: 'Depth Visualization', sensorId: depthSensorId, name: '', options: colorizer },
+    }
+    // Firmware blocks the AE setpoint on D457 and on the D500 family, so the group is not
+    // worth drawing there; the legacy viewer leaves it out for the same reason.
+    const deviceName = get().deviceStates[deviceId]?.device.name ?? ''
+    const noAeSetpoint = deviceName.includes('D457') || deviceName.includes('D5')
+    for (const [name, options] of Object.entries(advanced)) {
+      if (noAeSetpoint && name === 'ae_control') continue
+      groups[`advanced_mode/controls/${name}`] =
+        { section: 'Advanced Controls', sensorId: depthSensorId, name, options }
+    }
+    sensors.forEach((s, i) => {
+      groups[`sensors/${s.sensor_id}/options`] =
+        { section: 'Controls', sensorId: s.sensor_id, name: '', options: s.options }
+      for (const [name, filter] of Object.entries(perSensor[i])) {
+        groups[`sensors/${s.sensor_id}/filters/${name}`] =
+          { section: 'Post-Processing', sensorId: s.sensor_id, name, ...filter }
+      }
+    })
+    set((state) => patchDevice(state, deviceId, () => ({ controls: groups, advancedMode })))
+  },
+
+  setControl: async (deviceId, key, optionId, value) => {
+    try {
+      const applied = await apiClient.setControl(deviceId, key, optionId, value)
+      set((state) => patchGroup(state, deviceId, key, (group) => ({
+        ...group,
+        options: group.options.map((o) =>
+          // Match by option_id OR by label (case-insensitive) for chatbot compatibility
+          (o.option_id === optionId || optionLabel(o.option_id).toLowerCase() === optionId.toLowerCase())
+            ? applied
+            : o
+        ),
+      })))
+    } catch (error) {
+      set({ error: `Failed to set option: ${error instanceof Error ? error.message : 'Unknown error'}` })
+      throw error
+    }
+  },
+
+  // While the sensor's post-processing switch is off nothing is applied, so the click only
+  // records the choice for when it goes back on.
+  setControlEnabled: async (deviceId, key, enabled) => {
+    const ds = get().deviceStates[deviceId]
+    const group = ds?.controls[key]
+    if (!group?.sensorId) return
+    if (ds?.postProcessing?.[group.sensorId] !== false) {
+      await apiClient.setFilterEnabled(deviceId, key, enabled)
+    }
+    set((state) => patchGroup(state, deviceId, key, (g) => ({ ...g, enabled })))
+  },
+
+  setPostProcessing: async (deviceId, sensorId, enabled) => {
+    // Choices stay in `controls` untouched, as in the legacy viewer: its master switch and
+    // its per-filter flags are separate (processing-block-model.h).
+    const filters = Object.entries(get().deviceStates[deviceId]?.controls || {})
+      .filter(([, g]) => g.section === 'Post-Processing' && g.sensorId === sensorId)
+    await Promise.all(
+      filters.map(([key, g]) => apiClient.setFilterEnabled(deviceId, key, enabled && !!g.enabled))
+    )
+    set((state) => patchDevice(state, deviceId, (ds) =>
+      ({ postProcessing: { ...ds.postProcessing, [sensorId]: enabled } })))
+  },
+
   // Returns the recommendation too: a device that isn't activated has no state to store it
   // in. Rejects on failure — reporting is the caller's business.
   checkFirmwareUpdates: async (deviceId: string) => {
@@ -326,7 +466,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
         device,
         firmware: { is_updating: false, progress: undefined, last_error: null },
         sensors: [],
-        options: {},
+        controls: {},
         streamConfigs: [],
         sensorConfigs: {},
         isStreaming: false,
@@ -343,6 +483,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       await get().fetchSensors(device.device_id)
       // Best-effort: a versions-DB outage shouldn't make opening a camera look like it failed.
       get().checkFirmwareUpdates(device.device_id).catch(() => {})
+      get().fetchDeviceControls(device.device_id)
     }
   },
 
@@ -381,29 +522,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
     try {
       const sensors = await apiClient.getSensors(deviceId)
 
-      const optionsMap: Record<string, OptionInfo[]> = {}
-      for (const sensor of sensors) {
-        if (sensor.options && sensor.options.length > 0) {
-          optionsMap[sensor.sensor_id] = sensor.options
-        }
-      }
-
       const configs = buildStreamConfigs(sensors)
       const sensorConfigs = buildSensorConfigs(sensors)
 
-      set((state) => ({
-        deviceStates: {
-          ...state.deviceStates,
-          [deviceId]: {
-            ...state.deviceStates[deviceId],
-            sensors,
-            options: optionsMap,
-            streamConfigs: configs,
-            sensorConfigs,
-            isLoading: false,
-          },
-        },
-      }))
+      set((state) => patchDevice(state, deviceId, () =>
+        ({ sensors, streamConfigs: configs, sensorConfigs, isLoading: false })))
     } catch (error) {
       set((state) => ({
         deviceStates: {
@@ -415,40 +538,6 @@ export const useAppStore = create<AppState>()((set, get) => ({
         },
         error: `Failed to fetch sensors: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }))
-    }
-  },
-
-  // Per-device options
-  setOption: async (deviceId, sensorId, optionId, value) => {
-    try {
-      await apiClient.setOption(deviceId, sensorId, optionId, value)
-      set((state) => {
-        const deviceState = state.deviceStates[deviceId]
-        if (!deviceState) return state
-        
-        return {
-          deviceStates: {
-            ...state.deviceStates,
-            [deviceId]: {
-              ...deviceState,
-              options: {
-                ...deviceState.options,
-                [sensorId]: deviceState.options[sensorId]?.map((opt) =>
-                  // Match by option_id OR by name (case-insensitive) for chatbot compatibility
-                  (opt.option_id === optionId || opt.name.toLowerCase() === optionId.toLowerCase())
-                    ? { ...opt, current_value: value } 
-                    : opt
-                ),
-              },
-            },
-          },
-        }
-      })
-    } catch (error) {
-      set({
-        error: `Failed to set option: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      })
-      throw error
     }
   },
 
@@ -830,14 +919,20 @@ export const useAppStore = create<AppState>()((set, get) => ({
       chatMessages: [...s.chatMessages, userMessage],
       isChatLoading: true,
     }))
-    
+
+    // A prior turn must be cancelled first, otherwise it keeps running un-stoppably
+    // in the background since only the latest controller stays reachable.
+    currentChatAbortController?.abort()
+    const controller = new AbortController()
+    currentChatAbortController = controller
+
     try {
       // Get all messages for context
       const allMessages = [...state.chatMessages, userMessage]
       
       // Send to API with device context
-      const response: ChatResponse = await sendChatMessageApi(allMessages, state.deviceStates)
-      
+      const response: ChatResponse = await sendChatMessageApi(allMessages, state.deviceStates, controller.signal)
+
       // Add assistant message
       const assistantMessage: ChatMessage = {
         id: generateMessageId(),
@@ -850,23 +945,29 @@ export const useAppStore = create<AppState>()((set, get) => ({
       set((s) => ({
         chatMessages: [...s.chatMessages, assistantMessage],
         pendingSettings: response.proposedSettings || s.pendingSettings,
-        isChatLoading: false,
       }))
     } catch (error) {
-      const errorMessage: ChatMessage = {
-        id: generateMessageId(),
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
-        timestamp: Date.now(),
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        // User-initiated stop — no error message, just stop loading.
+      } else {
+        const errorMessage: ChatMessage = {
+          id: generateMessageId(),
+          role: 'assistant',
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+          timestamp: Date.now(),
+        }
+        set((s) => ({ chatMessages: [...s.chatMessages, errorMessage] }))
       }
-      
-      set((s) => ({
-        chatMessages: [...s.chatMessages, errorMessage],
-        isChatLoading: false,
-      }))
+    } finally {
+      if (currentChatAbortController === controller) currentChatAbortController = null
+      set({ isChatLoading: false })
     }
   },
-  
+
+  stopChatMessage: () => {
+    currentChatAbortController?.abort()
+  },
+
   applyProposedSettings: async () => {
     const state = get()
     const settings = state.pendingSettings
@@ -936,7 +1037,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
               uniqueSensorId = match.sensor_id
             }
           }
-          await get().setOption(deviceId, uniqueSensorId, change.optionId, change.value)
+          await get().setControl(
+            deviceId, `sensors/${uniqueSensorId}/options`, change.optionId, change.value
+          )
         }
       }
       
@@ -997,6 +1100,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
       pendingSettings: null,
     })
   },
+
+  // RealSense AI Assistant state — extracted to assistantSlice.ts
+  ...createAssistantSlice(set, get, api),
 
   // Error handling
   error: null,

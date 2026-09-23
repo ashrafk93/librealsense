@@ -1,4 +1,4 @@
-if(CHECK_FOR_UPDATES OR ENABLE_STATS)
+if(CHECK_FOR_UPDATES OR ENABLE_AI_ASSISTANT OR ENABLE_STATS)
 
     pop_security_flags() # remove security flags
     
@@ -65,4 +65,4 @@ if(CHECK_FOR_UPDATES OR ENABLE_STATS)
     endif()
 
     push_security_flags()
-endif() #CHECK_FOR_UPDATES OR ENABLE_STATS
+endif() #CHECK_FOR_UPDATES OR ENABLE_AI_ASSISTANT OR ENABLE_STATS

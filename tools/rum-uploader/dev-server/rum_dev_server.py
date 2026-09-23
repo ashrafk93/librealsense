@@ -12,8 +12,9 @@ confirm the viewer's uploader sends well-formed reports end-to-end.
 Usage:
     python rum_dev_server.py [--port 8080] [--dir received]
 
-The viewer's uploader targets http://127.0.0.1:8080/v1/rum by default (the production endpoint
-is not live yet), so just run this on port 8080 and consented uploads land in ./received/.
+The viewer's uploader targets the production endpoint, so to send here instead point
+RUM_ENDPOINT in common/rum-uploader/rum-uploader.cpp at http://127.0.0.1:8080/v1/rum, run this
+on port 8080, and consented uploads land in ./received/.
 """
 
 import argparse

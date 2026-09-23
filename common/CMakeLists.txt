@@ -55,6 +55,9 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_LIST_DIR}/updates-model.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/option-model.h"
     "${CMAKE_CURRENT_LIST_DIR}/option-model.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/control-model.h"
+    "${CMAKE_CURRENT_LIST_DIR}/control-section.h"
+    "${CMAKE_CURRENT_LIST_DIR}/control-section.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/device-model.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/device-model.h"
     "${CMAKE_CURRENT_LIST_DIR}/subdevice-model.h"
@@ -101,6 +104,40 @@ set(REFLECTIVITY_FILES
     "${CMAKE_CURRENT_LIST_DIR}/reflectivity/reflectivity.cpp"
     )
 
+set(ASSISTANT_FILES
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-sse-event.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-sse-parser.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-sse-parser.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-chat-client.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-chat-client.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-image-decoder.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-image-decoder.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-image-cache.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-image-cache.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-model.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-model.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-launcher.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-panel.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-messages.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-markdown.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-markdown.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/../third-party/imgui_md/imgui_md.h"
+    "${CMAKE_CURRENT_LIST_DIR}/../third-party/imgui_md/imgui_md.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/../third-party/imgui_md/md4c.h"
+    "${CMAKE_CURRENT_LIST_DIR}/../third-party/imgui_md/md4c.c"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-ui-utils.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-ui-utils.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-text-sanitizer.h"
+    "${CMAKE_CURRENT_LIST_DIR}/assistant/assistant-text-sanitizer.cpp"
+    )
+
+# Vendored verbatim from upstream - suppress its warnings rather than patching it.
+if(MSVC)
+    set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/../third-party/imgui_md/imgui_md.cpp" PROPERTIES COMPILE_OPTIONS "/W0")
+else()
+    set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/../third-party/imgui_md/imgui_md.cpp" PROPERTIES COMPILE_OPTIONS "-w")
+endif()
+
 set(UTILITIES_FILES
     "${CMAKE_CURRENT_LIST_DIR}/utilities/imgui/wrap.h"
     "${CMAKE_CURRENT_LIST_DIR}/utilities/imgui/wrap.cpp"
@@ -116,6 +153,7 @@ set(COMMON_SRC
     ${HTTP_FILES}
     ${SW_UPDATE_FILES}
     ${REFLECTIVITY_FILES}
+    ${ASSISTANT_FILES}
     ${UTILITIES_FILES}
     ${RUM_UPLOADER_FILES}
     )

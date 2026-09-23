@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -125,16 +126,22 @@ int lockf(int fd, int cmd, off_t length)
 
 namespace librealsense
 {
+    // D5xx product line. The D400 and D500 families share this backend and the d4xx kernel driver,
+    // but not their depth-XU selector tables - see v4l_mipi_logic::xu_to_cid().
+    static bool is_d5xx_product_line( uint16_t pid )
+    {
+        return ( pid == 0x0B56 )                      // D555
+            || ( pid == 0x0B6A ) || ( pid == 0x0B6B ) // D585 legacy / D585S
+            || ( pid >= 0x0C01 && pid <= 0x0C08 );    // D535 / D585 2C+3C
+    }
+
     // The UVC interface carrying the D5xx mapping streams (occupancy / labeled point
     // cloud): MI 13 on D585S, MI 11 on every other D5xx. Their payload is a self-sized
     // MAP1 frame rather than an image, which both the fourcc split and the frame-size
     // validation below have to account for.
     static bool is_d5xx_mapping_interface( uint16_t pid, uint16_t mi )
     {
-        const bool d5xx = ( pid == 0x0B56 )                      // D555
-                       || ( pid == 0x0B6A ) || ( pid == 0x0B6B ) // D585 legacy / D585S
-                       || ( pid >= 0x0C01 && pid <= 0x0C08 );    // D535 / D585 2C+3C
-        if( ! d5xx )
+        if( ! is_d5xx_product_line( pid ) )
             return false;
         return ( pid == 0x0B6B || pid == 0x0B6A ) ? ( mi == 13 ) : ( mi == 11 );
     }
@@ -1237,6 +1244,46 @@ namespace librealsense
             return uvc_nodes;
         }
 
+        // uvcvideo creates one /dev/videoN per UVC output terminal, numbered in VideoControl descriptor order, so
+        // /dev/videoN order can disagree with VideoStreaming interface order (D585 2C reverses its two color
+        // terminals). Sort by interface - the order Windows enumerates pins in - so a pin index means one endpoint.
+        void v4l_uvc_device::sort_nodes_by_streaming_interface( std::vector<node_info>& nodes )
+        {
+            std::map<std::pair<std::string, uint16_t>, std::vector<size_t>> functions;
+            for (size_t i = 0; i < nodes.size(); ++i)
+                if (!nodes[i].first.is_mipi)  // a MIPI node has no USB descriptor to order by
+                    functions[{ nodes[i].first.unique_id, nodes[i].first.mi }].push_back(i);
+
+            for (auto&& function : functions)
+            {
+                auto& indices = function.second;
+                if (indices.size() < 2)
+                    continue;
+
+                auto interfaces = v4l_usb_logic::read_streaming_interfaces_in_terminal_order(
+                    nodes[indices.front()].first.device_path, function.first.second);
+                if (interfaces.size() != indices.size())
+                    continue;  // descriptor unreadable, or terminals with no node of their own - keep /dev/videoN order
+                if (std::is_sorted(interfaces.begin(), interfaces.end()))
+                    continue;  // terminals listed in interface order, as nearly every firmware does
+
+                std::vector<std::pair<uint8_t, node_info>> group;
+                for (size_t i = 0; i < indices.size(); ++i)
+                    group.emplace_back(interfaces[i], nodes[indices[i]]);
+                std::stable_sort(group.begin(), group.end(),
+                                 [](const std::pair<uint8_t, node_info>& a, const std::pair<uint8_t, node_info>& b)
+                                 { return a.first < b.first; });
+
+                std::ostringstream reordered;
+                for (size_t i = 0; i < indices.size(); ++i)
+                {
+                    nodes[indices[i]] = group[i].second;
+                    reordered << " " << nodes[indices[i]].second;
+                }
+                LOG_DEBUG("Nodes of mi " << function.first.second << " reordered by streaming interface:" << reordered.str());
+            }
+        }
+
         void v4l_uvc_device::foreach_uvc_device( std::function<void(const uvc_device_info&, const std::string&)> action )
         {
             // building vector of /sys/class/video4linux/.../videoX files with path, major, minor
@@ -1251,6 +1298,8 @@ namespace librealsense
 
             // Matching video and metadata nodes
             std::vector<node_info> uvc_devices = match_video_with_metadata_nodes(uvc_nodes);
+
+            sort_nodes_by_streaming_interface(uvc_devices);
 
             try
             {
@@ -2875,7 +2924,7 @@ namespace librealsense
 
         bool v4l_mipi_device::set_xu(const extension_unit& xu, uint8_t control, const uint8_t* data, int size)
         {
-            v4l2_ext_control xctrl{v4l_mipi_logic::xu_to_cid(xu,control), uint32_t(size), 0, 0};
+            v4l2_ext_control xctrl{v4l_mipi_logic::xu_to_cid(xu,control,is_d5xx_product_line(_info.pid)), uint32_t(size), 0, 0};
             switch (size)
             {
                 case 1: xctrl.value   = *(reinterpret_cast<const uint8_t*>(data)); break;
@@ -2907,7 +2956,7 @@ namespace librealsense
 
         bool v4l_mipi_device::get_xu(const extension_unit& xu, uint8_t control, uint8_t* data, int size) const
         {
-            v4l2_ext_control xctrl{v4l_mipi_logic::xu_to_cid(xu,control), uint32_t(size), 0, 0};
+            v4l2_ext_control xctrl{v4l_mipi_logic::xu_to_cid(xu,control,is_d5xx_product_line(_info.pid)), uint32_t(size), 0, 0};
             xctrl.p_u8 = data;
 
             v4l2_ext_controls ext {xctrl.id & 0xffff0000, 1, 0, 0, 0, &xctrl};
@@ -2944,7 +2993,7 @@ namespace librealsense
         control_range v4l_mipi_device::get_xu_range(const extension_unit& xu, uint8_t control, int len) const
         {
             v4l2_query_ext_ctrl xctrl_query{};
-            xctrl_query.id = v4l_mipi_logic::xu_to_cid(xu,control);
+            xctrl_query.id = v4l_mipi_logic::xu_to_cid(xu,control,is_d5xx_product_line(_info.pid));
 
             if(0 > ioctl(_fd,VIDIOC_QUERY_EXT_CTRL,&xctrl_query)){
                 throw linux_backend_exception(rsutils::string::from() << "xioctl(VIDIOC_QUERY_EXT_CTRL) failed, errno=" << errno);

@@ -27,6 +27,20 @@ using rs_fourcc = rsutils::type::fourcc;
 
 namespace librealsense
 {
+    // Image and calibration encodings published by the color pins.
+    // The 16-bit raw can have several spellings: RW16 over USB (V4L2 passes it through, WMF normalizes it to BYR2)
+    // and BA10 or GR16 over GMSL, depending on the d4xx driver version.
+    static const std::map< uint32_t, rs2_format > color_pin_formats = {
+        { rs_fourcc( 'M', '4', '2', '0' ), RS2_FORMAT_M420 },
+        { rs_fourcc( 'N', 'V', '1', '2' ), RS2_FORMAT_NV12 },
+        { rs_fourcc( 'Y', 'U', 'Y', '2' ), RS2_FORMAT_YUYV },
+        { rs_fourcc( 'Y', 'U', 'Y', 'V' ), RS2_FORMAT_YUYV },
+        { rs_fourcc( 'B', 'A', '1', '0' ), RS2_FORMAT_RAW16 },
+        { rs_fourcc( 'R', 'W', '1', '6' ), RS2_FORMAT_RAW16 },
+        { rs_fourcc( 'B', 'Y', 'R', '2' ), RS2_FORMAT_RAW16 },
+        { rs_fourcc( 'G', 'R', '1', '6' ), RS2_FORMAT_RAW16 }
+    };
+
     d500_dual_color::d500_dual_color( std::shared_ptr< const d500_info > const & dev_info )
         : d500_device( dev_info )
         , device( dev_info )
@@ -36,18 +50,15 @@ namespace librealsense
         auto & depth_sensor = get_depth_sensor();
         auto raw_depth_sensor = get_raw_depth_sensor();
 
-        // The color pins publish the RGB image in several encodings at once: NV12 (current firmware) and/or
-        // legacy M420, plus YUY2. Map all three so their raw profiles survive enumeration.
+        // Map the color pins' image and calibration encodings so their raw profiles survive enumeration.
+        // They default to infrared; resolve_color_stream below retypes the ones that arrive on a color pin.
         auto & raw_fourcc_to_rs2_format_map = raw_depth_sensor->get_fourcc_to_rs2_format_map();
-        raw_fourcc_to_rs2_format_map->insert( { rs_fourcc( 'M', '4', '2', '0' ), RS2_FORMAT_M420 } );
-        raw_fourcc_to_rs2_format_map->insert( { rs_fourcc( 'N', 'V', '1', '2' ), RS2_FORMAT_NV12 } );
-        raw_fourcc_to_rs2_format_map->insert( { rs_fourcc( 'Y', 'U', 'Y', '2' ), RS2_FORMAT_YUYV } );
-        raw_fourcc_to_rs2_format_map->insert( { rs_fourcc( 'Y', 'U', 'Y', 'V' ), RS2_FORMAT_YUYV } );
         auto & raw_fourcc_to_rs2_stream_map = raw_depth_sensor->get_fourcc_to_rs2_stream_map();
-        raw_fourcc_to_rs2_stream_map->insert( { rs_fourcc( 'M', '4', '2', '0' ), RS2_STREAM_INFRARED } );
-        raw_fourcc_to_rs2_stream_map->insert( { rs_fourcc( 'N', 'V', '1', '2' ), RS2_STREAM_INFRARED } );
-        raw_fourcc_to_rs2_stream_map->insert( { rs_fourcc( 'Y', 'U', 'Y', '2' ), RS2_STREAM_INFRARED } );
-        raw_fourcc_to_rs2_stream_map->insert( { rs_fourcc( 'Y', 'U', 'Y', 'V' ), RS2_STREAM_INFRARED } );
+        for( auto const & entry : color_pin_formats )
+        {
+            raw_fourcc_to_rs2_format_map->insert( entry );
+            raw_fourcc_to_rs2_stream_map->insert( { entry.first, RS2_STREAM_INFRARED } );
+        }
 
         raw_depth_sensor->set_stream_id_resolver( resolve_color_stream );
 
@@ -63,8 +74,8 @@ namespace librealsense
                                                       [target]() { return std::make_shared< m420_converter >( target ); } );
         }
 
-        // Expose each raw encoding (NV12, M420, YUY2) as a passthrough color profile so it can be streamed as-is.
-        for( auto native : { RS2_FORMAT_NV12, RS2_FORMAT_M420, RS2_FORMAT_YUYV } )
+        // Expose native image and calibration encodings as passthrough color profiles.
+        for( auto native : { RS2_FORMAT_NV12, RS2_FORMAT_M420, RS2_FORMAT_YUYV, RS2_FORMAT_RAW16 } )
             depth_sensor.register_processing_block( { { native, RS2_STREAM_COLOR } },
                                                       { { native, RS2_STREAM_COLOR, 1 }, { native, RS2_STREAM_COLOR, 2 } },
                                                       []() { return std::make_shared< identity_processing_block >(); } );
@@ -75,7 +86,6 @@ namespace librealsense
         d500_depth.add_stream( _color_stream_1 );
         d500_depth.add_stream( _color_stream_2 );
 
-        add_stream_combination_validator( [this]( const stream_profiles & requests ) { close_range_allowed_or_throw( requests ); } );
         add_stream_combination_validator( [this]( const stream_profiles & requests ) { frame_rates_allowed_or_throw( requests ); } );
 
         register_color_extrinsics();
@@ -84,7 +94,7 @@ namespace librealsense
         register_color_options( dev_info );
     }
 
-    // Both rules below only bite once a color stream shares the depth sensor's imagers.
+    // The rule below only bites once a color stream shares the depth sensor's imagers.
     static bool color_requested( const stream_profiles & requests )
     {
         return std::any_of( requests.begin(), requests.end(), []( auto & p )
@@ -95,22 +105,6 @@ namespace librealsense
     {
         return std::any_of( requests.begin(), requests.end(), []( auto & p )
                             { return p && ( p->get_stream_type() == RS2_STREAM_DEPTH || p->get_stream_type() == RS2_STREAM_INFRARED ); } );
-    }
-
-    // Close range works on depth only, so it cannot be enabled while a color stream starts.
-    void d500_dual_color::close_range_allowed_or_throw( const stream_profiles & requests ) const
-    {
-        if( ! color_requested( requests ) )
-            return;
-
-        // get_depth_sensor() has no const overload, and this rule only reads the filter's state.
-        auto & depth_sensor = dynamic_cast< const d500_depth_sensor & >( const_cast< d500_dual_color * >( this )->get_depth_sensor() );
-        for( auto & f : depth_sensor.get_supported_embedded_filters() )
-            if( f && f->get_type() == RS2_EMBEDDED_FILTER_TYPE_CLOSE_RANGE
-                && f->supports_option( RS2_OPTION_EMBEDDED_FILTER_ENABLED )
-                && f->get_option( RS2_OPTION_EMBEDDED_FILTER_ENABLED ).query() != 0.f )
-                throw wrong_api_call_sequence_exception(
-                    "Color streams cannot be activated while Improved Close Range Depth is enabled" );
     }
 
     // Produce a friendly stream name to the user, e.g. "Depth" / "Color 1"
@@ -178,6 +172,22 @@ namespace librealsense
     constexpr uint8_t D585_2C_RGB_PU_UNIT_ID  = 0x07;
     constexpr int     D585_2C_RGB_PU_KS_NODE = 6;
 
+    // The PU does not publish the same set on every platform - e.g. backlight compensation missing over GMSL.
+    // An unpublished control reads back as a degenerate range (V4L2) or throws (WMF).
+    static bool is_control_published( const option & opt, rs2_option id )
+    {
+        try
+        {
+            auto range = opt.get_range();
+            return ! ( range.min == 0.f && range.max == 0.f && range.def == 0.f && range.step == 0.f );
+        }
+        catch( const std::exception & e )
+        {
+            LOG_DEBUG( "Dual-color RGB control " << id << " not published: " << e.what() );
+            return false;
+        }
+    }
+
     void d500_dual_color::register_color_options( std::shared_ptr< const d500_info > const & dev_info )
     {
         // Route RGB controls via the RGB PU: node-based routing on WMF, a dedicated raw sensor on V4L2.
@@ -193,33 +203,43 @@ namespace librealsense
             return std::make_shared<uvc_pu_option>(raw_ep, option, rgb_pu);
         };
 
-        color_ep.register_option(RS2_OPTION_BACKLIGHT_COMPENSATION,
-                                 make_rgb_option(RS2_OPTION_BACKLIGHT_COMPENSATION));
-        color_ep.register_option(RS2_OPTION_BRIGHTNESS, make_rgb_option(RS2_OPTION_BRIGHTNESS));
-        color_ep.register_option(RS2_OPTION_CONTRAST, make_rgb_option(RS2_OPTION_CONTRAST));
-        color_ep.register_option(RS2_OPTION_SATURATION, make_rgb_option(RS2_OPTION_SATURATION));
-        color_ep.register_option(RS2_OPTION_GAMMA, make_rgb_option(RS2_OPTION_GAMMA));
-        color_ep.register_option(RS2_OPTION_SHARPNESS, make_rgb_option(RS2_OPTION_SHARPNESS));
-        color_ep.register_option(RS2_OPTION_HUE, make_rgb_option(RS2_OPTION_HUE));
+        auto register_if_published = [&color_ep]( rs2_option id, std::shared_ptr< option > opt )
+        {
+            // Registering unpublished would only add a dead control, verify befor registering.
+            if( ! is_control_published( *opt, id ) )
+                return;
+            color_ep.register_option( id, opt );
+        };
+
+        for( auto id : { RS2_OPTION_BACKLIGHT_COMPENSATION, RS2_OPTION_BRIGHTNESS, RS2_OPTION_CONTRAST,
+                         RS2_OPTION_SATURATION, RS2_OPTION_GAMMA, RS2_OPTION_SHARPNESS, RS2_OPTION_HUE } )
+            register_if_published( id, make_rgb_option( id ) );
 
         std::map<float, std::string> power_line_descriptions = {
             { 0.f, "Disabled" },
             { 1.f, "50Hz" },
             { 2.f, "60Hz" }
         };
-        color_ep.register_option(
-            RS2_OPTION_POWER_LINE_FREQUENCY,
-            std::make_shared<uvc_pu_option>(raw_ep,
-                                            RS2_OPTION_POWER_LINE_FREQUENCY,
-                                            rgb_pu,
-                                            power_line_descriptions));
+        register_if_published( RS2_OPTION_POWER_LINE_FREQUENCY,
+                               std::make_shared<uvc_pu_option>(raw_ep,
+                                                               RS2_OPTION_POWER_LINE_FREQUENCY,
+                                                               rgb_pu,
+                                                               power_line_descriptions));
 
         auto white_balance = make_rgb_option(RS2_OPTION_WHITE_BALANCE);
-        auto auto_white_balance = make_rgb_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE);
-        color_ep.register_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE, auto_white_balance);
-        color_ep.register_option(
-            RS2_OPTION_WHITE_BALANCE,
-            std::make_shared<auto_disabling_control>(white_balance, auto_white_balance));
+        if( is_control_published( *white_balance, RS2_OPTION_WHITE_BALANCE ) )
+        {
+            // Without auto white balance the manual control is still needed, just not wrapped in the auto-disabling proxy.
+            auto auto_white_balance = make_rgb_option( RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE );
+            if( is_control_published( *auto_white_balance, RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE ) )
+            {
+                color_ep.register_option( RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE, auto_white_balance );
+                color_ep.register_option( RS2_OPTION_WHITE_BALANCE,
+                                          std::make_shared< auto_disabling_control >( white_balance, auto_white_balance ) );
+            }
+            else
+                color_ep.register_option( RS2_OPTION_WHITE_BALANCE, white_balance );
+        }
     }
 
     std::shared_ptr< uvc_sensor > d500_dual_color::pick_rgb_pu_raw_endpoint(
@@ -325,8 +345,7 @@ namespace librealsense
     void d500_dual_color::resolve_color_stream( const std::vector< platform::stream_profile > & all,
                                               const platform::stream_profile & p, rs2_stream & type, int & index )
     {
-        if( p.format != rs_fourcc( 'M', '4', '2', '0' ) && p.format != rs_fourcc( 'N', 'V', '1', '2' )
-            && p.format != rs_fourcc( 'Y', 'U', 'Y', '2' ) && p.format != rs_fourcc( 'Y', 'U', 'Y', 'V' ) )
+        if( ! color_pin_formats.count( p.format ) )
             return;
 
         if( ! is_color_pin( all, p.pin_index ) )

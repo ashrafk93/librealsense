@@ -389,6 +389,7 @@ namespace rs2
         GLuint texture;
         rs2::frame_queue last_queue[2];
         mutable rs2::frame last[2];
+        std::vector< uint8_t > raw16_preview;
     public:
         std::shared_ptr<colorizer> colorize;
         std::shared_ptr<yuy_decoder> yuy2rgb;
@@ -695,6 +696,41 @@ namespace rs2
                 case RS2_FORMAT_Y10BPACK:
                     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_SHORT, data);
                     break;
+                case RS2_FORMAT_RAW16:
+                {
+                    if( !data || width <= 0 || height <= 0 )
+                        throw std::runtime_error( "invalid RAW16 frame" );
+
+                    const size_t row_bytes = static_cast< size_t >( width ) * sizeof( uint16_t );
+                    const size_t pixel_count = static_cast< size_t >( width ) * height;
+                    if( stride < static_cast< int >( row_bytes )
+                        || frame.get_data_size() < static_cast< size_t >( stride ) * height )
+                        throw std::runtime_error( "invalid RAW16 frame" );
+
+                    uint16_t max_sample = 0;
+                    for( int y = 0; y < height; ++y )
+                    {
+                        auto row = reinterpret_cast< const uint16_t * >(
+                            static_cast< const uint8_t * >( data ) + static_cast< size_t >( y ) * stride );
+                        max_sample = std::max( max_sample, *std::max_element( row, row + width ) );
+                    }
+
+                    unsigned shift = 0;
+                    while( (max_sample >> shift) > 0xff )
+                        ++shift;
+                    raw16_preview.resize( pixel_count );
+                    for( int y = 0; y < height; ++y )
+                    {
+                        auto row = reinterpret_cast< const uint16_t * >(
+                            static_cast< const uint8_t * >( data ) + static_cast< size_t >( y ) * stride );
+                        auto out = raw16_preview.data() + static_cast< size_t >( y ) * width;
+                        for( int x = 0; x < width; ++x )
+                            out[x] = static_cast< uint8_t >( row[x] >> shift );
+                    }
+                    glTexImage2D( GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
+                                  GL_LUMINANCE, GL_UNSIGNED_BYTE, raw16_preview.data() );
+                    break;
+                }
                 case RS2_FORMAT_RAW8:
                 case RS2_FORMAT_MOTION_RAW:
                 case RS2_FORMAT_GPIO_RAW:
