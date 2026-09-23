@@ -53,7 +53,7 @@ namespace librealsense
             persistence_max,
             persistence_step,
             persistence_default,
-            &_persistence_param, "How long a pixel keeps its last valid depth. More = fewer holes, staler depth");
+            &_persistence_param, "Persistency mode. Rules for replacing a missing pixel with its last valid value");
 
         temporal_persistence_control->set_description(0, "Disabled");
         temporal_persistence_control->set_description(1, "Valid in 8/8");
@@ -85,7 +85,7 @@ namespace librealsense
             temp_alpha_max,
             temp_alpha_step,
             temp_alpha_default,
-            &_alpha_param, "Smoothing over time. Lower = steadier depth but smears motion. 1 = filter off");
+            &_alpha_param, "Alpha factor of Exp. moving average, 1=no filter, 0=infinite filter. Smooths against previous frames");
         temporal_filter_alpha->on_set([this](float val)
         {
             on_set_alpha(val);
@@ -96,7 +96,7 @@ namespace librealsense
             temp_delta_max,
             temp_delta_step,
             temp_delta_default,
-            &_delta_param, "Change sensitivity. Higher = smooths over bigger depth differences");
+            &_delta_param, "Step-size boundary, the threshold used to preserve surfaces (edges). Higher = smooths over bigger depth differences");
 
         auto weak_temporal_filter_delta = std::weak_ptr<ptr_option<uint8_t>>();
         temporal_filter_delta->on_set([this, weak_temporal_filter_delta](float val)

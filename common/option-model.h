@@ -162,13 +162,6 @@ namespace rs2
         std::shared_ptr< option_async_state > _async_state = std::make_shared< option_async_state >();
     };
 
-    // Holes Filling is titled by its description rather than its name, to match the 3rd-party tools;
-    // null for every other option, which is titled by its name
-    inline char const * alternative_option_title( rs2_option opt )
-    {
-        return opt == RS2_OPTION_HOLES_FILL ? "Persistency mode" : nullptr;
-    }
-
     option_model create_option_model(option_value const & opt,
         const std::string& opt_base_label,
         subdevice_model* model,

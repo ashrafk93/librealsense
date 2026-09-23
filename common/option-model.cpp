@@ -30,8 +30,7 @@ namespace rs2
         option.opt = opt->id;
         option.endpoint = options;
         option.label = rsutils::string::from() << option_name << "##" << option.id;
-        auto const title = alternative_option_title( opt->id );
-        option.name = title ? title : option_name;   // the search matches what the control is titled
+        option.name = option_name;   // the search matches what the control is titled
         option.invalidate_flag = options_invalidated;
         option.dev = model;
         option.value = opt;
