@@ -122,18 +122,19 @@ namespace rs2
         if( ! objects )
             return false;
 
-        static const char * const labels[] = { "Off", "Host", "On-Camera" };
-        static const detection_distance_mode modes[]
-            = { detection_distance_mode::off, detection_distance_mode::host, detection_distance_mode::on_camera };
+        static const char * const labels[] = { "Off", "Application", "Camera" };
+        static const detection_distance_source sources[] = { detection_distance_source::none,
+                                                             detection_distance_source::application,
+                                                             detection_distance_source::camera };
 
         std::string const txt = rsutils::string::from() << opt_model.endpoint->get_option_name( opt_model.opt ) << ":";
         float const combo_position_x = ImGui::GetCursorPosX() + ImGui::CalcTextSize( txt.c_str() ).x + 5;
         ImGui::Text( "%s", txt.c_str() );
         if( ImGui::IsItemHovered() )
             RsImGui::CustomTooltip( "Distance shown on the object detection boxes\n"
-                                    "Off: none\n"
-                                    "Host: estimated by the viewer from the depth stream\n"
-                                    "On-Camera: calculated by the camera" );
+                                    "Off: no distance\n"
+                                    "Application: estimated by the application from the depth stream\n"
+                                    "Camera: calculated by the camera" );
 
         ImGui::SameLine();
         ImGui::SetCursorPosX( combo_position_x );
@@ -142,7 +143,7 @@ namespace rs2
 
         int selected = 0;
         for( int i = 0; i < 3; ++i )
-            if( modes[i] == objects->distance_mode )
+            if( sources[i] == objects->distance_source )
                 selected = i;
 
         bool changed = false;
@@ -150,12 +151,12 @@ namespace rs2
         {
             if( RsImGui::CustomComboBox( opt_model.id.c_str(), &selected, labels, 3 ) )
             {
-                objects->distance_mode = modes[selected];
+                objects->distance_source = sources[selected];
                 model.add_log( rsutils::string::from() << "Setting Detection Distance to " << labels[selected] );
                 // A recording replays the FW distances it captured; only a live camera takes the control
-                float const fw_value = detection_distance_fw_value( modes[selected] );
-                if( ! opt_model.dev->dev.is< playback >() && opt_model.value_as_float() != fw_value )
-                    opt_model.set_option_async( opt_model.opt, fw_value );
+                float const control_value = detection_distance_control_value( sources[selected] );
+                if( ! opt_model.dev->dev.is< playback >() && opt_model.value_as_float() != control_value )
+                    opt_model.set_option_async( opt_model.opt, control_value );
                 changed = true;
             }
         }
@@ -199,11 +200,14 @@ namespace rs2
             if( distance_opt != options_metadata.end() && detected_objects )
             {
                 distance_opt->second.custom_draw_method = draw_detection_distance_combo;
-                // Start from the camera's state; a later repopulate keeps the user's choice
-                if( detected_objects->distance_mode == detection_distance_mode::fallback )
-                    detected_objects->distance_mode = distance_opt->second.value_as_float() > 0.f
-                                                        ? detection_distance_mode::on_camera
-                                                        : detection_distance_mode::off;
+                // Start from the camera's control once; a later repopulate keeps the user's choice
+                if( ! detected_objects->distance_source_initialized )
+                {
+                    detected_objects->distance_source = distance_opt->second.value_as_float() > 0.f
+                                                          ? detection_distance_source::camera
+                                                          : detection_distance_source::none;
+                    detected_objects->distance_source_initialized = true;
+                }
             }
 
             s->on_options_changed( [this]( const options_list & list )
