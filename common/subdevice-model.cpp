@@ -200,14 +200,10 @@ namespace rs2
             if( distance_opt != options_metadata.end() && detected_objects )
             {
                 distance_opt->second.custom_draw_method = draw_detection_distance_combo;
-                // Start from the camera's control once; a later repopulate keeps the user's choice
-                if( ! detected_objects->distance_source_initialized )
-                {
-                    detected_objects->distance_source = distance_opt->second.value_as_float() > 0.f
-                                                          ? detection_distance_source::camera
-                                                          : detection_distance_source::none;
-                    detected_objects->distance_source_initialized = true;
-                }
+                // Start from the camera's control; a repopulate keeps Application, the one choice the control can't show
+                detected_objects->distance_source
+                    = follow_detection_distance_control( detected_objects->distance_source,
+                                                         distance_opt->second.value_as_float() );
             }
 
             s->on_options_changed( [this]( const options_list & list )
@@ -2442,6 +2438,18 @@ namespace rs2
         // update() in the future (or below this point) is not silently throttled.
         // `value` stays fresh during the gate via options_watcher -> on_options_changed.
         const bool user_writing = last_user_set_stopwatch.get_elapsed_ms() < 500;
+
+        // Detection Distance can change outside the combo (another app, ROS, a FW reset). Follow it here, every frame,
+        // so the overlay matches the camera even with the panel collapsed. While a combo write is pending,
+        // value_as_float() returns the requested value, so this doesn't undo the user's choice. A recording's control
+        // is fixed, so there only the combo sets the source.
+        if( detected_objects && ! dev.is< playback >() )
+        {
+            auto it = options_metadata.find( RS2_OPTION_DETECTION_DISTANCE );
+            if( it != options_metadata.end() && it->second.supported )
+                detected_objects->distance_source
+                    = follow_detection_distance_control( detected_objects->distance_source, it->second.value_as_float() );
+        }
 
         if (!user_writing && _options_invalidated)
         {

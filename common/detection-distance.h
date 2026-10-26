@@ -19,6 +19,16 @@ namespace rs2
         return source == detection_distance_source::camera ? 1.f : 0.f;
     }
 
+    // Keep the source in step with the camera's control, which another app, ROS or a FW reset can change: the camera
+    // calculates only while the control is on, and Application is the one choice that leaves it off
+    inline detection_distance_source follow_detection_distance_control( detection_distance_source source,
+                                                                        float control_value )
+    {
+        if( control_value > 0.f )
+            return detection_distance_source::camera;
+        return source == detection_distance_source::application ? source : detection_distance_source::none;
+    }
+
     // Whether the application has to estimate the distance itself
     inline bool needs_application_detection_distance( detection_distance_source source )
     {
@@ -35,8 +45,9 @@ namespace rs2
             return 0.f;
         case detection_distance_source::application:
             return application_distance;
-        default:
+        case detection_distance_source::camera:
             return camera_distance;
         }
+        return 0.f;  // not reached; no default, so a new source is flagged by -Wswitch
     }
 }

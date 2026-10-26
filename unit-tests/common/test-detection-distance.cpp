@@ -36,3 +36,18 @@ TEST_CASE( "detection-distance/camera uses the FW distance only", "[detection-di
     CHECK( pick_detection_distance( detection_distance_source::camera, 0.f, 1.7f ) == 0.f );  // FW out of range
     CHECK( detection_distance_control_value( detection_distance_source::camera ) == 1.f );
 }
+
+TEST_CASE( "detection-distance/the source follows the camera's control", "[detection-distance]" )
+{
+    using rs2::follow_detection_distance_control;
+    // Control turned on (by the combo, another app, ROS): the camera calculates, so show its distance
+    CHECK( follow_detection_distance_control( detection_distance_source::none, 1.f ) == detection_distance_source::camera );
+    CHECK( follow_detection_distance_control( detection_distance_source::application, 1.f )
+           == detection_distance_source::camera );
+    CHECK( follow_detection_distance_control( detection_distance_source::camera, 1.f ) == detection_distance_source::camera );
+    // Control off: no camera distance; Application stays, since it is the one choice that keeps the control off
+    CHECK( follow_detection_distance_control( detection_distance_source::camera, 0.f ) == detection_distance_source::none );
+    CHECK( follow_detection_distance_control( detection_distance_source::none, 0.f ) == detection_distance_source::none );
+    CHECK( follow_detection_distance_control( detection_distance_source::application, 0.f )
+           == detection_distance_source::application );
+}
